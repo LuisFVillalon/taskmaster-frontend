@@ -38,6 +38,9 @@ export async function createTask(task: {
   due_date?: string;
   due_time?: string;
   tags: { name: string; color?: string }[];
+  category?: string | null;
+  created_date: string;
+  completed_date?: string | null;
 }) {
   const res = await fetch(`${API_BASE_URL}/create-task`, {
     method: "POST",
@@ -95,6 +98,8 @@ export async function updateWholeTask(id: number, task: {
   due_date?: string;
   due_time?: string;
   tags: { name: string; color?: string }[];
+  category?: string | null;
+  completed_date?: string | null;
 }) {
   const res = await fetch(`${API_BASE_URL}/update-task/${id}`, {
     method: "PUT",

@@ -84,6 +84,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
             />
           </div>
 
+
           {/* Due Date & Time */}
           <div className="grid grid-cols-2 gap-4">
             <div>

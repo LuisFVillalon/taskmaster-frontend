@@ -54,7 +54,8 @@ export const useTaskManagerState = () => {
     urgent: false,
     due_date: '',
     due_time: '',
-    tags: []
+    tags: [],
+    category: null
   });
 
   return {

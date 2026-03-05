@@ -66,6 +66,11 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, index, onToggleComplete, tags
             >
                 {task.title}
             </h3>
+            {task.category && (
+              <span className="mt-1 inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+                {task.category.charAt(0).toUpperCase() + task.category.slice(1)}
+              </span>
+            )}
 
             <div className="flex items-center gap-1.5">
                 {task.urgent && !task.completed && (

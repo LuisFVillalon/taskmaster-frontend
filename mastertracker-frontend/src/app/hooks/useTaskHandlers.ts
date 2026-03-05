@@ -80,7 +80,6 @@ export const useTaskHandlers = ({
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const success = await addTask(newTask);
     if (success) {
       setShowNewTaskModal(false);
@@ -90,7 +89,8 @@ export const useTaskHandlers = ({
         urgent: false,
         due_date: '',
         due_time: '',
-        tags: []
+        tags: [],
+        category: null
       });
     }
   };
@@ -114,7 +114,9 @@ export const useTaskHandlers = ({
           ? showEditTaskModal.task.due_time.toISOString().slice(11, 16)
           : showEditTaskModal.task.due_time)
         : '',
-      tags: showEditTaskModal.task.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color }))
+      tags: showEditTaskModal.task.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
+      category: showEditTaskModal.task.category ?? null,
+      completed_date: showEditTaskModal.task.completed_date
     };
 
     const success = await updateTask(showEditTaskModal.task.id, taskData);

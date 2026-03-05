@@ -30,6 +30,8 @@ export interface Tag {
   color: string;
 }
 
+export type TaskCategory = 'homework' | 'test' | 'project' | 'interview' | 'skill';
+
 export interface Task {
   id: number;
   title: string;
@@ -39,6 +41,10 @@ export interface Task {
   due_date: string | Date | null;
   due_time: string | Date | null;
   tags: Tag[];
+  // optional category that classifies the task
+  category?: TaskCategory | null;
+  created_date: string | Date;
+  completed_date: string | Date | null;
 }
 
 export type FilterType = 'all' | 'active' | 'completed' | 'urgent';
@@ -50,12 +56,15 @@ export interface BaseTaskForm {
   due_date: string;
   due_time: string;
   tags: Tag[];
+  // optional value coming from TaskCategory union
+  category?: TaskCategory | null;
 }
 
 export interface NewTaskForm extends BaseTaskForm {}
 
 export interface EditTaskForm extends BaseTaskForm {
   completed: boolean;
+  completed_date: string | Date | null;
 }
 
 export interface NewTagForm extends Omit<Tag, 'id'> {}

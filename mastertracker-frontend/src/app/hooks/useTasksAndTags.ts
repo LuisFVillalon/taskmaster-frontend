@@ -17,7 +17,7 @@ import { fetchTasks,
     onDelete, 
     onDeleteTag,
     updateTag as updateTagApi,
-    updateCompleteTask, 
+    // updateCompleteTask, 
     updateWholeTask 
 } from "@/app/lib/api";
 import { Task, Tag, NewTaskForm, NewTagForm, EditTaskForm } from '@/app/types/task';
@@ -38,7 +38,10 @@ export const useTasks = (demo: boolean = false) => {
           urgent: true,
           due_date: "2026-03-01",
           due_time: "10:00",
-          tags: [{ id: 2, name: "Study", color: "#10B981" }]
+          tags: [{ id: 2, name: "Study", color: "#10B981" }],
+          category: 'homework',
+          created_date: "2026-02-01T09:00:00Z",
+          completed_date: null
         },
         {
           id: 4,
@@ -48,7 +51,10 @@ export const useTasks = (demo: boolean = false) => {
           urgent: false,
           due_date: null,
           due_time: null,
-          tags: [{ id: 1, name: "Work", color: "#3B82F6" }]
+          tags: [{ id: 1, name: "Work", color: "#3B82F6" }],
+          category: 'project',
+          created_date: "2026-02-02T10:00:00Z",
+          completed_date: null
         },
         {
           id: 5,
@@ -58,7 +64,10 @@ export const useTasks = (demo: boolean = false) => {
           urgent: false,
           due_date: "2026-02-14",
           due_time: "11:59 PM",
-          tags: [{ id: 3, name: "Personal", color: "#F59E0B"  }]
+          tags: [{ id: 3, name: "Personal", color: "#F59E0B"  }],
+          category: 'test',
+          created_date: "2026-01-15T14:00:00Z",
+          completed_date: "2026-02-14T23:59:00Z"
         },
       ];
       setTasks(sampleTasks);
@@ -81,11 +90,39 @@ export const useTasks = (demo: boolean = false) => {
     loadTasks();
   }, [demo]);
 
-  const toggleComplete = (id: number): void => {
-    setTasks(tasks.map(task =>
-      task.id === id ? { ...task, completed: !task.completed } : task
+  const toggleComplete = async (id: number): Promise<void> => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+
+    const newCompleted = !task.completed;
+    const newCompletedDate = newCompleted ? new Date() : null;
+
+    setTasks(tasks.map(t =>
+      t.id === id ? { ...t, completed: newCompleted, completed_date: newCompletedDate } : t
     ));
-    updateCompleteStatus(id)
+
+    if (demo) return;
+
+    try {
+      await updateWholeTask(id, {
+        title: task.title,
+        description: task.description,
+        completed: newCompleted,
+        urgent: task.urgent,
+        due_date: task.due_date ? (task.due_date instanceof Date ? task.due_date.toISOString().slice(0, 10) : task.due_date) : '',
+        due_time: task.due_time ? (task.due_time instanceof Date ? task.due_time.toISOString().slice(11, 16) : task.due_time) : '',
+        tags: task.tags.map(tag => ({ name: tag.name, color: tag.color })),
+        category: task.category ?? null,
+        completed_date: newCompletedDate ? newCompletedDate.toISOString() : null
+      });
+    } catch (err) {
+      console.error('Toggle complete failed:', err);
+      alert("Failed to update task completion");
+      // Revert local state
+      setTasks(tasks.map(t =>
+        t.id === id ? { ...t, completed: task.completed, completed_date: task.completed_date } : t
+      ));
+    }
   };
 
   const addTask = async (newTask: NewTaskForm) => {
@@ -98,14 +135,24 @@ export const useTasks = (demo: boolean = false) => {
         urgent: newTask.urgent,
         due_date: newTask.due_date,
         due_time: newTask.due_time,
-        tags: newTask.tags || []
+        tags: newTask.tags || [],
+        category: newTask.category ?? null,
+        created_date: new Date(),
+        completed_date: null
       };
       setTasks([createdTask, ...tasks]);
       return true;
     }
     try {
-        const createdTask = await createTask(newTask);
+        const taskWithDates = {
+          ...newTask,
+          created_date: new Date().toISOString(),
+          completed_date: null,
+          completed: false
+        };
+        const createdTask = await createTask(taskWithDates);
         setTasks([createdTask, ...tasks]);
+
         return true;
     } catch (err) {
         console.error(err);
@@ -132,17 +179,17 @@ export const useTasks = (demo: boolean = false) => {
     }
   };
 
-  const updateCompleteStatus = async (id_task: number) => {
-    if (demo) return true;
-    try {
-        await updateCompleteTask(id_task);
-        return true;
-    } catch (err) {
-        console.error('Delete failed:', err);
-        alert("Failed to update complete status on task");
-        return false;
-    }
-  };
+  // const updateCompleteStatus = async (id_task: number) => {
+  //   if (demo) return true;
+  //   try {
+  //       await updateCompleteTask(id_task);
+  //       return true;
+  //   } catch (err) {
+  //       console.error('Delete failed:', err);
+  //       alert("Failed to update complete status on task");
+  //       return false;
+  //   }
+  // };
 
   const updateTask = async (id: number, updatedTask: EditTaskForm) => {
     if (demo) {
@@ -150,7 +197,12 @@ export const useTasks = (demo: boolean = false) => {
       return true;
     }
     try {
-        const updated = await updateWholeTask(id, updatedTask) as Task;
+        const taskToUpdate = {
+          ...updatedTask,
+          completed_date: updatedTask.completed_date instanceof Date ? updatedTask.completed_date.toISOString() : updatedTask.completed_date,
+          category: updatedTask.category ?? null
+        };
+        const updated = await updateWholeTask(id, taskToUpdate) as Task;
         console.log(updatedTask)
         setTasks(prev => prev.map(task => task.id === id ? updated : task));
         return true;
