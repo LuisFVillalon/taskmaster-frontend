@@ -97,8 +97,9 @@ export async function updateWholeTask(id: number, task: {
   urgent?: boolean;
   due_date?: string;
   due_time?: string;
-  tags: { name: string; color?: string }[];
+  tags: { id: number; name: string; color: string }[];
   category?: string | null;
+  created_date?: string | null;
   completed_date?: string | null;
 }) {
   const res = await fetch(`${API_BASE_URL}/update-task/${id}`, {

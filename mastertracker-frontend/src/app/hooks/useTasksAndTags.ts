@@ -21,7 +21,18 @@ import { fetchTasks,
     updateWholeTask 
 } from "@/app/lib/api";
 import { Task, Tag, NewTaskForm, NewTagForm, EditTaskForm } from '@/app/types/task';
-
+// Helper function to format date in local timezone (not UTC)
+const getLocalISOString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  const ms = String(date.getMilliseconds()).padStart(3, '0');
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}`;
+};
 export const useTasks = (demo: boolean = false) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -93,16 +104,24 @@ export const useTasks = (demo: boolean = false) => {
   const toggleComplete = async (id: number): Promise<void> => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
-
+    
     const newCompleted = !task.completed;
-    const newCompletedDate = newCompleted ? new Date() : null;
+    const newCompletedDate = newCompleted ? getLocalISOString(new Date()) : null;
 
-    setTasks(tasks.map(t =>
-      t.id === id ? { ...t, completed: newCompleted, completed_date: newCompletedDate } : t
-    ));
+    setTasks(prev =>
+      prev.map(t =>
+        t.id === id
+          ? {
+              ...t,
+              completed: newCompleted,
+              completed_date: newCompletedDate
+            }
+          : t
+      )
+    );
 
     if (demo) return;
-
+    
     try {
       await updateWholeTask(id, {
         title: task.title,
@@ -111,9 +130,10 @@ export const useTasks = (demo: boolean = false) => {
         urgent: task.urgent,
         due_date: task.due_date ? (task.due_date instanceof Date ? task.due_date.toISOString().slice(0, 10) : task.due_date) : '',
         due_time: task.due_time ? (task.due_time instanceof Date ? task.due_time.toISOString().slice(11, 16) : task.due_time) : '',
-        tags: task.tags.map(tag => ({ name: tag.name, color: tag.color })),
+        tags: task.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
         category: task.category ?? null,
-        completed_date: newCompletedDate ? newCompletedDate.toISOString() : null
+        created_date: task.created_date instanceof Date ? getLocalISOString(task.created_date) : (typeof task.created_date === 'string' ? task.created_date : null),
+        completed_date: newCompletedDate
       });
     } catch (err) {
       console.error('Toggle complete failed:', err);
@@ -137,7 +157,7 @@ export const useTasks = (demo: boolean = false) => {
         due_time: newTask.due_time,
         tags: newTask.tags || [],
         category: newTask.category ?? null,
-        created_date: new Date(),
+        created_date: getLocalISOString(new Date()),
         completed_date: null
       };
       setTasks([createdTask, ...tasks]);
@@ -146,7 +166,7 @@ export const useTasks = (demo: boolean = false) => {
     try {
         const taskWithDates = {
           ...newTask,
-          created_date: new Date().toISOString(),
+          created_date: getLocalISOString(new Date()),
           completed_date: null,
           completed: false
         };
@@ -199,11 +219,11 @@ export const useTasks = (demo: boolean = false) => {
     try {
         const taskToUpdate = {
           ...updatedTask,
+          tags: updatedTask.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
           completed_date: updatedTask.completed_date instanceof Date ? updatedTask.completed_date.toISOString() : updatedTask.completed_date,
           category: updatedTask.category ?? null
         };
         const updated = await updateWholeTask(id, taskToUpdate) as Task;
-        console.log(updatedTask)
         setTasks(prev => prev.map(task => task.id === id ? updated : task));
         return true;
     } catch (err) {
