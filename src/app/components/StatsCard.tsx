@@ -31,7 +31,7 @@ const StatsCard: React.FC<StatsCardProps> = ({ title, stats, color = '#3B82F6' }
   return (
     <div className="text-black bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
       {/* Mobile: Stack vertically, Desktop: Side by side */}
-      <div className='flex flex-col sm:flex-row gap-3 sm:gap-4'>
+      <div className='flex flex-col md:flex-row gap-3 sm:gap-4'>
         
         {/* Count Section */}
         <div className="flex sm:flex-col items-center sm:items-start gap-3 sm:gap-0 min-w-fit">
@@ -50,7 +50,7 @@ const StatsCard: React.FC<StatsCardProps> = ({ title, stats, color = '#3B82F6' }
         {stats.tags.length > 0 && (
           <div className="flex-1 w-full">
             {/* Mobile: Single column or wrap, Desktop: Grid */}
-            <div className="flex flex-wrap sm:grid sm:grid-cols-2 lg:grid-rows-2 lg:grid-flow-col lg:auto-cols-fr gap-1.5 sm:gap-x-3 sm:gap-y-1.5 lg:gap-x-4 lg:gap-y-2">
+            <div className="flex flex-wrap grid-rows-2 grid-flow-col auto-cols-fr gap-1.5 sm:gap-x-3 sm:gap-y-1.5 lg:gap-x-4 lg:gap-y-2">
               {stats.tags.map(tag => (
                 <div
                   key={tag.name}

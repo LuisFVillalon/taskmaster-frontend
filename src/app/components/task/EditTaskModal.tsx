@@ -55,6 +55,20 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
           </button>
         </div>
         <form onSubmit={onSubmit} className="p-6 space-y-5">
+          {/* Urgent Checkbox */}
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="urgent"
+              checked={values.task.urgent}
+              onChange={(e) => onTaskChange({ ...values.task!, urgent: e.target.checked })}
+              className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+            />
+            <label htmlFor="urgent" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-orange-500" />
+              Mark as urgent
+            </label>
+          </div>          
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -69,7 +83,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black"
             />
           </div>
-
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -83,8 +96,105 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none text-black"
             />
           </div>
+          {/* Estimated Hours & Complexity */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Estimated Hours */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Estimated Hours
+              </label>
+              <input
+                type="number"
+                min={0}
+                step={0.5}
+                value={values.task.estimated_time ?? ''}
+                onChange={(e) =>
+                  onTaskChange({
+                    ...values.task!,
+                    estimated_time: e.target.value,
+                  })
+                }
+                placeholder="e.g. 2.5"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Increments of 0.5 hours
+              </p>
+            </div>
 
+            {/* Complexity */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Complexity
+              </label>
 
+              <div className="relative">
+                {/* Background Track */}
+                <div className="h-2 bg-gray-200 rounded-full" />
+
+                {/* Filled Track */}
+                <div
+                  className="absolute top-0 left-0 h-2 bg-blue-600 rounded-full transition-all"
+                  style={{
+                    width: `${((values.task.complexity -1) / 4) * 100}%`,
+                  }}
+                />
+
+                {/* Range Input */}
+                <input
+                  type="range"
+                  min={1}
+                  max={5}
+                  step={1}
+                  value={values.task.complexity ?? 0}
+                  onChange={(e) =>
+                    onTaskChange({
+                      ...values.task!,
+                      complexity: parseInt(e.target.value),
+                    })
+                  }
+                  className="absolute top-0 left-0 w-full h-2 appearance-none bg-transparent cursor-pointer"
+                />
+
+                <style jsx>{`
+                  input[type='range']::-webkit-slider-thumb {
+                    appearance: none;
+                    height: 18px;
+                    width: 18px;
+                    border-radius: 9999px;
+                    background: white;
+                    border: 3px solid #2563eb;
+                    cursor: pointer;
+                    transition: 0.2s ease;
+                  }
+
+                  input[type='range']::-webkit-slider-thumb:hover {
+                    transform: scale(1.1);
+                  }
+
+                  input[type='range']::-moz-range-thumb {
+                    height: 18px;
+                    width: 18px;
+                    border-radius: 9999px;
+                    background: white;
+                    border: 3px solid #2563eb;
+                    cursor: pointer;
+                  }
+                `}</style>
+              </div>
+
+              <div className="flex justify-between text-xs text-gray-500 mt-2">
+                <span>Very Easy</span>
+                <span>Very Hard</span>
+              </div>
+
+              <div className="mt-3 flex justify-center">
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-semibold rounded-full">
+                  Level {values.task.complexity ?? 0}
+                </span>
+              </div>
+            </div>
+          </div>
           {/* Due Date & Time */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -168,21 +278,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                 })}
               </div>
             )}
-          </div>
-
-          {/* Urgent Checkbox */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="urgent"
-              checked={values.task.urgent}
-              onChange={(e) => onTaskChange({ ...values.task!, urgent: e.target.checked })}
-              className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-            />
-            <label htmlFor="urgent" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-orange-500" />
-              Mark as urgent
-            </label>
           </div>
 
           {/* Buttons */}

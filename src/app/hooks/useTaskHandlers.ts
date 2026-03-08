@@ -100,6 +100,7 @@ export const useTaskHandlers = ({
 
     if (!showEditTaskModal.task) return;
     const taskData: EditTaskForm = {
+      user_id: showEditTaskModal.task.user_id,
       title: showEditTaskModal.task.title,
       description: showEditTaskModal.task.description,
       urgent: showEditTaskModal.task.urgent,
@@ -116,7 +117,9 @@ export const useTaskHandlers = ({
         : '',
       tags: showEditTaskModal.task.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
       category: showEditTaskModal.task.category ?? null,
-      completed_date: showEditTaskModal.task.completed_date
+      completed_date: showEditTaskModal.task.completed_date,
+      complexity: showEditTaskModal.task.complexity ?? 0,
+      estimated_time: showEditTaskModal.task.estimated_time ?? null,
     };
 
     const success = await updateTask(showEditTaskModal.task.id, taskData);

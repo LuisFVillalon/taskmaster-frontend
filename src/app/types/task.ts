@@ -22,6 +22,8 @@ These types define the structure of all data used in the application.
 export interface EditTaskModalState {
   status: boolean;
   task: Task | null;
+  estimated_time?: string | null;
+  complexity?: number | null;
 };
 
 export interface Tag {
@@ -30,6 +32,7 @@ export interface Tag {
   color: string;
 }
 
+export type FilterType = 'all' | 'active' | 'completed' | 'urgent';
 export type TaskCategory = 'homework' | 'test' | 'project' | 'interview' | 'skill';
 
 export interface Task {
@@ -45,9 +48,12 @@ export interface Task {
   category?: TaskCategory | null;
   created_date: string | Date;
   completed_date: string | Date | null;
+  estimated_time?: string | null;
+  complexity?: number | null;
+  parent_task_id?: number | null;
+  user_id: number;
 }
 
-export type FilterType = 'all' | 'active' | 'completed' | 'urgent';
 
 export interface BaseTaskForm {
   title: string;
@@ -58,9 +64,16 @@ export interface BaseTaskForm {
   tags: Tag[];
   // optional value coming from TaskCategory union
   category?: TaskCategory | null;
+  estimated_time?: string | null;
+  complexity?: number | null;
+  parent_task_id?: number | null;
+  user_id: number;
 }
 
-export interface NewTaskForm extends BaseTaskForm {}
+export interface NewTaskForm extends BaseTaskForm {
+  created_time: string;
+
+}
 
 export interface EditTaskForm extends BaseTaskForm {
   completed: boolean;

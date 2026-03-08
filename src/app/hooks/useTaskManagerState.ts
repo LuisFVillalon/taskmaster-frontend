@@ -55,7 +55,10 @@ export const useTaskManagerState = () => {
     due_date: '',
     due_time: '',
     tags: [],
-    category: null
+    category: null,
+    created_time: '',
+    estimated_time: null,
+    complexity: null
   });
 
   return {

@@ -14,9 +14,10 @@ These variables are used to display task information and handle user interaction
 */
 
 import React from 'react';
-import { Check, Clock, AlertCircle, Trash2, Pencil } from 'lucide-react';
+import { Check, Clock, AlertCircle, Trash2, Pencil, BarChart3, Calendar  } from 'lucide-react';
 import { Task } from '@/app/types/task';
-import { formatDueDate, formatDueTime, getDueDateColor } from '@/app/utils/taskUtils';
+// import { formatDueDate, formatDueTime, getDueDateColor } from '@/app/utils/taskUtils';
+import { getDueColor, getDurationColor, getComplexityColor, formatTime12Hour, formatDueDate } from '@/app/utils/taskUtils';
 
 interface TaskItemProps {
   task: Task;
@@ -39,12 +40,18 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, index, onToggleComplete, tags
         });
     };    
   return (
-    <div
-      className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all active:scale-[0.99]"
-      style={{
-        animation: `fadeIn 0.3s ease-out ${index * 0.05}s both`
-      }}
-    >
+      <div
+        className={`
+          ${task.completed ? "bg-green-300 border-green-200" : "bg-white border-gray-100"}
+          rounded-xl sm:rounded-2xl 
+          p-4 sm:p-6 
+          shadow-sm hover:shadow-md 
+          transition-all active:scale-[0.99]
+        `}
+        style={{
+          animation: `fadeIn 0.3s ease-out ${index * 0.05}s both`
+        }}
+      >
       <div className="flex items-start gap-3 sm:gap-4">
         <button
           onClick={() => onToggleComplete(task.id)}
@@ -67,19 +74,16 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, index, onToggleComplete, tags
                 {task.title}
             </h3>
             {task.category && (
-              <span className="mt-1 inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
-                {task.category.charAt(0).toUpperCase() + task.category.slice(1)}
+              <span className="mt-1 inline-block px-2 py-0.5 bg-blue-100 text-blue-800 font-bold text-xs rounded-full">
+                {task.category.toUpperCase()}
               </span>
             )}
 
             <div className="flex items-center gap-1.5">
-                {task.urgent && !task.completed && (
-                <span className="flex-shrink-0 px-2 sm:px-3 py-0.5 sm:py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium flex items-center gap-1">
+                <span className="flex-shrink-0 px-2 sm:px-3 py-0.5 sm:py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
-                    <span className="hidden sm:inline">Urgent</span>
+                    <span className="hidden sm:inline">URGENT</span>
                 </span>
-                )}
-
                 {/* Edit button */}
                 <button
                     onClick={() =>
@@ -104,27 +108,14 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, index, onToggleComplete, tags
                 </button>
             </div>
           </div>
-          <p className={`break-words text-xs sm:text-sm mb-3 leading-relaxed ${
-            task.completed ? 'text-gray-400' : 'text-gray-600'
+          <p className={`text-xs sm:text-sm mb-3 leading-relaxed px-3 py-2 rounded-lg ${
+            task.completed 
+              ? 'line-through text-gray-300 bg-gray-50' 
+              : 'text-gray-500 bg-slate-50'
           }`}>
             {task.description}
           </p>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-            <div className={`flex items-center gap-1.5 text-xs sm:text-sm ${getDueDateColor(task.due_date, task.completed)}`}>
-              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              {formatDueDate(task.due_date)}
-            </div>
-            {task.due_time ? (
-              <div className={`flex items-center gap-1.5 text-xs sm:text-sm ${task.completed ? 'text-gray-400' : 'text-gray-500'}`}>
-                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                {formatDueTime(task.due_time)}
-              </div> ) : (
-              <div className={`flex items-center gap-1.5 text-xs sm:text-sm ${task.completed ? 'text-gray-400' : 'text-gray-500'}`}>
-                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <p>--:--</p>
-              </div>
-            )}
-
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               {task.tags && task.tags.map((tagName, i) => {
                 const tagData = tags.find(t => t.name === tagName.name);
@@ -143,6 +134,79 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, index, onToggleComplete, tags
               })}
             </div>
           </div>
+          {/* Task Details Section */}
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
+
+              {/* Due */}
+              <div>
+                <p className="text-gray-400 font-semibold uppercase tracking-wide text-[10px] mb-1">
+                  Due
+                </p>
+                <div className={`flex flex-col gap-1 px-3 py-2 rounded-lg ${getDueColor(task.due_date)}`}>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    <span>{formatDueDate(task.due_date ?? null, task.due_time ?? null)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    <span>
+                      {formatTime12Hour(
+                        typeof task.due_time === "string" ? task.due_time : null
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Created */}
+              <div>
+                <p className="text-gray-400 font-semibold uppercase tracking-wide text-[10px] mb-1">
+                  Created
+                </p>
+                <div className="flex flex-col gap-1 px-3 py-2 rounded-lg bg-gray-50 text-gray-700">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    {new Date(task.created_date).toLocaleDateString()}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    {new Date(task.created_date).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Estimated Duration */}
+              <div>
+                <p className="text-gray-400 font-semibold uppercase tracking-wide text-[10px] mb-1">
+                  Est. Duration
+                </p>
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${getDurationColor(Number(task.estimated_time))}`}>
+                  <Clock className="w-4 h-4" />
+                  <span>
+                    {task.estimated_time != null ? `${task.estimated_time} hrs` : "--"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Complexity */}
+              <div>
+                <p className="text-gray-400 font-semibold uppercase tracking-wide text-[10px] mb-1">
+                  Complexity
+                </p>
+                <div className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg ${getComplexityColor(task.complexity)}`}>
+                  <div className="flex items-center gap-1">
+                    <BarChart3 className="w-4 h-4" />
+                    <span>Level {task.complexity ?? "--"}</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div> 
         </div>
       </div>
     </div>

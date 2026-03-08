@@ -14,86 +14,101 @@ These utilities are used throughout the application for displaying and sorting t
 
 import { Task } from '@/app/types/task';
 
-export const formatDueTime = (
-  time: string | Date | null | undefined
+// export const formatDueTime = (
+//   time: string | Date | null | undefined
+// ): string => {
+//   if (!time) return '';
+
+//   // If it's a string like "14:30"
+//   if (typeof time === 'string') {
+//     const [hours, minutes] = time.split(':').map(Number);
+
+//     if (isNaN(hours) || isNaN(minutes)) return time;
+
+//     const date = new Date();
+//     date.setHours(hours, minutes, 0);
+
+//     return date.toLocaleTimeString('en-US', {
+//       hour: 'numeric',
+//       minute: '2-digit',
+//       hour12: true
+//     });
+//   }
+
+//   // If it's a Date object
+//   return time.toLocaleTimeString('en-US', {
+//     hour: 'numeric',
+//     minute: '2-digit',
+//     hour12: true
+//   });
+// };
+
+export const formatDueDate = (
+  date: string | Date | null | undefined,
+  time?: string | null  // e.g. "23:59"
 ): string => {
-  if (!time) return '';
-
-  // If it's a string like "14:30"
-  if (typeof time === 'string') {
-    const [hours, minutes] = time.split(':').map(Number);
-
-    if (isNaN(hours) || isNaN(minutes)) return time;
-
-    const date = new Date();
-    date.setHours(hours, minutes, 0);
-
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  }
-
-  // If it's a Date object
-  return time.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-};
-
-export const formatDueDate = (date: string | Date | null | undefined): string => {
-  if (!date) return 'No date';
+  if (!date) return "No date";
 
   let dueDate: Date;
 
-  if (typeof date === 'string') {
-    // Force LOCAL date instead of UTC
-    const [year, month, day] = date.split('-').map(Number);
-    dueDate = new Date(year, month - 1, day);
+  if (typeof date === "string") {
+    const parts = date.split("-");
+    if (parts.length === 3) {
+      const [year, month, day] = parts.map(Number);
+      dueDate = new Date(year, month - 1, day);
+    } else {
+      dueDate = new Date(date);
+    }
   } else {
     dueDate = new Date(date);
   }
 
-  if (isNaN(dueDate.getTime())) return 'Invalid date';
+  if (isNaN(dueDate.getTime())) return "Invalid date";
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  dueDate.setHours(0, 0, 0, 0);
+  if (time) {
+    const [hours, minutes] = time.split(":").map(Number);
+    dueDate.setHours(hours, minutes, 59, 999);
+  } else {
+    dueDate.setHours(23, 59, 59, 999); // fallback to end of day
+  }
 
-  const oneDay = 1000 * 60 * 60 * 24;
-  const diff = Math.round((dueDate.getTime() - today.getTime()) / oneDay);
+  const now = new Date();
+  const diffDays = Math.round(
+    (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  );
 
-  if (diff < 0) return 'Overdue';
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Tomorrow';
+  if (diffDays < 0) return "Overdue";
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
 
-  return dueDate.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric'
+  const isThisYear = dueDate.getFullYear() === now.getFullYear();
+
+  return dueDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(isThisYear ? {} : { year: "numeric" }),
   });
 };
 
-export const getDueDateColor = (date: string | Date | null | undefined, completed: boolean): string => {
-  if (completed) return 'text-gray-400';
-  if (!date) return 'text-gray-500';
+// export const getDueDateColor = (date: string | Date | null | undefined, completed: boolean): string => {
+//   if (completed) return 'text-gray-400';
+//   if (!date) return 'text-gray-500';
 
-  const dueDate = typeof date === 'string' ? new Date(date) : date;
+//   const dueDate = typeof date === 'string' ? new Date(date) : date;
 
-  // Check for invalid date
-  if (isNaN(dueDate.getTime())) return 'text-gray-500';
+//   // Check for invalid date
+//   if (isNaN(dueDate.getTime())) return 'text-gray-500';
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  dueDate.setHours(0, 0, 0, 0);
+//   const today = new Date();
+//   today.setHours(0, 0, 0, 0);
+//   dueDate.setHours(0, 0, 0, 0);
 
-  const diff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+//   const diff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diff < 0) return 'text-red-500';
-  if (diff <= 1) return 'text-orange-500';
-  return 'text-gray-500';
-};
+//   if (diff < 0) return 'text-red-500';
+//   if (diff <= 1) return 'text-orange-500';
+//   return 'text-gray-500';
+// };
 
 export const getTaskDateTime = (task: Task): number => {
   // If no due date at all → push to end
@@ -142,4 +157,45 @@ export const countTasksByTag = (tasks: Task[]) => {
   });
 
   return Object.values(map);
+};
+
+export const getDueColor = (dueDate?: string | Date | null) => {
+  if (!dueDate) return "text-gray-400 bg-gray-50";
+
+  const now = new Date();
+  const due = new Date(dueDate);
+  const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return "text-red-700 bg-red-50";
+  if (diffDays <= 1) return "text-yellow-700 bg-yellow-50";
+  if (diffDays <= 3) return "text-yellow-700 bg-yellow-50";
+  return "text-green-700 bg-green-50";
+};
+
+export const getDurationColor = (hours?: number | null) => {
+  if (hours == null) return "text-gray-500 bg-gray-50";
+  if (hours <= 2.5) return "text-green-700 bg-green-50";
+  if (hours <= 5) return "text-yellow-700 bg-yellow-50";
+  return "text-red-700 bg-red-50";
+};
+
+export const getComplexityColor = (level?: number | null) => {
+  if (level == null) return "text-gray-500 bg-gray-50";
+  if (level <= 2) return "text-green-700 bg-green-50";
+  if (level <= 4) return "text-yellow-700 bg-yellow-50";
+  return "text-red-700 bg-red-50";
+};
+
+export const formatTime12Hour = (time?: string | null) => {
+  if (!time) return "--:--";
+
+  const [hours, minutes] = time.split(":");
+
+  const hourNum = Number(hours);
+  const minuteNum = Number(minutes);
+
+  const period = hourNum >= 12 ? "PM" : "AM";
+  const adjustedHour = hourNum % 12 || 12; // converts 0 → 12
+
+  return `${adjustedHour}:${minuteNum.toString().padStart(2, "0")} ${period}`;
 };
