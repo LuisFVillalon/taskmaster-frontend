@@ -111,7 +111,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                 onChange={(e) =>
                   onTaskChange({
                     ...values.task!,
-                    estimated_time: e.target.value,
+                    estimated_time: Number(e.target.value),
                   })
                 }
                 placeholder="e.g. 2.5"
@@ -136,7 +136,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                 <div
                   className="absolute top-0 left-0 h-2 bg-blue-600 rounded-full transition-all"
                   style={{
-                    width: `${((values.task.complexity -1) / 4) * 100}%`,
+                    width: `${((values.task.complexity ?? 1 -1) / 4) * 100}%`,
                   }}
                 />
 

@@ -90,7 +90,9 @@ export const useTaskHandlers = ({
         due_date: '',
         due_time: '',
         tags: [],
-        category: null
+        category: null,
+        created_time: '',
+
       });
     }
   };
@@ -100,7 +102,7 @@ export const useTaskHandlers = ({
 
     if (!showEditTaskModal.task) return;
     const taskData: EditTaskForm = {
-      user_id: showEditTaskModal.task.user_id,
+      // user_id: showEditTaskModal.task.user_id,
       title: showEditTaskModal.task.title,
       description: showEditTaskModal.task.description,
       urgent: showEditTaskModal.task.urgent,

@@ -20,7 +20,7 @@ import { fetchTasks,
     // updateCompleteTask, 
     updateWholeTask 
 } from "@/app/lib/api";
-import { Task, Tag, NewTaskForm, NewTagForm, EditTaskForm } from '@/app/types/task';
+import { Task, Tag, NewTaskForm, EditTaskForm } from '@/app/types/task';
 // Helper function to format date in local timezone (not UTC)
 const getLocalISOString = (date: Date): string => {
   const year = date.getFullYear();
@@ -42,6 +42,7 @@ export const useTasks = (demo: boolean = false) => {
       // Load sample data for demo
       const sampleTasks: Task[] = [
         {
+          user_id: 98,
           id: 3,
           title: "Prepare for midterm exam",
           description: "Study algorithms and data structures for the upcoming midterm",
@@ -55,6 +56,7 @@ export const useTasks = (demo: boolean = false) => {
           completed_date: null
         },
         {
+          user_id: 98,
           id: 4,
           title: "Update resume",
           description: "Add recent projects and skills to the resume",
@@ -68,6 +70,7 @@ export const useTasks = (demo: boolean = false) => {
           completed_date: null
         },
         {
+          user_id: 98,
           id: 5,
           title: "Chillax",
           description: "Relax for a while, enjoy yourself",
@@ -148,6 +151,7 @@ export const useTasks = (demo: boolean = false) => {
   const addTask = async (newTask: NewTaskForm) => {
     if (demo) {
       const createdTask: Task = {
+        user_id: 98,
         id: Math.max(0, ...tasks.map(t => t.id)) + 1,
         title: newTask.title,
         description: newTask.description,
@@ -276,7 +280,7 @@ export const useTags = (demo: boolean = false) => {
     loadTags();
   }, [demo]);
 
-  const addTag = async (newTag: NewTagForm) => {
+  const addTag = async (newTag: Tag) => {
     if (!newTag.name.trim()) return false;
 
     if (demo) {

@@ -14,35 +14,6 @@ These utilities are used throughout the application for displaying and sorting t
 
 import { Task } from '@/app/types/task';
 
-// export const formatDueTime = (
-//   time: string | Date | null | undefined
-// ): string => {
-//   if (!time) return '';
-
-//   // If it's a string like "14:30"
-//   if (typeof time === 'string') {
-//     const [hours, minutes] = time.split(':').map(Number);
-
-//     if (isNaN(hours) || isNaN(minutes)) return time;
-
-//     const date = new Date();
-//     date.setHours(hours, minutes, 0);
-
-//     return date.toLocaleTimeString('en-US', {
-//       hour: 'numeric',
-//       minute: '2-digit',
-//       hour12: true
-//     });
-//   }
-
-//   // If it's a Date object
-//   return time.toLocaleTimeString('en-US', {
-//     hour: 'numeric',
-//     minute: '2-digit',
-//     hour12: true
-//   });
-// };
-
 export const formatDueDate = (
   date: string | Date | null | undefined,
   time?: string | null  // e.g. "23:59"
@@ -89,26 +60,6 @@ export const formatDueDate = (
     ...(isThisYear ? {} : { year: "numeric" }),
   });
 };
-
-// export const getDueDateColor = (date: string | Date | null | undefined, completed: boolean): string => {
-//   if (completed) return 'text-gray-400';
-//   if (!date) return 'text-gray-500';
-
-//   const dueDate = typeof date === 'string' ? new Date(date) : date;
-
-//   // Check for invalid date
-//   if (isNaN(dueDate.getTime())) return 'text-gray-500';
-
-//   const today = new Date();
-//   today.setHours(0, 0, 0, 0);
-//   dueDate.setHours(0, 0, 0, 0);
-
-//   const diff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-//   if (diff < 0) return 'text-red-500';
-//   if (diff <= 1) return 'text-orange-500';
-//   return 'text-gray-500';
-// };
 
 export const getTaskDateTime = (task: Task): number => {
   // If no due date at all → push to end

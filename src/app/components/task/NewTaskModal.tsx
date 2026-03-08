@@ -140,7 +140,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                 onChange={(e) =>
                   onTaskChange({
                     ...newTask,
-                    estimated_time: parseFloat(e.target.value) || 0,
+                    estimated_time: Number(e.target.value) || 0,
                   })
                 }
                 placeholder="e.g. 2.5"
@@ -164,7 +164,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                 {/* Filled Track */}
                 <div
                   className="absolute top-0 left-0 h-2 bg-blue-600 rounded-full transition-all"
-                  style={{ width: `${((newTask.complexity -1) / 4) * 100}%` }}
+                  style={{ width: `${((newTask.complexity ?? 1 -1) / 4) * 100}%` }}
                 />
 
                 {/* Range Input */}

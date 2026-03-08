@@ -39,6 +39,14 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, index, onToggleComplete, tags
             task: taskToEdit,
         });
     };    
+    const normalizedDueDate: string | null =
+      task.due_date instanceof Date
+        ? task.due_date.toISOString()
+        : task.due_date ?? null;
+    const normalizedDueTime: string | null =
+      task.due_time instanceof Date
+        ? task.due_time.toISOString()
+        : task.due_time ?? null;        
   return (
       <div
         className={`
@@ -144,10 +152,12 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, index, onToggleComplete, tags
                   Due
                 </p>
                 <div className={`flex flex-col gap-1 px-3 py-2 rounded-lg ${getDueColor(task.due_date)}`}>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    <span>{formatDueDate(task.due_date ?? null, task.due_time ?? null)}</span>
-                  </div>
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>
+                    {formatDueDate(normalizedDueDate, normalizedDueTime)}
+                  </span>
+                </div>
                   <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
                     <span>

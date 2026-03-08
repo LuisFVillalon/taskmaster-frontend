@@ -22,7 +22,7 @@ These types define the structure of all data used in the application.
 export interface EditTaskModalState {
   status: boolean;
   task: Task | null;
-  estimated_time?: string | null;
+  estimated_time?: number | null;
   complexity?: number | null;
 };
 
@@ -48,7 +48,7 @@ export interface Task {
   category?: TaskCategory | null;
   created_date: string | Date;
   completed_date: string | Date | null;
-  estimated_time?: string | null;
+  estimated_time?: number | null;
   complexity?: number | null;
   parent_task_id?: number | null;
   user_id: number;
@@ -64,10 +64,10 @@ export interface BaseTaskForm {
   tags: Tag[];
   // optional value coming from TaskCategory union
   category?: TaskCategory | null;
-  estimated_time?: string | null;
+  estimated_time?: number | null;
   complexity?: number | null;
   parent_task_id?: number | null;
-  user_id: number;
+  // user_id: number;
 }
 
 export interface NewTaskForm extends BaseTaskForm {
@@ -80,7 +80,7 @@ export interface EditTaskForm extends BaseTaskForm {
   completed_date: string | Date | null;
 }
 
-export interface NewTagForm extends Omit<Tag, 'id'> {}
+// export interface NewTagForm extends Omit<Tag, 'id'> {}
 
 export interface TagStats {
   name: string;

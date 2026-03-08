@@ -14,13 +14,13 @@ These variables manage the modal state and form data for tag creation.
 
 import React from 'react';
 import { X } from 'lucide-react';
-import { NewTagForm } from '@/app/types/task';
+import { Tag } from '@/app/types/task';
 
 interface CreateTagModalProps {
   isOpen: boolean;
   onClose: () => void;
-  newTag: NewTagForm;
-  onTagChange: (tag: NewTagForm) => void;
+  newTag: Tag;
+  onTagChange: (tag: Tag) => void;
   onSubmit: (e: React.FormEvent) => void;
 }
 
