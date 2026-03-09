@@ -18,7 +18,7 @@ These variables maintain the application's UI state across components.
 */
 
 import { useState } from 'react';
-import { FilterType, NewTaskForm, Tag, EditTaskModalState, NewTag } from '@/app/types/task';
+import { Task, FilterType, NewTaskForm, Tag, EditTaskModalState, NewTag } from '@/app/types/task';
 
 export const useTaskManagerState = () => {
   const [sortOrder, setSortOrder] = useState<Record<FilterType, 'asc' | 'desc'>>({
@@ -60,6 +60,7 @@ export const useTaskManagerState = () => {
     estimated_time: 0,
     complexity: null
   });
+  const [newAITask, setNewAITask] = useState<Task>();  
 
   return {
     // State
@@ -86,6 +87,8 @@ export const useTaskManagerState = () => {
     newTag,
     setNewTag,
     newTask,
+    newAITask,
     setNewTask,
+    setNewAITask
   };
 };

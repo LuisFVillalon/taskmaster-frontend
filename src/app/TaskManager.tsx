@@ -29,6 +29,7 @@ These variables are used to render the UI components and handle user interaction
 'use client';
 
 import React, { useState } from 'react';
+import { Task } from '@/app/types/task';
 import { useTasks, useTags } from '@/app/hooks/useTasksAndTags';
 import { useCanvasData } from './hooks/useCanvasData';
 import { useTaskManagerState } from '@/app/hooks/useTaskManagerState';
@@ -47,7 +48,7 @@ import CanvasWrapper from '@/app/components/canvas/CanvasWrapper';
 import SDSUAcademicCalendar from '@/app/components/SDSUAcademicCalendar';
 
 const TaskManager: React.FC<{ isDemo: boolean }> = ({ isDemo }) => {
-  const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks } = useTasks(isDemo);
+  const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks, sendTaskToAI } = useTasks(isDemo);
   const { 
     currentCourseId,
     canvasCourses,
@@ -81,6 +82,7 @@ const TaskManager: React.FC<{ isDemo: boolean }> = ({ isDemo }) => {
   const handlers = useTaskHandlers({
     setShowNewTaskModal: state.setShowNewTaskModal,
     setNewTask: state.setNewTask,
+    setNewAITask: state.setNewAITask as React.Dispatch<React.SetStateAction<Task>>,
     setShowEditTaskModal: state.setShowEditTaskModal,
     setShowCreateTagModal: state.setShowCreateTagModal,
     setNewTag: state.setNewTag,
@@ -91,17 +93,21 @@ const TaskManager: React.FC<{ isDemo: boolean }> = ({ isDemo }) => {
     setSelectedTags: state.setSelectedTags,
     setFilter: state.setFilter,
     newTask: state.newTask,
+    newAITask: state.newAITask!,
     showEditTaskModal: state.showEditTaskModal,
     newTag: state.newTag,
     filter: state.filter,
     sortOrder: state.sortOrder,
     selectedTags: state.selectedTags,
     addTask,
+    sendTaskToAI,
     updateTask,
     addTag,
     updateTag,
     delTag,
   });
+
+  const { handleNewAITask } = handlers;
 
   // Filtering and stats
   const { filteredTasks, stats } = useTaskFiltering(
@@ -293,6 +299,9 @@ const TaskManager: React.FC<{ isDemo: boolean }> = ({ isDemo }) => {
         tags={tags}
         onToggleTag={handlers.toggleTag}
         onSubmit={handlers.handleCreateTask}
+        newAITask={state.newAITask}
+        setNewAITask={state.setNewAITask}
+        handleNewAITask={handleNewAITask}
       />
 
       <EditTaskModal

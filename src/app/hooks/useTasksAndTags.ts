@@ -19,7 +19,10 @@ import { fetchTasks,
     updateTag as updateTagApi,
     // updateCompleteTask, 
     updateWholeTask 
-} from "@/app/lib/api";
+} from "@/app/lib/backend-api";
+import { 
+    sendNewTaskToAIAPI
+} from "@/app/lib/ai-api";
 import { Task, Tag, NewTaskForm, EditTaskForm, NewTag } from '@/app/types/task';
 // Helper function to format date in local timezone (not UTC)
 const getLocalISOString = (date: Date): string => {
@@ -183,7 +186,37 @@ export const useTasks = (demo: boolean = false) => {
         alert("Failed to create task");
         return false;
     }
-  };
+  }; 
+
+  const sendTaskToAI = async (newAITask: Task) => {
+    if (demo) return true;
+    try {
+        const normalizedTask = {
+          ...newAITask,
+          due_date: newAITask.due_date instanceof Date
+            ? newAITask.due_date.toISOString().slice(0, 10)
+            : (newAITask.due_date ?? ''),
+          due_time: newAITask.due_time instanceof Date
+            ? newAITask.due_time.toISOString().slice(11, 16)
+            : (newAITask.due_time ?? ''),
+          category: newAITask.category ?? undefined,
+          created_date: newAITask.created_date instanceof Date
+            ? getLocalISOString(newAITask.created_date)
+            : (newAITask.created_date ?? ''),
+          completed_date: newAITask.completed_date instanceof Date
+            ? getLocalISOString(newAITask.completed_date)
+            : newAITask.completed_date,
+          estimated_time: newAITask.estimated_time ?? 0,
+          complexity: newAITask.complexity ?? 1,
+        };
+        await sendNewTaskToAIAPI(normalizedTask);
+        return true;
+    } catch (err) {
+        console.error(err);
+        alert("Failed to send task to AI app");
+        return false;
+    }
+  };   
 
   const deleteTask = async (delTask: Task) => {
     if (demo) {
@@ -245,6 +278,7 @@ export const useTasks = (demo: boolean = false) => {
     setTasks,
     deleteTask,
     updateTask,
+    sendTaskToAI
   };
 };
 

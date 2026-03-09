@@ -13,9 +13,9 @@ Variables Summary:
 These variables manage the form state for creating new tasks.
 */
 
-import React from 'react';
+import React, { Dispatch, SetStateAction } from 'react';
 import { X, Calendar, Clock, AlertCircle } from 'lucide-react';
-import { NewTaskForm, Tag, TaskCategory } from '@/app/types/task';
+import { NewTaskForm, Tag, TaskCategory, Task } from '@/app/types/task';
 
 interface NewTaskModalProps {
   isOpen: boolean;
@@ -25,6 +25,9 @@ interface NewTaskModalProps {
   tags: Tag[];
   onToggleTag: (tag: Tag) => void;
   onSubmit: (e: React.FormEvent) => void;
+  handleNewAITask: (task: Task) => Promise<void>;
+  newAITask: Task | undefined;
+  setNewAITask: Dispatch<SetStateAction<Task | undefined>>;
 }
 
 const NewTaskModal: React.FC<NewTaskModalProps> = ({
@@ -34,9 +37,43 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
   onTaskChange,
   tags,
   onToggleTag,
-  onSubmit
+  onSubmit,
+  handleNewAITask,
+  newAITask,
+  setNewAITask
 }) => {
   if (!isOpen) return null;
+  const isAIMode = !!newTask.category;
+
+  // Syncs both newTask (form state) and newAITask simultaneously on every change
+  const handleTaskChange = (updatedTask: NewTaskForm) => {
+    onTaskChange(updatedTask);
+    setNewAITask((prev) => ({
+      ...prev,
+      title: updatedTask.title,
+      description: updatedTask.description,
+      urgent: updatedTask.urgent,
+      category: updatedTask.category,
+      estimated_time: updatedTask.estimated_time,
+      complexity: updatedTask.complexity,
+      due_date: updatedTask.due_date,
+      due_time: updatedTask.due_time,
+      tags: updatedTask.tags,
+    } as Task));
+  };
+
+  // Syncs tag toggles to both newTask and newAITask
+  const handleToggleTag = (tag: Tag) => {
+    onToggleTag(tag);
+    setNewAITask((prev) => {
+      if (!prev) return prev;
+      const alreadySelected = prev.tags?.some((t) => t.id === tag.id);
+      const updatedTags = alreadySelected
+        ? (prev.tags ?? []).filter((t) => t.id !== tag.id)
+        : [...(prev.tags ?? []), tag];
+      return { ...prev, tags: updatedTags };
+    });
+  };
 
   return (
     <div className="fixed inset-0 flex items-center justify-center p-4 z-50 animate-fadeIn">
@@ -62,7 +99,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
               type="checkbox"
               id="urgent"
               checked={newTask.urgent}
-              onChange={(e) => onTaskChange({ ...newTask, urgent: e.target.checked })}
+              onChange={(e) => handleTaskChange({ ...newTask, urgent: e.target.checked })}
               className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
             />
             <label htmlFor="urgent" className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -80,7 +117,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
               type="text"
               required
               value={newTask.title}
-              onChange={(e) => onTaskChange({ ...newTask, title: e.target.value })}
+              onChange={(e) => handleTaskChange({ ...newTask, title: e.target.value })}
               placeholder="Enter task title"
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black"
             />
@@ -93,7 +130,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
             </label>
             <textarea
               value={newTask.description}
-              onChange={(e) => onTaskChange({ ...newTask, description: e.target.value })}
+              onChange={(e) => handleTaskChange({ ...newTask, description: e.target.value })}
               placeholder="Add task details..."
               rows={3}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none text-black"
@@ -101,20 +138,30 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
           </div>
 
           {/* Category (optional) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select a category for an AI-created plan
+          <div>            
+            <label className="block text-sm font-medium text-gray-700">
+              Select a category to enable <span className="text-blue-600 font-medium">AI Plan Mode</span> 
             </label>
+            <p className="text-xs text-gray-500 mb-1">
+              (requires estimated hours, complexity, and due date).
+            </p>
+            {newTask.category && (
+              <p className="text-xs text-orange-600 mb-1">
+                The task&apos;s category cannot be changed once the AI smart plan is created.
+              </p>
+            )}            
             <select
               value={newTask.category || ''}
               onChange={(e) => {
-
                 const value = e.target.value;
-
-                onTaskChange({ ...newTask, category: value === '' ? null : value as TaskCategory });
-
+                handleTaskChange({
+                  ...newTask,
+                  category: value === '' ? null : value as TaskCategory
+                });
               }}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black"
+              className={`text-black w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white 
+              focus:outline-none focus:ring-2 focus:ring-blue-500 
+             `}
             >
               <option value="">(none)</option>
               <option value="homework">Homework Assignment</option>
@@ -130,15 +177,16 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
             {/* Estimated Hours */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Estimated Hours
+                Estimated Hours{isAIMode && <span className="text-red-500">*</span>}
               </label>
               <input
                 type="number"
+                required={isAIMode}
                 min={0}
                 step={0.5}
                 value={newTask.estimated_time ?? 0}
                 onChange={(e) =>
-                  onTaskChange({
+                  handleTaskChange({
                     ...newTask,
                     estimated_time: Number(e.target.value) || 0,
                   })
@@ -154,7 +202,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
             {/* Complexity */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Complexity
+                Complexity{isAIMode && <span className="text-red-500">*</span>}
               </label>
 
               <div className="relative">
@@ -164,7 +212,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                 {/* Filled Track */}
                 <div
                   className="absolute top-0 left-0 h-2 bg-blue-600 rounded-full transition-all"
-                  style={{ width: `${((newTask.complexity ?? 1 -1) / 4) * 100}%` }}
+                  style={{ width: `${(((newTask.complexity ?? 1) - 1) / 4) * 100}%` }}
                 />
 
                 {/* Range Input */}
@@ -173,9 +221,10 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                   min={1}
                   max={5}
                   step={1}
+                  required={isAIMode}
                   value={newTask.complexity ?? 0}
                   onChange={(e) =>
-                    onTaskChange({
+                    handleTaskChange({
                       ...newTask,
                       complexity: parseInt(e.target.value),
                     })
@@ -230,28 +279,30 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Due Date
+                Due Date{isAIMode && <span className="text-red-500">*</span>}
               </label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="date"
+                  required={isAIMode}
                   value={newTask.due_date}
-                  onChange={(e) => onTaskChange({ ...newTask, due_date: e.target.value })}
+                  onChange={(e) => handleTaskChange({ ...newTask, due_date: e.target.value })}
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black"
                 />
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Due Time
+                Due Time{isAIMode && <span className="text-red-500">*</span>}
               </label>
               <div className="relative">
                 <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="time"
+                  required={isAIMode}                  
                   value={newTask.due_time}
-                  onChange={(e) => onTaskChange({ ...newTask, due_time: e.target.value })}
+                  onChange={(e) => handleTaskChange({ ...newTask, due_time: e.target.value })}
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black"
                 />
               </div>
@@ -271,7 +322,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                   <button
                     key={tag.id}
                     type="button"
-                    onClick={() => onToggleTag(tag)}
+                    onClick={() => handleToggleTag(tag)}
                     style={{
                       backgroundColor: selected ? tag.color :'#F5F1EB',
                       color: selected ? '#ffffff':'#000000',
@@ -315,12 +366,22 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm"
-            >
-              Create Task
-            </button>
+            {isAIMode ? 
+                <button
+                  type="button"
+                  onClick={() => handleNewAITask(newAITask!)}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm"
+                >
+                  <span className="font-bold">Create AI Task Plan</span>
+                </button>
+              : 
+              <button
+                type="submit"
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm"
+              >
+                <span className="font-bold">Create Task</span>
+              </button>
+            }
           </div>
         </form>
       </div>

@@ -104,6 +104,7 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
               >
                 Cancel
               </button>
+
               <button
                 type="submit"
                 className="flex-1 bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700"

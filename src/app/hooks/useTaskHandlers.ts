@@ -19,6 +19,7 @@ interface UseTaskHandlersProps {
   // State setters
   setShowNewTaskModal: (show: boolean) => void;
   setNewTask: React.Dispatch<React.SetStateAction<NewTaskForm>>;
+  setNewAITask: React.Dispatch<React.SetStateAction<Task>>;
   setShowEditTaskModal: React.Dispatch<React.SetStateAction<EditTaskModalState>>;
   setShowCreateTagModal: (show: boolean) => void;
   setNewTag: React.Dispatch<React.SetStateAction<NewTag>>;
@@ -31,6 +32,7 @@ interface UseTaskHandlersProps {
 
   // Current state values
   newTask: NewTaskForm;
+  newAITask: Task;
   showEditTaskModal: EditTaskModalState;
   newTag: {name: string; color: string };
   filter: FilterType;
@@ -43,6 +45,7 @@ interface UseTaskHandlersProps {
   addTag: (tag: {name: string; color: string }) => Promise<Tag | false>;
   updateTag: (tag: Tag) => Promise<number | null>;
   delTag: (tag: Tag) => Promise<number | null>;
+  sendTaskToAI: (task: Task) => Promise<boolean>;
 }
 
 export const useTaskHandlers = ({
@@ -61,13 +64,12 @@ export const useTaskHandlers = ({
   showEditTaskModal,
   newTag,
   filter,
-//   sortOrder,
-//   selectedTags,
   addTask,
   updateTask,
   addTag,
   updateTag,
   delTag,
+  sendTaskToAI
 }: UseTaskHandlersProps) => {
 
   const toggleSelectedTag = (tag: Tag) => {
@@ -80,20 +82,71 @@ export const useTaskHandlers = ({
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
+    // ✅ Always require title
+    if (!newTask.title.trim()) {
+      alert("Title is required.");
+      return;
+    }
+    // 🚀 Now safe to create
     const success = await addTask(newTask);
     if (success) {
-      setShowNewTaskModal(false);
-      setNewTask({
-        title: '',
-        description: '',
-        urgent: false,
-        due_date: '',
-        due_time: '',
-        tags: [],
-        category: null,
-        created_time: '',
+        setShowNewTaskModal(false);
 
-      });
+        setNewTask({
+          title: '',
+          description: '',
+          urgent: false,
+          due_date: '',
+          due_time: '',
+          tags: [],
+          category: null,
+          estimated_time: null,
+          complexity: null,
+          created_time: '',
+        });
+      
+    }
+  };
+
+  const handleNewAITask = async (aiTask: Task) => {
+    // ✅ Always require title
+    if (!aiTask.title.trim()) {
+      alert("Title is required.");
+      return;
+    }
+    const isAIMode = !!aiTask.category;
+    // 🤖 If AI Plan Mode is enabled
+    if (isAIMode) {
+      if (!aiTask.estimated_time || aiTask.estimated_time < 0.5) {
+        alert("Estimated hours (minimum 0.5) are required for AI plan.");
+        return;
+      }
+      if (!aiTask.complexity || aiTask.complexity < 1) {
+        alert("Complexity level is required for AI plan.");
+        return;
+      }
+      if (!aiTask.due_date || !aiTask.due_time) {
+        alert("Due date and time are required for AI plan.");
+        return;
+      }
+      const success_task_send_to_ai = await sendTaskToAI(aiTask);
+      if (success_task_send_to_ai ) {
+        console.log("success sending task to ai")
+        setShowNewTaskModal(false);
+
+        setNewTask({
+          title: '',
+          description: '',
+          urgent: false,
+          due_date: '',
+          due_time: '',
+          tags: [],
+          category: null,
+          estimated_time: null,
+          complexity: null,
+          created_time: '',
+        });        
+      }
     }
   };
 
@@ -228,5 +281,6 @@ export const useTaskHandlers = ({
     toggleTag,
     toggleEditTag,
     handleFilterChange,
+    handleNewAITask
   };
 };
