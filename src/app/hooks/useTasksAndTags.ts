@@ -226,7 +226,10 @@ const normalizedTask = {
     : (newAITask.created_date ?? ''),
   completed_date: null,
   estimated_time: newAITask.estimated_time ?? 0,
-  complexity: newAITask.complexity ?? 1,
+  complexity:
+  newAITask.complexity === 0
+    ? null
+    : newAITask.complexity ?? null,
 };
         const aiTasks = await sendNewTaskToAIAPI(normalizedTask);
         return aiTasks;
@@ -265,17 +268,22 @@ const normalizedTask = {
           ...updatedTask,
           due_date: updatedTask.due_date instanceof Date
             ? updatedTask.due_date.toISOString().slice(0, 10)
-            : (updatedTask.due_date ?? undefined),
+            : updatedTask.due_date ?? null,
+
           due_time: updatedTask.due_time instanceof Date
-            ? updatedTask.due_time.toISOString().slice(11, 16)
-            : (updatedTask.due_time ?? undefined),
+            ? updatedTask.due_time.toISOString().slice(11, 19) // HH:MM:SS
+            : updatedTask.due_time ?? null,
+
           created_date: updatedTask.created_date instanceof Date
-            ? getLocalISOString(updatedTask.created_date)
-            : updatedTask.created_date,
-          tags: updatedTask.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
+            ? updatedTask.created_date.toISOString()
+            : updatedTask.created_date ?? null,
+
           completed_date: updatedTask.completed_date instanceof Date
             ? updatedTask.completed_date.toISOString()
-            : updatedTask.completed_date,
+            : updatedTask.completed_date ?? null,
+          
+          tags: updatedTask.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
+
           category: updatedTask.category ?? null
         };
         const updated = await updateWholeTask(id, taskToUpdate) as Task;

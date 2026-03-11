@@ -95,8 +95,8 @@ export async function updateWholeTask(id: number, task: {
   description?: string;
   completed?: boolean;
   urgent?: boolean;
-  due_date?: string;
-  due_time?: string;
+  due_date?: string | null;
+  due_time?: string | null;
   tags: { id: number; name: string; color: string }[];
   category?: string | null;
   created_date?: string | null;
@@ -111,7 +111,9 @@ export async function updateWholeTask(id: number, task: {
   });
 
   if (!res.ok) {
-    throw new Error("Failed to update task");
+    const errorData = await res.json();
+    console.error("VALIDATION ERROR:", errorData);
+    throw new Error(JSON.stringify(errorData, null, 2));
   }
 
   return res.json();
@@ -156,7 +158,7 @@ export async function onUpdateTag(id: number, tag: {
   });
 
   if (!res.ok) {
-    throw new Error("Failed to update task");
+    throw new Error("Failed to update tag");
   }
 
   return res.json();
