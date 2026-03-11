@@ -279,7 +279,11 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                 <input
                   type="time"
                   required={isAIMode}                  
-                  value={newTask.due_date ? String(newTask.due_date) : ''}
+                  value={
+                    newTask?.due_time instanceof Date
+                      ? newTask.due_time.toISOString().slice(11, 16) // HH:mm
+                      : (newTask?.due_time ?? '')
+                  }
                   onChange={(e) => handleTaskChange({ ...newTask, due_time: e.target.value })}
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black"
                 />
