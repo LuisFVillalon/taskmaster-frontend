@@ -25,8 +25,6 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
     addNote,
     updateNote,
     deleteNote,
-    selectedTags,
-    setSelectedTags,
     searchTerm,
     setSearchTerm,
   } = useNotes();
@@ -80,16 +78,6 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
     }
   };
 
-  const handleTagToggle = (tag: Tag) => {
-    setSelectedTags(prev =>
-      prev.some(t => t.id === tag.id)
-        ? prev.filter(t => t.id !== tag.id)
-        : [...prev, tag],
-    );
-  };
-
-  const handleClearTags = () => setSelectedTags([]);
-
   // ── Shared 2-panel panel ────────────────────────────────────────────────
   const panel = (
     <div
@@ -109,9 +97,6 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
             notes={filteredNotes}
             activeNoteId={activeNoteId}
             allTags={tags}
-            selectedTags={selectedTags}
-            onTagToggle={handleTagToggle}
-            onClearTags={handleClearTags}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             onSelectNote={handleSelectNote}

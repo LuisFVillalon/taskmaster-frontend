@@ -10,7 +10,7 @@
 
 import { Task, WorkBlock } from "../types/task";
 import { Note } from "../types/notes";
-import { CalendarSettings, GoogleCalendarEvent } from "../types/calendar";
+import { CalendarSettings } from "../types/calendar";
 import { supabase } from "./supabase";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_TASKMASTER_DB_URL!;
@@ -256,34 +256,6 @@ export async function deleteNote(id: number): Promise<Note> {
   return res.json();
 }
 
-// ── Calendar Settings ─────────────────────────────────────────────────────────
-
-/**
- * Returns null for new users who have never saved calendar settings (HTTP 404).
- * Any other non-OK status still throws.
- */
-export async function fetchCalendarSettings(): Promise<CalendarSettings | null> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/get-calendar-settings`, { headers });
-  if (res.status === 404) return null;
-  await assertOk(res, "fetchCalendarSettings");
-  return res.json();
-}
-
-/** Persists partial calendar setting changes. Creates the row if it doesn't exist yet. */
-export async function updateCalendarSettings(
-  changes: Partial<Omit<CalendarSettings, "id">>,
-): Promise<CalendarSettings> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/update-calendar-settings`, {
-    method: "PATCH",
-    headers,
-    body: JSON.stringify(changes),
-  });
-  await assertOk(res, "updateCalendarSettings");
-  return res.json();
-}
-
 // ── Account management ────────────────────────────────────────────────────────
 
 /**
@@ -314,39 +286,27 @@ export async function deleteAccount(): Promise<void> {
   await assertOk(res, "deleteAccount");
 }
 
-// ── Google Calendar ───────────────────────────────────────────────────────────
+// ── Calendar Settings (BigPictureCalendar) ────────────────────────────────────
 
-/**
- * Exchange a GSI popup authorization code for Google OAuth tokens stored on
- * the backend.  The code is obtained from google.accounts.oauth2.initCodeClient.
- */
-export async function connectGoogleCalendar(code: string): Promise<{ connected: boolean }> {
+export async function fetchCalendarSettings(): Promise<CalendarSettings | null> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/google-calendar/connect`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ code }),
-  });
-  await assertOk(res, "connectGoogleCalendar");
+  const res = await fetch(`${API_BASE_URL}/get-calendar-settings`, { headers });
+  if (res.status === 404) return null;
+  await assertOk(res, "fetchCalendarSettings");
   return res.json();
 }
 
-/** Returns whether the authenticated user has connected Google Calendar. */
-export async function getGoogleCalendarStatus(): Promise<{ connected: boolean }> {
+export async function updateCalendarSettings(
+  changes: Partial<Omit<CalendarSettings, "id">>,
+): Promise<CalendarSettings> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/google-calendar/status`, { headers });
-  await assertOk(res, "getGoogleCalendarStatus");
-  return res.json();
-}
-
-/** Revokes and removes the user's stored Google Calendar tokens. */
-export async function disconnectGoogleCalendar(): Promise<void> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/google-calendar/disconnect`, {
-    method: "DELETE",
+  const res = await fetch(`${API_BASE_URL}/update-calendar-settings`, {
+    method: "PATCH",
     headers,
+    body: JSON.stringify(changes),
   });
-  await assertOk(res, "disconnectGoogleCalendar");
+  await assertOk(res, "updateCalendarSettings");
+  return res.json();
 }
 
 // ── Availability Preferences ──────────────────────────────────────────────────
@@ -446,19 +406,3 @@ export async function deleteWorkBlock(id: number): Promise<void> {
   await assertOk(res, "deleteWorkBlock");
 }
 
-// ── Google Calendar ───────────────────────────────────────────────────────────
-
-/**
- * Fetch Google Calendar events for the given ISO 8601 time range.
- * timeMin and timeMax must include a timezone offset (e.g. "...Z" or "...+00:00").
- */
-export async function fetchGoogleCalendarEvents(
-  timeMin: string,
-  timeMax: string,
-): Promise<GoogleCalendarEvent[]> {
-  const headers = await getAuthHeaders();
-  const params = new URLSearchParams({ time_min: timeMin, time_max: timeMax });
-  const res = await fetch(`${API_BASE_URL}/google-calendar/events?${params}`, { headers });
-  await assertOk(res, "fetchGoogleCalendarEvents");
-  return res.json();
-}

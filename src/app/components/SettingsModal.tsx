@@ -17,28 +17,20 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Loader2, Eye, EyeOff, AlertTriangle, ExternalLink, ShieldCheck, Calendar, CheckCircle2, WifiOff, Clock, Trash2, Plus } from 'lucide-react';
+import { X, Loader2, Eye, EyeOff, AlertTriangle, ExternalLink, ShieldCheck, Clock, Trash2, Plus } from 'lucide-react';
 import { supabase } from '@/app/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
 import { updatePassword, deleteAccount, fetchAvailabilityPreferences, createAvailabilityPreference, deleteAvailabilityPreference, type AvailabilityPreference } from '@/app/lib/backend-api';
 import { localWindowToUtc, utcWindowToLocal, getTimezoneAbbr } from '@/app/utils/timezoneUtils';
 import { validatePassword, MIN_LENGTH } from '@/app/lib/passwordValidation';
 import PasswordStrengthMeter from '@/app/components/PasswordStrengthMeter';
-import { type GCalStatus } from '@/app/hooks/useGoogleCalendar';
-
-const GOOGLE_BLUE = '#1a73e8';
-
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onAccountDeleted: () => void;
-  gcalStatus?: GCalStatus;
-  onGcalConnect?: () => void;
-  onGcalDisconnect?: () => Promise<void>;
-  gcalError?: string | null;
 }
 
-type Section = 'password' | 'email' | 'gcal' | 'availability' | 'delete';
+type Section = 'password' | 'email' | 'availability' | 'delete';
 
 const DAY_NAMES  = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
 const DAY_ABBRS  = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const;
@@ -53,10 +45,6 @@ export default function SettingsModal({
   isOpen,
   onClose,
   onAccountDeleted,
-  gcalStatus = 'unknown',
-  onGcalConnect,
-  onGcalDisconnect,
-  gcalError,
 }: Props) {
   const { user } = useAuth();
 
@@ -121,15 +109,6 @@ export default function SettingsModal({
     if (error) { setEmailStatus('error'); setEmailError(error.message); return; }
     setEmailStatus('done');
     setNewEmail('');
-  };
-
-  // ── Google Calendar ──────────────────────────────────────────────────────
-  const [gcalDisconnecting, setGcalDisconnecting] = useState(false);
-
-  const handleDisconnectGcal = async () => {
-    if (!onGcalDisconnect) return;
-    setGcalDisconnecting(true);
-    try { await onGcalDisconnect(); } finally { setGcalDisconnecting(false); }
   };
 
   // ── Availability Preferences ─────────────────────────────────────────────
@@ -242,7 +221,6 @@ export default function SettingsModal({
   const tabStyle = (s: Section): React.CSSProperties => {
     if (section !== s) return {};
     if (s === 'delete') return { backgroundColor: 'var(--tm-danger)' };
-    if (s === 'gcal')   return { backgroundColor: GOOGLE_BLUE };
     return { backgroundColor: 'var(--tm-accent)' };
   };
 
@@ -308,13 +286,6 @@ export default function SettingsModal({
             Email
           </button>
           <button
-            onClick={() => setSection('gcal')}
-            className={tabClass('gcal')}
-            style={tabStyle('gcal')}
-          >
-            Google Cal
-          </button>
-          <button
             onClick={() => setSection('availability')}
             className={tabClass('availability')}
             style={tabStyle('availability')}
@@ -348,7 +319,7 @@ export default function SettingsModal({
                     </p>
                     <p className="text-sm" style={{ color: 'var(--tm-text-secondary)' }}>
                       Your account uses {providerLabel} for authentication. You don't have a
-                      separate Promptly password — {providerLabel} handles your security.
+                      separate Task Master password — {providerLabel} handles your security.
                     </p>
                   </div>
                 </div>
@@ -434,7 +405,7 @@ export default function SettingsModal({
                 >
                   <ShieldCheck className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--tm-accent)' }} />
                   <p style={{ color: 'var(--tm-text-secondary)' }}>
-                    This changes your <strong>contact/notification email</strong> in Promptly.
+                    This changes your <strong>contact/notification email</strong> in Task Master.
                     Your <strong>{providerLabel} login is not affected</strong> — you'll still sign
                     in with {providerLabel}, and all your data stays linked to your account.
                   </p>
@@ -479,64 +450,6 @@ export default function SettingsModal({
                 {isOAuth ? 'Update Contact Email' : 'Send Confirmation'}
               </button>
             </form>
-          )}
-
-          {/* ── Google Calendar Tab ──────────────────────────────────────── */}
-          {section === 'gcal' && (
-            <div className="space-y-4">
-              {/* Status row */}
-              <div
-                className="flex items-center gap-3 p-4 rounded-xl"
-                style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
-              >
-                {gcalStatus === 'connected' ? (
-                  <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: GOOGLE_BLUE }} />
-                ) : (
-                  <WifiOff className="w-5 h-5 shrink-0" style={{ color: 'var(--tm-text-muted)' }} />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-text-primary">
-                    {gcalStatus === 'connected' ? 'Google Calendar connected' : 'Google Calendar not connected'}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--tm-text-muted)' }}>
-                    {gcalStatus === 'connected'
-                      ? 'Your events appear alongside tasks in the calendar.'
-                      : 'Connect to see your Google events in the calendar view.'}
-                  </p>
-                </div>
-              </div>
-
-              {gcalError && (
-                <p className="text-sm" style={{ color: 'var(--tm-danger)' }}>{gcalError}</p>
-              )}
-
-              {gcalStatus === 'connected' ? (
-                <button
-                  onClick={handleDisconnectGcal}
-                  disabled={gcalDisconnecting}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60 transition-opacity hover:opacity-80"
-                  style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-primary)', border: '1px solid var(--tm-border)' }}
-                >
-                  {gcalDisconnecting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Disconnect Google Calendar
-                </button>
-              ) : (
-                <button
-                  onClick={onGcalConnect}
-                  disabled={gcalStatus === 'loading' || gcalStatus === 'unknown'}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60 transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: GOOGLE_BLUE }}
-                >
-                  {gcalStatus === 'loading' && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <Calendar className="w-4 h-4" />
-                  Connect Google Calendar
-                </button>
-              )}
-
-              <p className="text-xs text-center" style={{ color: 'var(--tm-text-muted)' }}>
-                Read-only access. Your tasks are never written to Google Calendar.
-              </p>
-            </div>
           )}
 
           {/* ── Availability Tab ─────────────────────────────────────────── */}

@@ -59,7 +59,7 @@ export default function LoginPage() {
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-text-primary">Welcome back</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--tm-text-muted)' }}>
-            Sign in to your Promptly account
+            Sign in to your Task Master account
           </p>
         </div>
 

@@ -53,6 +53,16 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   RESIZABLE SPLIT PANE
+   Column widths are driven by the --tasks-w CSS variable set from React state.
+   Only applied on md+ so mobile stacking is unaffected.
+═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+  .split-tasks { width: var(--tasks-w, 50%); min-width: 0; flex-shrink: 0; }
+  .split-notes { width: calc(100% - var(--tasks-w, 50%) - 8px); min-width: 0; flex-shrink: 0; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    TAILWIND TOKEN REGISTRATION
 ═══════════════════════════════════════════════════════════════════════════ */
 @theme inline {

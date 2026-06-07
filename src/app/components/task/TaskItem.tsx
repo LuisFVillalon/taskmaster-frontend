@@ -13,9 +13,9 @@ Variables Summary:
 These variables are used to display task information and handle user interactions like completion toggle, edit, and delete.
 */
 
-import React, { useState } from 'react';
-import { Check, Clock, AlertCircle, Trash2, Pencil, BarChart3, Calendar, CalendarClock, Loader2, CheckCircle2, X, CalendarX2 } from 'lucide-react';
-import { Task, WorkBlock } from '@/app/types/task';
+import React from 'react';
+import { Check, Clock, AlertCircle, Trash2, Pencil, BarChart3, Calendar } from 'lucide-react';
+import { Task } from '@/app/types/task';
 import { getDueColor, getDurationColor, getComplexityColor, formatTime12Hour, formatDueDate } from '@/app/utils/taskUtils';
 
 interface TaskItemProps {
@@ -25,19 +25,13 @@ interface TaskItemProps {
   tags: Array<{ id: number; name: string; color: string }>;
   onDeleteTask?: (task: Task) => void;
   onEditTaskClick?: (params: { status: boolean; task: Task }) => void;
-  /** Called when the user clicks "Find Best Time". Parent manages the returned WorkBlock in state. */
-  onScheduleTask?: (task: Task) => Promise<WorkBlock | void>;
-  /** The active work block for this task, if one exists (from parent state). */
-  workBlock?: WorkBlock | null;
-  /** Called when the user accepts or dismisses a suggested work block. */
-  onWorkBlockAction?: (id: number, status: 'confirmed' | 'dismissed') => void;
-  /** Called when the user removes a confirmed work block from the calendar. */
-  onDeleteWorkBlock?: (id: number) => void;
+  /** Render a condensed single-row layout when the column is too narrow. */
+  compact?: boolean;
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({
   task, index, onToggleComplete, tags, onDeleteTask, onEditTaskClick,
-  onScheduleTask, workBlock = null, onWorkBlockAction, onDeleteWorkBlock,
+  compact = false,
 }) => {
   const handleDeleteTask = (taskToDelete: Task) => {
     onDeleteTask?.(taskToDelete);
@@ -46,30 +40,96 @@ const TaskItem: React.FC<TaskItemProps> = ({
     onEditTaskClick?.({ status, task: taskToEdit });
   };
 
-  // UI-only state: loading spinner and error message while the schedule request
-  // is in-flight.  The actual WorkBlock data lives in the parent's workBlocks
-  // state and is passed back down via the workBlock prop.
-  const [scheduling, setScheduling] = useState(false);
-  const [scheduleError, setScheduleError] = useState<string | null>(null);
-
-  const handleScheduleClick = async () => {
-    if (!onScheduleTask) return;
-    setScheduling(true);
-    setScheduleError(null);
-    try {
-      await onScheduleTask(task);
-      // Parent updates workBlocks state → TaskItem re-renders with new workBlock prop.
-    } catch (e) {
-      setScheduleError(e instanceof Error ? e.message : 'Scheduling failed');
-    } finally {
-      setScheduling(false);
-    }
-  };
-
   const normalizedDueDate: string | null =
     task.due_date instanceof Date ? task.due_date.toISOString() : task.due_date ?? null;
   const normalizedDueTime: string | null =
     task.due_time instanceof Date ? task.due_time.toISOString() : task.due_time ?? null;
+
+  if (compact) {
+    return (
+      <div
+        className={`card px-3 py-2 animate-fade-in ${task.completed ? 'opacity-75' : ''}`}
+        style={{ animationDelay: `${index * 0.05}s` }}
+      >
+        {/* Row 1: checkbox · title · urgent · actions */}
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            onClick={() => onToggleComplete?.(task.id)}
+            aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
+            className={`flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 ${
+              task.completed
+                ? 'border-[var(--tm-success)] bg-[var(--tm-success)]'
+                : 'border-border hover:border-accent'
+            }`}
+          >
+            {task.completed && <Check className="w-2.5 h-2.5 text-white" />}
+          </button>
+
+          <span
+            className={`flex-1 min-w-0 text-sm font-semibold truncate ${
+              task.completed ? 'line-through text-text-muted' : 'text-text-primary'
+            }`}
+          >
+            {task.title}
+          </span>
+
+          {task.urgent && (
+            <span
+              className="chip text-[9px] font-bold flex items-center gap-0.5 flex-shrink-0"
+              style={{ backgroundColor: 'var(--tm-warning-subtle)', color: 'var(--tm-warning)' }}
+            >
+              <AlertCircle className="w-3 h-3" />
+            </span>
+          )}
+
+          {normalizedDueDate && (
+            <span className={`text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded flex-shrink-0 ${getDueColor(task.due_date)}`}>
+              <Calendar className="w-3 h-3" />
+              {formatDueDate(normalizedDueDate, normalizedDueTime)}
+              {normalizedDueTime && (
+                <>{' · '}<Clock className="w-3 h-3" />{formatTime12Hour(normalizedDueTime)}</>
+              )}
+            </span>
+          )}
+
+          <button
+            onClick={() => handleEditTask({ status: true, taskToEdit: task })}
+            className="btn btn-ghost p-1 flex-shrink-0"
+            title="Edit task"
+            aria-label="Edit task"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => handleDeleteTask(task)}
+            className="btn btn-danger-ghost p-1 flex-shrink-0"
+            title="Delete task"
+            aria-label="Delete task"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Row 2: tags */}
+        {task.tags?.length > 0 && (
+          <div className="flex items-center gap-1.5 mt-1.5 pl-6 flex-wrap">
+            {task.tags.map((tagName, i) => {
+              const tagData = tags.find(t => t.name === tagName.name);
+              return (
+                <span
+                  key={i}
+                  className="chip text-[9px] px-1.5 py-0.5"
+                  style={{ backgroundColor: tagData?.color ?? 'var(--tm-accent)', color: 'white', borderRadius: '6px' }}
+                >
+                  {tagName.name}
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -185,24 +245,6 @@ const TaskItem: React.FC<TaskItemProps> = ({
                 </div>
               </div>
 
-              {/* Created */}
-              <div>
-                <p className="text-text-muted font-semibold uppercase tracking-wide text-[10px] mb-1">Created</p>
-                <div
-                  className="flex flex-col gap-1 px-3 py-2 rounded-lg text-text-secondary"
-                  style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-                >
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {new Date(task.created_date).toLocaleDateString()}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {new Date(task.created_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-              </div>
-
               {/* Estimated Duration */}
               <div>
                 <p className="text-text-muted font-semibold uppercase tracking-wide text-[10px] mb-1">Est. Duration</p>
@@ -221,101 +263,26 @@ const TaskItem: React.FC<TaskItemProps> = ({
                 </div>
               </div>
 
+              {/* Created */}
+              <div>
+                <p className="text-text-muted font-semibold uppercase tracking-wide text-[10px] mb-1">Created</p>
+                <div
+                  className="flex flex-col gap-1 px-3 py-2 rounded-lg text-text-secondary"
+                  style={{ backgroundColor: 'var(--tm-surface-raised)' }}
+                >
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    {new Date(task.created_date).toLocaleDateString()}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    {new Date(task.created_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              </div>
+
             </div>
 
-            {/* Smart Scheduling row */}
-            {!task.completed && task.due_date && onScheduleTask && (
-              <div className="mt-3 pt-3 border-t border-border-subtle">
-
-                {!workBlock ? (
-                  /* ── State 1: no block — offer scheduling ──────────────── */
-                  <div className="flex items-center flex-wrap gap-2">
-                    <button
-                      onClick={handleScheduleClick}
-                      disabled={scheduling}
-                      className="btn btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5 disabled:opacity-60"
-                    >
-                      {scheduling
-                        ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : <CalendarClock className="w-3 h-3" />
-                      }
-                      {scheduling ? 'Finding best time…' : 'Find Best Time'}
-                    </button>
-                    {scheduleError && (
-                      <span className="text-xs" style={{ color: 'var(--tm-danger)' }}>
-                        {scheduleError}
-                      </span>
-                    )}
-                  </div>
-
-                ) : workBlock.status === 'suggested' ? (
-                  /* ── State 2: suggested — accept or dismiss ────────────── */
-                  <div className="flex items-center flex-wrap gap-2">
-                    <span
-                      className="chip text-[10px] font-bold uppercase tracking-wide"
-                      style={{ backgroundColor: 'var(--tm-accent-subtle)', color: 'var(--tm-accent)' }}
-                    >
-                      Suggested Time
-                    </span>
-                    <span className="text-xs text-text-secondary">
-                      {new Date(workBlock.start_time).toLocaleString([], {
-                        weekday: 'short', month: 'short', day: 'numeric',
-                        hour: '2-digit', minute: '2-digit',
-                      })}
-                      {' – '}
-                      {new Date(workBlock.end_time).toLocaleTimeString([], {
-                        hour: '2-digit', minute: '2-digit',
-                      })}
-                    </span>
-                    <button
-                      onClick={() => onWorkBlockAction?.(workBlock.id, 'confirmed')}
-                      className="btn text-xs px-2.5 py-1 flex items-center gap-1 font-semibold rounded-lg"
-                      style={{ backgroundColor: '#059669', color: '#fff' }}
-                    >
-                      <CheckCircle2 className="w-3 h-3" />
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => onWorkBlockAction?.(workBlock.id, 'dismissed')}
-                      className="btn btn-secondary text-xs px-2.5 py-1 flex items-center gap-1"
-                    >
-                      <X className="w-3 h-3" />
-                      Dismiss
-                    </button>
-                  </div>
-
-                ) : (
-                  /* ── State 3: confirmed — show badge and removal action ── */
-                  <div className="flex items-center flex-wrap gap-2">
-                    <span
-                      className="chip text-[10px] font-bold uppercase tracking-wide flex items-center gap-1"
-                      style={{ backgroundColor: '#d1fae5', color: '#059669' }}
-                    >
-                      <CheckCircle2 className="w-3 h-3" />
-                      Scheduled
-                    </span>
-                    <span className="text-xs text-text-secondary">
-                      {new Date(workBlock.start_time).toLocaleString([], {
-                        weekday: 'short', month: 'short', day: 'numeric',
-                        hour: '2-digit', minute: '2-digit',
-                      })}
-                      {' – '}
-                      {new Date(workBlock.end_time).toLocaleTimeString([], {
-                        hour: '2-digit', minute: '2-digit',
-                      })}
-                    </span>
-                    <button
-                      onClick={() => onDeleteWorkBlock?.(workBlock.id)}
-                      className="btn btn-danger-ghost text-xs px-2.5 py-1 flex items-center gap-1"
-                    >
-                      <CalendarX2 className="w-3 h-3" />
-                      Remove from Calendar
-                    </button>
-                  </div>
-                )}
-
-              </div>
-            )}
           </div>
         </div>
       </div>

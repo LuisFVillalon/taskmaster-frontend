@@ -1,9 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Search, Filter, CheckSquare, FileText, Files, Tag as TagIcon, Pencil } from 'lucide-react';
 import { FilterType, Tag } from '@/app/types/task';
-import { useRouter } from 'next/navigation'; // Added for navigation
 
 interface TaskControlsProps {
   searchTerm: string;
@@ -16,10 +15,12 @@ interface TaskControlsProps {
   showTagDropdown: boolean;
   onTagDropdownToggle: () => void;
   tags: Tag[];
-  onNewTaskClick: () => void;
-  onCreateTagClick: () => void;
-  onEditTagClick: () => void;
   searchPlaceholder?: string;
+  onNewTask?: () => void;
+  onNewNote?: () => void;
+  onViewNotes?: () => void;
+  onCreateTag?: () => void;
+  onEditTag?: () => void;
 }
 
 const TaskControls: React.FC<TaskControlsProps> = ({
@@ -33,13 +34,13 @@ const TaskControls: React.FC<TaskControlsProps> = ({
   showTagDropdown,
   onTagDropdownToggle,
   tags,
-  onNewTaskClick,
-  onCreateTagClick,
-  onEditTagClick,
   searchPlaceholder = 'Search tasks…',
+  onNewTask,
+  onNewNote,
+  onViewNotes,
+  onCreateTag,
+  onEditTag,
 }) => {
-  const router = useRouter(); // Initialize the router
-
   return (
     <div className="card p-4 sm:p-5 mb-4 sm:mb-6">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-4">
@@ -56,39 +57,6 @@ const TaskControls: React.FC<TaskControlsProps> = ({
           />
         </div>
 
-        {/* Action buttons */}
-        <div className="flex flex-col h-full gap-2">
-          <button
-            onClick={onNewTaskClick}
-            className="btn btn-primary px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base flex items-center justify-center gap-2"
-          >
-            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span>New Task</span>
-          </button>
-          
-          {/* View Notes Button - Now routes to /notes */}
-          <button
-            onClick={() => router.push('/notes')}
-            className="btn btn-primary px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base"
-          >
-            <span>View Notes</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onCreateTagClick}
-            className="btn btn-secondary py-1.5 text-sm"
-          >
-            + Create Tag
-          </button>
-          <button
-            type="button"
-            onClick={onEditTagClick}
-            className="btn btn-secondary py-1.5 text-sm"
-          >
-            ✏️ Edit Tag
-          </button>
-        </div>
       </div>
 
       {/* Filters row */}
@@ -98,7 +66,7 @@ const TaskControls: React.FC<TaskControlsProps> = ({
             <button
               key={f}
               onClick={() => onFilterChange(f)}
-              className={`px-3 sm:px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap text-sm flex-shrink-0 ${
+              className={`px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 ${
                 filter === f
                   ? 'btn-primary'
                   : 'btn-secondary'
@@ -120,7 +88,7 @@ const TaskControls: React.FC<TaskControlsProps> = ({
         <div className="relative">
           <button
             onClick={onTagDropdownToggle}
-            className="btn btn-secondary py-2 px-3 sm:px-4 text-sm flex items-center gap-2"
+            className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-secondary cursor-default"
           >
             <Filter className="w-4 h-4" />
             Tags
@@ -173,6 +141,60 @@ const TaskControls: React.FC<TaskControlsProps> = ({
                 })}
               </div>
             </div>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2 flex-wrap ml-auto">
+          {onNewTask && (
+            <button
+              onClick={onNewTask}
+              className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+              style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+            >
+              <CheckSquare className="w-4 h-4" />
+              New Task
+            </button>
+          )}
+          {onNewNote && (
+            <button
+              onClick={onNewNote}
+              className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+              style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+            >
+              <FileText className="w-4 h-4" />
+              New Note
+            </button>
+          )}
+          {onViewNotes && (
+            <button
+              onClick={onViewNotes}
+              className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+              style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+            >
+              <Files className="w-4 h-4" />
+              View Notes
+            </button>
+          )}
+          {onCreateTag && (
+            <button
+              onClick={onCreateTag}
+              className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+              style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+            >
+              <TagIcon className="w-4 h-4" />
+              Create Tag
+            </button>
+          )}
+          {onEditTag && (
+            <button
+              onClick={onEditTag}
+              className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+              style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+            >
+              <Pencil className="w-4 h-4" />
+              Edit Tag
+            </button>
           )}
         </div>
 

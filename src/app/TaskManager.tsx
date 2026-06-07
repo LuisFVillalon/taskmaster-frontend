@@ -33,7 +33,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
 import { claimOrphanedData, fetchWorkBlocks, updateWorkBlockStatus, deleteWorkBlock, rescheduleWorkBlock } from '@/app/lib/backend-api';
 import { requestScheduleSuggestion } from '@/app/lib/ai-api';
-import { Task, WorkBlock } from '@/app/types/task';
+import { Task, Tag, WorkBlock } from '@/app/types/task';
 import { useTasks, useTags } from '@/app/hooks/useTasksAndTags';
 import { useTaskManagerState } from '@/app/hooks/useTaskManagerState';
 import { useTaskHandlers } from '@/app/hooks/useTaskHandlers';
@@ -48,14 +48,13 @@ import CreateTagModal from '@/app/components/tag/CreateTagModal';
 import EditTagModal from '@/app/components/tag/EditTagListModal';
 import { Filter, ChevronDown, ChevronUp, FileText, Settings, CheckCircle2, AlertTriangle } from 'lucide-react';
 import BigPictureCalendar from '@/app/components/BigPictureCalendar';
-import CalendarView from '@/app/components/calendar/CalendarView';
 import SettingsModal from '@/app/components/SettingsModal';
-import NoteItem from '@/app/components/notes/NoteItem';
+import NotesGridView from '@/app/components/notes/NotesGridView';
+import TagFolderOverlay from '@/app/components/notes/TagFolderOverlay';
+import NoteEditorOverlay from '@/app/components/notes/NoteEditorOverlay';
 import { useNotes } from '@/app/hooks/useNotes';
+import { Note } from '@/app/types/notes';
 import BriefingCard from '@/app/components/BriefingCard';
-import { useGoogleCalendar } from '@/app/hooks/useGoogleCalendar';
-import GoogleEventModal from '@/app/components/calendar/GoogleEventModal';
-import { GoogleCalendarEvent } from '@/app/types/calendar';
 
 const TaskManager: React.FC = () => {
   const router = useRouter();
@@ -107,8 +106,6 @@ const TaskManager: React.FC = () => {
   const { tags, tagsLoading, addTag, delTag, updateTag } = useTags();
 
   const [showSettings, setShowSettings] = useState(false);
-  const [activeGoogleEvent, setActiveGoogleEvent] = useState<GoogleCalendarEvent | null>(null);
-  const { gcalStatus, googleEvents, googleSyncing, gcalError, connectGcal, disconnectGcal, syncGcal } = useGoogleCalendar();
 
   // ── Work Blocks (Smart Scheduling) ──────────────────────────────────────────
   const [workBlocks, setWorkBlocks] = useState<WorkBlock[]>([]);
@@ -190,10 +187,32 @@ const TaskManager: React.FC = () => {
 
   // Mobile-specific state
   const [showStats, setShowStats] = useState(false);
-  const [showCal, setShowCal] = useState(false);
 
-  // View toggle: 'tasks' shows the task list + calendar; 'notes' shows NotesView
-  const [viewMode, setViewMode] = useState<'tasks' | 'notes'>('tasks');
+  // Resizable split pane
+  const [tasksWidthPct, setTasksWidthPct] = useState(50);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+
+  const handleSplitterMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+
+    const onMove = (ev: MouseEvent) => {
+      if (!isDragging.current || !splitContainerRef.current) return;
+      const { left, width } = splitContainerRef.current.getBoundingClientRect();
+      const pct = ((ev.clientX - left) / width) * 100;
+      setTasksWidthPct(Math.min(70, Math.max(15, pct)));
+    };
+
+    const onUp = () => {
+      isDragging.current = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
 
   // State management
   const state = useTaskManagerState();
@@ -227,22 +246,6 @@ const TaskManager: React.FC = () => {
 
   const { handleNewAITask } = handlers;
 
-  const handleCalendarDayClick = (date: Date) => {
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    state.setNewTask({ ...state.newTask, due_date: dateStr, due_time: '' });
-    state.setShowNewTaskModal(true);
-  };
-
-  const handleCalendarSlotClick = (date: Date, time: string) => {
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    state.setNewTask({ ...state.newTask, due_date: dateStr, due_time: time });
-    state.setShowNewTaskModal(true);
-  };
-
-  const handleCalendarTaskClick = (task: Task) => {
-    state.setShowEditTaskModal({ status: true, task });
-  };
-
   // Filtering and stats
   const { filteredTasks, stats } = useTaskFiltering(
     tasks,
@@ -254,8 +257,10 @@ const TaskManager: React.FC = () => {
 
   // Notes state — use raw notes so TaskManager can filter them with the shared
   // selectedTags / searchTerm state from TaskControls instead of the hook's own.
-  const { notes: allNotes, deleteNote } = useNotes();
+  const { notes: allNotes, addNote, deleteNote, updateNote } = useNotes();
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
+  const [notesFolderOverlay, setNotesFolderOverlay] = useState<{ tag: Tag; notes: Note[] } | null>(null);
+  const [noteEditorOverlay, setNoteEditorOverlay] = useState<Note | null>(null);
 
   // Per-tag note counts for the Total StatsCard
   const noteTags = useMemo(() => {
@@ -309,7 +314,7 @@ const TaskManager: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:mb-4 sm:gap-0">
             <div className="flex items-center gap-2 sm:gap-3">
               <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-5xl font-bold text-text-primary">Promptly</h1>
+                <h1 className="text-2xl sm:text-3xl lg:text-5xl font-bold text-text-primary">Task Master</h1>
                 <p className="text-xs sm:text-sm lg:text-base text-text-secondary">Less planning, more doing.</p>
               </div>
             </div>
@@ -338,18 +343,8 @@ const TaskManager: React.FC = () => {
 
           {/* Academic Calendar & Stats Cards - Mobile Responsive */}
           <div className='grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6'>
-            {/* Academic Calendar - Hidden on mobile, shown on larger screens */}
-            <button
-                onClick={() => setShowCal(!showCal)}
-                className="lg:hidden w-full flex items-center justify-between p-3 card mb-2"
-              >
-                <span className="font-semibold text-text-primary">Academic Calendar</span>
-                {showCal ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-            </button>
-            <div className={`${!showCal ? 'hidden lg:grid' : ''}`}>
-              <BigPictureCalendar/>
-            </div>
-            
+            <BigPictureCalendar/>
+
             {/* Stats Cards - Collapsible on mobile */}
             <div className="w-full lg:w-auto">
               <button
@@ -359,7 +354,7 @@ const TaskManager: React.FC = () => {
                 <span className="font-semibold text-text-primary">Statistics</span>
                 {showStats ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
               </button>
-              
+
               <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-3 lg:gap-4 ${!showStats ? 'hidden lg:grid' : ''}`}>
                 <StatsCard
                   variant="tasks"
@@ -392,148 +387,120 @@ const TaskManager: React.FC = () => {
               showTagDropdown={state.showTagDropdown}
               onTagDropdownToggle={() => state.setShowTagDropdown(prev => !prev)}
               tags={tags}
-              onNewTaskClick={() => state.setShowNewTaskModal(true)}
-              onCreateTagClick={() => state.setShowCreateTagModal(true)}
-              onEditTagClick={() => {
-                if (tags.length > 0) {
-                  handlers.openEditTagModal(tags[0]);
-                }
-              }}
-              searchPlaceholder={viewMode === 'notes' ? 'Search notes…' : 'Search tasks…'}
+              searchPlaceholder={'Search tasks & notes…'}
+              onNewTask={() => state.setShowNewTaskModal(true)}
+              onNewNote={async () => { const note = await addNote(); setNoteEditorOverlay(note); }}
+              onViewNotes={() => router.push('/notes')}
+              onCreateTag={() => state.setShowCreateTagModal(true)}
+              onEditTag={() => { if (tags.length > 0) handlers.openEditTagModal(tags[0]); }}
             />
           </div>
 
-          {/* Task List / Note List and Calendar — two-column layout */}
-          <div className="flex flex-col lg:flex-row gap-6 w-full">
+          {/* Tasks & Notes — split layout */}
+          <div
+            ref={splitContainerRef}
+            className="flex flex-col md:flex-row"
+            style={{ ['--tasks-w' as string]: `${tasksWidthPct}%` }}
+          >
 
-            {/* LEFT COLUMN: Task List or Note List */}
-            <div className="flex-1 space-y-2 sm:space-y-3">
-
-              {/* Header: dynamic title on the left, view toggle on the right */}
-              <div className="flex items-center justify-between px-2">
-                <div className="font-bold text-xl sm:text-2xl text-text-primary">
-                  {viewMode === 'tasks' ? 'To Do:' : 'Notes:'}
-                </div>
-                <div
-                  className="inline-flex items-center gap-1 p-1 rounded-lg"
-                  style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-                >
-                  <button
-                    onClick={() => setViewMode('tasks')}
-                    className="px-4 py-1 text-sm font-semibold rounded-md transition-all"
-                    style={
-                      viewMode === 'tasks'
-                        ? { backgroundColor: 'var(--tm-accent)', color: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.18)' }
-                        : { color: 'var(--tm-text-secondary)', backgroundColor: 'transparent' }
-                    }
+            {/* Tasks column */}
+            <div className="split-tasks flex flex-col space-y-2 sm:space-y-3">
+              {filteredTasks.length === 0 ? (
+                <div className="card p-6 sm:p-8 text-center mt-2">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                    style={{ backgroundColor: 'var(--tm-surface-raised)' }}
                   >
-                    Tasks
-                  </button>
-                  <button
-                    onClick={() => setViewMode('notes')}
-                    className="px-4 py-1 text-sm font-semibold rounded-md transition-all"
-                    style={
-                      viewMode === 'notes'
-                        ? { backgroundColor: 'var(--tm-accent)', color: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.18)' }
-                        : { color: 'var(--tm-text-secondary)', backgroundColor: 'transparent' }
-                    }
-                  >
-                    Notes
-                  </button>
+                    <Filter className="w-6 h-6 text-text-muted" />
+                  </div>
+                  <h3 className="text-base font-semibold text-text-primary mb-2">No tasks found</h3>
+                  <p className="text-sm text-text-secondary">Try adjusting your filters</p>
                 </div>
-              </div>
-
-              {/* Task list */}
-              {viewMode === 'tasks' && (
-                filteredTasks.length === 0 ? (
-                  <div className="card p-6 sm:p-8 lg:p-12 text-center mt-4">
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
-                      style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-                    >
-                      <Filter className="w-6 h-6 text-text-muted" />
-                    </div>
-                    <h3 className="text-base font-semibold text-text-primary mb-2">No tasks found</h3>
-                    <p className="text-sm text-text-secondary">Try adjusting your filters</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2 overflow-y-auto h-[50vh] lg:h-[600px] pl-2 pr-1 scrollbar-custom">
-                    {filteredTasks.map((task, index) => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        index={index}
-                        onToggleComplete={toggleComplete}
-                        tags={tags}
-                        onDeleteTask={deleteTask}
-                        onEditTaskClick={() =>
-                          state.setShowEditTaskModal({ status: true, task })
-                        }
-                        onScheduleTask={handleScheduleTask}
-                        workBlock={
-                          // Prefer a confirmed block over a suggested one if both exist.
-                          workBlocks.find(b => b.task_id === task.id && b.status === 'confirmed')
-                          ?? workBlocks.find(b => b.task_id === task.id)
-                          ?? null
-                        }
-                        onWorkBlockAction={handleWorkBlockAction}
-                        onDeleteWorkBlock={handleDeleteWorkBlock}
-                      />
-                    ))}
-                  </div>
-                )
-              )}
-
-              {/* Note list */}
-              {viewMode === 'notes' && (
-                filteredNotes.length === 0 ? (
-                  <div className="card p-6 sm:p-8 lg:p-12 text-center mt-4">
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
-                      style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-                    >
-                      <FileText className="w-6 h-6 text-text-muted" />
-                    </div>
-                    <h3 className="text-base font-semibold text-text-primary mb-2">No notes yet</h3>
-                    <p className="text-sm text-text-secondary">Switch to the Notes view to create one</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2 overflow-y-auto h-[50vh] lg:h-[600px] pl-2 pr-1 scrollbar-custom">
-                    {filteredNotes.map(note => (
-                      <NoteItem
-                        key={note.id}
-                        note={note}
-                        isActive={note.id === activeNoteId}
-                        onClick={() => router.push(`/notes?id=${note.id}`)}
-                        onDelete={deleteNote}
-                      />
-                    ))}
-                  </div>
-                )
+              ) : (
+                <div className="flex flex-col gap-2 overflow-y-auto h-[50vh] lg:h-[600px] pl-2 pr-1 scrollbar-custom">
+                  {filteredTasks.map((task, index) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      index={index}
+                      onToggleComplete={toggleComplete}
+                      tags={tags}
+                      onDeleteTask={deleteTask}
+                      onEditTaskClick={() =>
+                        state.setShowEditTaskModal({ status: true, task })
+                      }
+                      compact={tasksWidthPct < 33}
+                    />
+                  ))}
+                </div>
               )}
             </div>
 
-            {/* RIGHT COLUMN: Calendar View (always visible) */}
-            <div className="flex-1">
-              <div className="font-bold text-xl sm:text-2xl text-text-primary px-2 mb-2 sm:mb-3">
-                Calendar:
-              </div>
-              <div className="h-full">
-                <CalendarView
-                  tasks={tasks}
-                  onDayClick={handleCalendarDayClick}
-                  onSlotClick={handleCalendarSlotClick}
-                  onTaskClick={handleCalendarTaskClick}
-                  googleEvents={googleEvents}
-                  onGoogleEventClick={setActiveGoogleEvent}
-                  googleSyncing={googleSyncing}
-                  onSync={gcalStatus === 'connected' ? syncGcal : undefined}
-                  workBlocks={workBlocks}
-                  onWorkBlockAction={handleWorkBlockAction}
-                  onWorkBlockReschedule={handleRescheduleWorkBlock}
+            {/* Drag handle — visible only on md+ */}
+            <div
+              onMouseDown={handleSplitterMouseDown}
+              className="hidden md:flex w-2 shrink-0 items-stretch cursor-col-resize group py-1"
+            >
+              <div className="mx-auto w-px rounded-full transition-colors duration-150"
+                style={{ backgroundColor: 'var(--tm-border)' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--tm-accent)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--tm-border)')}
+              />
+            </div>
+
+            {/* Notes column */}
+            <div className="split-notes relative flex flex-col space-y-2 sm:space-y-3">
+              {filteredNotes.length === 0 ? (
+                <div className="card p-6 sm:p-8 text-center mt-2">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                    style={{ backgroundColor: 'var(--tm-surface-raised)' }}
+                  >
+                    <FileText className="w-6 h-6 text-text-muted" />
+                  </div>
+                  <h3 className="text-base font-semibold text-text-primary mb-2">No notes yet</h3>
+                  <p className="text-sm text-text-secondary">Create a note to get started</p>
+                </div>
+              ) : (
+                <div className="overflow-y-auto h-[50vh] lg:h-[600px] pl-2 pr-1 scrollbar-custom pt-2">
+                  <NotesGridView
+                    notes={filteredNotes}
+                    allTags={tags}
+                    activeNoteId={activeNoteId}
+                    onSelectNote={note => { setActiveNoteId(note.id); setNoteEditorOverlay(note); }}
+                    onDeleteNote={deleteNote}
+                    onFolderClick={(tag, notes) => setNotesFolderOverlay({ tag, notes })}
+                    wide
+                  />
+                </div>
+              )}
+              {notesFolderOverlay && (
+                <TagFolderOverlay
+                  tag={notesFolderOverlay.tag}
+                  notes={notesFolderOverlay.notes}
+                  activeNoteId={activeNoteId}
+                  allTags={tags}
+                  onUpdate={updateNote}
+                  onDeleteNote={deleteNote}
+                  onClose={() => setNotesFolderOverlay(null)}
                 />
-              </div>
+              )}
+              {noteEditorOverlay && (
+                <NoteEditorOverlay
+                  note={noteEditorOverlay}
+                  allTags={tags}
+                  onUpdate={(id, changes) => {
+                    updateNote(id, changes);
+                    if (changes.title !== undefined) {
+                      setNoteEditorOverlay(prev => prev ? { ...prev, title: changes.title! } : prev);
+                    }
+                  }}
+                  onDeleteNote={id => { deleteNote(id); setNoteEditorOverlay(null); }}
+                  onClose={() => setNoteEditorOverlay(null)}
+                />
+              )}
             </div>
+
           </div>
           </div>
         </div>
@@ -612,15 +579,6 @@ const TaskManager: React.FC = () => {
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
         onAccountDeleted={handleLogout}
-        gcalStatus={gcalStatus}
-        onGcalConnect={connectGcal}
-        onGcalDisconnect={disconnectGcal}
-        gcalError={gcalError}
-      />
-
-      <GoogleEventModal
-        event={activeGoogleEvent}
-        onClose={() => setActiveGoogleEvent(null)}
       />
 
       {/* ── Work block confirmed toast ──────────────────────────────────── */}

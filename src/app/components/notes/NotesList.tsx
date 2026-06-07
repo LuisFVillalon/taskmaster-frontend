@@ -4,15 +4,12 @@ import React from 'react';
 import { Plus, Search, FileText } from 'lucide-react';
 import { Note } from '@/app/types/notes';
 import { Tag } from '@/app/types/task';
-import NoteItem from './NoteItem';
+import NotesGridView from './NotesGridView';
 
 interface NotesListProps {
   notes: Note[];
   activeNoteId: number | null;
   allTags: Tag[];
-  selectedTags: Tag[];
-  onTagToggle: (tag: Tag) => void;
-  onClearTags: () => void;
   searchTerm: string;
   onSearchChange: (term: string) => void;
   onSelectNote: (note: Note) => void;
@@ -24,9 +21,6 @@ const NotesList: React.FC<NotesListProps> = ({
   notes,
   activeNoteId,
   allTags,
-  selectedTags,
-  onTagToggle,
-  onClearTags,
   searchTerm,
   onSearchChange,
   onSelectNote,
@@ -62,47 +56,8 @@ const NotesList: React.FC<NotesListProps> = ({
         </div>
       </div>
 
-      {/* ── Tag filter chips ─────────────────────────────────────────────── */}
-      {allTags.length > 0 && (
-        <div className="px-3 pb-3 flex flex-wrap gap-1.5">
-          <button
-            onClick={onClearTags}
-            className="chip font-medium transition-colors px-2 rounded-md"
-            style={selectedTags.length === 0 ? {
-              backgroundColor: 'var(--tm-accent)',
-              color: 'var(--tm-accent-text)',
-            } : {
-              backgroundColor: 'var(--tm-surface-raised)',
-              color: 'var(--tm-text-secondary)',
-            }}
-          >
-            All
-          </button>
-
-          {allTags.map(tag => {
-            const isSelected = selectedTags.some(t => t.id === tag.id);
-            return (
-              <button
-                key={tag.id}
-                onClick={() => onTagToggle(tag)}
-                className="chip font-medium transition-all active:scale-95 px-2 rounded-md"
-                style={isSelected ? {
-                  backgroundColor: tag.color,
-                  color: 'white',
-                } : {
-                  backgroundColor: 'var(--tm-surface-raised)',
-                  color: 'var(--tm-text-secondary)',
-                }}
-              >
-                {tag.name}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Note list ────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-3 pb-4 flex flex-col gap-2 scrollbar-custom">
+      {/* ── Grid view ────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-3 pb-4 scrollbar-custom">
         {notes.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <div
@@ -112,22 +67,20 @@ const NotesList: React.FC<NotesListProps> = ({
               <FileText className="w-6 h-6 text-text-muted" />
             </div>
             <p className="text-sm font-medium text-text-secondary">
-              {searchTerm || selectedTags.length > 0 ? 'No notes match your filters' : 'No notes yet'}
+              {searchTerm ? 'No notes match your search' : 'No notes yet'}
             </p>
-            {!searchTerm && selectedTags.length === 0 && (
+            {!searchTerm && (
               <p className="text-xs text-text-muted mt-1">Click New Note to get started</p>
             )}
           </div>
         ) : (
-          notes.map(note => (
-            <NoteItem
-              key={note.id}
-              note={note}
-              isActive={note.id === activeNoteId}
-              onClick={() => onSelectNote(note)}
-              onDelete={onDeleteNote}
-            />
-          ))
+          <NotesGridView
+            notes={notes}
+            allTags={allTags}
+            activeNoteId={activeNoteId}
+            onSelectNote={onSelectNote}
+            onDeleteNote={onDeleteNote}
+          />
         )}
       </div>
     </div>
