@@ -393,6 +393,16 @@ const TaskManager: React.FC = () => {
 
               {/* Notes column */}
               <div className="split-notes relative flex flex-col space-y-2 sm:space-y-3">
+                <div className="flex justify-end">
+                  <button
+                    onClick={async () => { const note = await addNote(); setNoteEditorOverlay(note); }}
+                    className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+                    style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+                  >
+                    <FileText className="w-4 h-4" />
+                    Create Note
+                  </button>
+                </div>
                 {filteredNotes.length === 0 ? (
                   <div className="card p-6 sm:p-8 text-center mt-2">
                     <div
