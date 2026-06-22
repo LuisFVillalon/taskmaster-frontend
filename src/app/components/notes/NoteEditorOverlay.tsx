@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { X, ExternalLink } from 'lucide-react';
 import { Note } from '@/app/types/notes';
 import { Tag } from '@/app/types/task';
 import NoteEditor from './NoteEditor';
@@ -20,6 +21,7 @@ const NoteEditorOverlay: React.FC<NoteEditorOverlayProps> = ({
   onUpdate,
   onClose,
 }) => {
+  const router = useRouter();
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -42,13 +44,23 @@ const NoteEditorOverlay: React.FC<NoteEditorOverlayProps> = ({
           <h2 className="text-sm font-semibold text-[var(--tm-text-primary)] truncate">
             {note.title || 'Untitled'}
           </h2>
-          <button
-            onClick={onClose}
-            className="btn btn-ghost p-1 rounded-md shrink-0"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => { router.push(`/notes?id=${note.id}`); onClose(); }}
+              className="btn btn-ghost p-1 rounded-md"
+              aria-label="View in Notes"
+              title="View in Notes"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onClose}
+              className="btn btn-ghost p-1 rounded-md"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Editor */}

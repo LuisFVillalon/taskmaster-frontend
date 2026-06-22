@@ -32,7 +32,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
 import { claimOrphanedData } from '@/app/lib/backend-api';
-import { Tag } from '@/app/types/task';
+import { Tag, FilterType } from '@/app/types/task';
 import { useTasks, useTags } from '@/app/hooks/useTasksAndTags';
 import { useTaskManagerState } from '@/app/hooks/useTaskManagerState';
 import { useTaskHandlers } from '@/app/hooks/useTaskHandlers';
@@ -45,7 +45,7 @@ import NewTaskModal from '@/app/components/task/NewTaskModal';
 import EditTaskModal from '@/app/components/task/EditTaskModal';
 import CreateTagModal from '@/app/components/tag/CreateTagModal';
 import EditTagModal from '@/app/components/tag/EditTagListModal';
-import { Filter, ChevronDown, ChevronUp, FileText, Settings, Menu, X } from 'lucide-react';
+import { Filter, ChevronDown, ChevronUp, FileText, Files, Settings, Menu, X, CheckSquare } from 'lucide-react';
 import BigPictureCalendar from '@/app/components/BigPictureCalendar';
 import SettingsModal from '@/app/components/SettingsModal';
 import NotesGridView from '@/app/components/notes/NotesGridView';
@@ -113,6 +113,7 @@ const TaskManager: React.FC = () => {
 
   const [showSettings, setShowSettings] = useState(false);
   const [taskSidebarOpen, setTaskSidebarOpen] = useState(true);
+  const [taskColTagDropdown, setTaskColTagDropdown] = useState(false);
 
   // Mobile-specific state
   const [showStats, setShowStats] = useState(false);
@@ -347,6 +348,77 @@ const TaskManager: React.FC = () => {
 
               {/* Tasks column */}
               <div className="split-tasks flex flex-col space-y-2 sm:space-y-3">
+                {/* Inline filter row + create button */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+                    {(['all', 'active', 'priority'] as FilterType[]).map(f => (
+                      <button
+                        key={f}
+                        onClick={() => handlers.handleFilterChange(f)}
+                        className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 ${state.filter === f ? 'btn-primary' : 'btn-secondary'}`}
+                        style={state.filter === f ? { backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' } : {}}
+                      >
+                        {f === 'active' ? 'Due date' : f.charAt(0).toUpperCase() + f.slice(1)}
+                        <span className="opacity-70">{state.sortOrder[f] === 'asc' ? '↑' : '↓'}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Tags dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setTaskColTagDropdown(prev => !prev)}
+                      className="px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 btn-secondary"
+                    >
+                      <Filter className="w-4 h-4" />
+                      Tags
+                      {state.selectedTags.length > 0 && (
+                        <span
+                          className="ml-0.5 text-xs rounded-full px-1.5 py-0.5 font-semibold"
+                          style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+                        >
+                          {state.selectedTags.length}
+                        </span>
+                      )}
+                    </button>
+                    {taskColTagDropdown && (
+                      <div
+                        className="absolute z-50 left-0 top-full mt-1 w-52 rounded-xl border border-border overflow-hidden"
+                        style={{ backgroundColor: 'var(--tm-surface)', boxShadow: 'var(--tm-shadow-lg)' }}
+                      >
+                        <button
+                          onClick={() => { state.selectedTags.forEach(tag => handlers.toggleSelectedTag(tag)); setTaskColTagDropdown(false); }}
+                          className="w-full text-left px-4 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-raised transition-colors"
+                        >
+                          Clear tags
+                        </button>
+                        <div className="max-h-48 overflow-y-auto">
+                          {tags.map(tag => {
+                            const checked = state.selectedTags.some(t => t.id === tag.id);
+                            return (
+                              <label key={tag.id} className="flex items-center gap-3 px-4 py-2 text-sm cursor-pointer hover:bg-surface-raised transition-colors text-text-primary">
+                                <input type="checkbox" checked={checked} onChange={() => handlers.toggleSelectedTag(tag)} className="accent-accent rounded" />
+                                <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                                <span>{tag.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Create Task button */}
+                  <button
+                    onClick={() => state.setShowNewTaskModal(true)}
+                    className="ml-auto px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 btn-primary"
+                    style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                    Create Task
+                  </button>
+                </div>
+
                 {filteredTasks.length === 0 ? (
                   <div className="card p-6 sm:p-8 text-center mt-2">
                     <div
@@ -393,10 +465,10 @@ const TaskManager: React.FC = () => {
 
               {/* Notes column */}
               <div className="split-notes relative flex flex-col space-y-2 sm:space-y-3">
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
                   <button
                     onClick={async () => { const note = await addNote(); setNoteEditorOverlay(note); }}
-                    className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+                    className="px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 btn-primary"
                     style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
                   >
                     <FileText className="w-4 h-4" />
