@@ -45,7 +45,7 @@ import NewTaskModal from '@/app/components/task/NewTaskModal';
 import EditTaskModal from '@/app/components/task/EditTaskModal';
 import CreateTagModal from '@/app/components/tag/CreateTagModal';
 import EditTagModal from '@/app/components/tag/EditTagListModal';
-import { Filter, ChevronDown, ChevronUp, FileText, Files, Settings, Menu, X, CheckSquare } from 'lucide-react';
+import { Filter, ChevronDown, ChevronUp, FileText, Settings, Menu, X, CheckSquare } from 'lucide-react';
 import BigPictureCalendar from '@/app/components/BigPictureCalendar';
 import SettingsModal from '@/app/components/SettingsModal';
 import NotesGridView from '@/app/components/notes/NotesGridView';
