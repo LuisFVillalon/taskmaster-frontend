@@ -183,8 +183,8 @@ const BigPictureCalendar: React.FC = () => {
   };
 
   const updateField = <K extends keyof CalendarSettings>(key: K, value: CalendarSettings[K]) => {
-    if (!settings) return;
-    const updated = { ...settings, [key]: value };
+    const base = settings ?? { id: 0, ...DEFAULTS };
+    const updated = { ...base, [key]: value };
     setSettings(updated);
     scheduleAutoSave(updated);
   };
