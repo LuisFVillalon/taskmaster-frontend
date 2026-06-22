@@ -25,7 +25,7 @@ export const useTaskManagerState = () => {
     all: 'asc',
     active: 'asc',
     completed: 'asc',
-    urgent: 'asc',
+    priority: 'asc',
   });
 
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
@@ -54,7 +54,7 @@ export const useTaskManagerState = () => {
     id: 0,
     title: '',
     description: '',
-    urgent: false,
+    priority: null,
     due_date: '',
     due_time: '',
     tags: [],

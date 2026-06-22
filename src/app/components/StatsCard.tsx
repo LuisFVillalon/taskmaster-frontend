@@ -15,9 +15,11 @@ type TasksVariant = {
   variant: 'tasks';
   total: number;
   completed: number;
-  active: number;   // in-progress (not completed, not urgent)
-  urgent: number;
-  tags: TagStats[];
+  active: number;
+  topPriority: number;
+  activeTags: TagStats[];
+  completedTags: TagStats[];
+  prioritizedTags: TagStats[];
 };
 
 type NotesVariant = {
@@ -92,27 +94,44 @@ const TagChips: React.FC<TagChipsProps> = ({ tags, icon }) => {
   );
 };
 
+interface TagSectionProps {
+  label: string;
+  color: string;
+  tags: TagStats[];
+}
+
+const TagSection: React.FC<TagSectionProps> = ({ label, color, tags }) => (
+  <div className="flex flex-col gap-1">
+    <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color }}>
+      {label}
+    </span>
+    <TagChips tags={tags} />
+  </div>
+);
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 const StatsCard: React.FC<StatsCardProps> = (props) => {
 
   if (props.variant === 'tasks') {
-    const { total, completed, active, urgent, tags } = props;
+    const { total, completed, active, activeTags, completedTags } = props;
     return (
       <CardShell
         icon={<CheckSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5" style={{ color: 'var(--tm-accent)' }} />}
         header="Tasks"
       >
         {/* 2×2 status grid */}
-        <div className="grid grid-cols-2 gap-2">
-          <StatPill label="Total"       value={total}     color="var(--tm-accent)" />
-          <StatPill label="Completed"   value={completed} color="#85BB65" />
-          <StatPill label="In Progress" value={active}    color="#3B82F6" />
-          <StatPill label="Urgent"      value={urgent}    color="#EF4444" />
+        <div className="grid grid-cols-3 gap-2">
+          <StatPill label="Total"       value={total}       color="var(--tm-accent)" />
+          <StatPill label="In Progress" value={active}      color="#3B82F6" />
+          <StatPill label="Completed"   value={completed}   color="#85BB65" />
         </div>
 
-        {/* Per-tag breakdown */}
-        <TagChips tags={tags} />
+        {/* Per-status tag breakdowns */}
+        <div className="grid grid-cols-2 gap-2">
+          <TagSection label="In Progress" color="#3B82F6" tags={activeTags} />
+          <TagSection label="Completed"   color="#85BB65" tags={completedTags} />
+        </div>
       </CardShell>
     );
   }

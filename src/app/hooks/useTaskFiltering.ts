@@ -35,8 +35,8 @@ export const useTaskFiltering = (
             ? !task.completed
             : filter === 'completed'
             ? task.completed
-            : filter === 'urgent'
-            ? task.urgent && !task.completed
+            : filter === 'priority'
+            ? !task.completed
             : true;
 
         // Search filtering
@@ -54,6 +54,11 @@ export const useTaskFiltering = (
         return matchesStatus && matchesSearch && matchesTags;
       })
       .sort((a, b) => {
+        if (filter === 'priority') {
+          const pa = a.priority ?? Infinity;
+          const pb = b.priority ?? Infinity;
+          return sortOrder[filter] === 'asc' ? pa - pb : pb - pa;
+        }
         const diff = getTaskDateTime(a) - getTaskDateTime(b);
         return sortOrder[filter] === 'asc' ? diff : -diff;
       });
@@ -71,9 +76,9 @@ export const useTaskFiltering = (
         tasks: safeTasks.filter(t => t.completed),
         tags: countTasksByTag(safeTasks.filter(t => t.completed))
       },
-      urgent: {
-        tasks: safeTasks.filter(t => t.urgent && !t.completed),
-        tags: countTasksByTag(safeTasks.filter(t => t.urgent && !t.completed))
+      prioritized: {
+        tasks: safeTasks.filter(t => t.priority != null && !t.completed),
+        tags: countTasksByTag(safeTasks.filter(t => t.priority != null && !t.completed))
       }
     };
 

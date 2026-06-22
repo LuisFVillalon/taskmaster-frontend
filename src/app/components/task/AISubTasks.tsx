@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Check,
   Clock,
-  AlertCircle,
   Trash2,
   Pencil,
   BarChart3,
@@ -82,19 +81,22 @@ const AISubTaskEditModal: React.FC<EditModalProps> = ({ task, tags, onClose, onS
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
 
-          {/* Urgent */}
-          <div className="flex items-center gap-3">
+          {/* Priority */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
             <input
-              type="checkbox"
-              id="ai-urgent"
-              checked={!!draft.urgent}
-              onChange={e => setDraft(prev => ({ ...prev, urgent: e.target.checked }))}
-              className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+              type="number"
+              min={1}
+              step={1}
+              value={draft.priority ?? ''}
+              onChange={e => {
+                const val = e.target.value === '' ? null : parseInt(e.target.value);
+                setDraft(prev => ({ ...prev, priority: val }));
+              }}
+              placeholder="Auto-assign"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black"
             />
-            <label htmlFor="ai-urgent" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-orange-500" />
-              Mark as urgent
-            </label>
+            <p className="text-xs text-gray-500 mt-1">1 = highest priority. Leave blank to auto-assign.</p>
           </div>
 
           {/* Title */}
@@ -399,10 +401,9 @@ const AISubTaskItem: React.FC<AISubTaskItemProps> = ({
               </h3>
 
               <div className="flex items-center gap-2">
-                {task.urgent && (
-                  <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    URGENT
+                {task.priority != null && (
+                  <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold">
+                    P{task.priority}
                   </span>
                 )}
 

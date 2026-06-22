@@ -90,7 +90,7 @@ export async function createTask(task: {
   title: string;
   description?: string;
   completed?: boolean;
-  urgent?: boolean;
+  priority?: number | null;
   due_date?: string;
   due_time?: string;
   tags: { name: string; color?: string }[];
@@ -123,7 +123,7 @@ export async function updateWholeTask(id: number, task: {
   title: string;
   description?: string;
   completed?: boolean;
-  urgent?: boolean;
+  priority?: number | null;
   due_date?: string | null;
   due_time?: string | null;
   tags: { id: number; name: string; color: string }[];

@@ -99,7 +99,7 @@ export const useTaskHandlers = ({
           id: 0,
           title: '',
           description: '',
-          urgent: false,
+          priority: null,
           due_date: '',
           due_time: '',
           tags: [],
@@ -108,7 +108,7 @@ export const useTaskHandlers = ({
           complexity: null,
           created_date: '',
         });
-      
+
     }
   };
 
@@ -167,7 +167,7 @@ export const useTaskHandlers = ({
         id: 0,
         title: '',
         description: '',
-        urgent: false,
+        priority: null,
         due_date: '',
         due_time: '',
         tags: [],
@@ -187,7 +187,7 @@ export const useTaskHandlers = ({
       id: showEditTaskModal.task.id,
       title: showEditTaskModal.task.title,
       description: showEditTaskModal.task.description,
-      urgent: showEditTaskModal.task.urgent,
+      priority: showEditTaskModal.task.priority,
       completed: showEditTaskModal.task.completed,
       due_date: showEditTaskModal.task.due_date
         ? (showEditTaskModal.task.due_date instanceof Date

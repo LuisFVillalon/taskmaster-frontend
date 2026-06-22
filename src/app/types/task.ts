@@ -30,7 +30,7 @@ export interface Tag {
   color: string;
 }
 
-export type FilterType = 'all' | 'active' | 'completed' | 'urgent';
+export type FilterType = 'all' | 'active' | 'completed' | 'priority';
 export type TaskCategory = 'homework' | 'test' | 'project' | 'interview' | 'skill';
 
 export interface Task {
@@ -38,7 +38,7 @@ export interface Task {
   title: string;
   description: string;
   completed: boolean;
-  urgent: boolean;
+  priority: number | null;
   due_date: string | Date | null;
   due_time: string | Date | null;
   tags: Tag[];
@@ -54,11 +54,11 @@ export interface Task {
 }
 
 export interface BaseTaskForm {
-  
+
   id: number;
   title: string;
   description: string;
-  urgent: boolean;
+  priority: number | null;
   due_date: string | Date | null;
   due_time: string | Date | null;
   tags: Tag[];
@@ -94,7 +94,7 @@ export interface StatsData {
   total: TaskStats;
   active: TaskStats;
   completed: TaskStats;
-  urgent: TaskStats;
+  prioritized: TaskStats;
 }
 
 export interface WorkBlock {

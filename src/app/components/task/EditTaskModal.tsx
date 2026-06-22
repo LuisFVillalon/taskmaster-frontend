@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Calendar, Clock, Loader2 } from 'lucide-react';
 import { Tag, EditTaskModalState, Task } from '@/app/types/task';
 
 interface EditTaskModalProps {
@@ -10,6 +10,8 @@ interface EditTaskModalProps {
   onToggleTag: (tag: Tag) => void;
   onSubmit: (e: React.FormEvent) => void;
   values: EditTaskModalState;
+  activeTaskCount: number;
+  usedPriorityLevels: number[];
 }
 
 const EditTaskModal: React.FC<EditTaskModalProps> = ({
@@ -19,12 +21,24 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
   tags,
   onToggleTag,
   onSubmit,
-  values
+  values,
+  activeTaskCount,
+  usedPriorityLevels
 }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
   if (!values.task) return null;
+
+  const currentPriority = values.task.priority;
+  const occupiedPriorities = new Set(
+    usedPriorityLevels.filter((priority) => priority !== currentPriority)
+  );
+  const maxPriority = Math.max(activeTaskCount, currentPriority ?? 0);
+  const priorityRange = Array.from({ length: maxPriority }, (_, index) => index + 1);
+  const availablePriorities = priorityRange.filter(
+    (priority) => priority === currentPriority || !occupiedPriorities.has(priority)
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     setIsLoading(true);
@@ -51,20 +65,28 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
 
-          {/* Urgent Checkbox */}
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              id="urgent"
-              checked={values.task.urgent}
-              onChange={(e) => onTaskChange({ ...values.task!, urgent: e.target.checked })}
-              className="w-5 h-5 rounded accent-accent border-border"
-            />
-            <span className="text-sm font-medium text-text-secondary flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" style={{ color: 'var(--tm-warning)' }} />
-              Mark as urgent
-            </span>
-          </label>
+          {/* Priority */}
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-2">Priority</label>
+            <select
+              value={values.task.priority ?? ''}
+              onChange={(e) => {
+                const val = e.target.value === '' ? null : parseInt(e.target.value);
+                onTaskChange({ ...values.task!, priority: val });
+              }}
+              className="input-field"
+            >
+              <option value="">No priority</option>
+              {availablePriorities.map((priority) => (
+                <option key={priority} value={priority}>
+                  {priority}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-text-muted mt-1">
+              1 = highest priority. Leave blank to clear priority. Available values are {availablePriorities.join(', ')}.
+            </p>
+          </div>
 
           {/* Title */}
           <div>

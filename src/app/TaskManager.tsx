@@ -31,9 +31,8 @@ These variables are used to render the UI components and handle user interaction
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
-import { claimOrphanedData, fetchWorkBlocks, updateWorkBlockStatus, deleteWorkBlock, rescheduleWorkBlock } from '@/app/lib/backend-api';
-import { requestScheduleSuggestion } from '@/app/lib/ai-api';
-import { Task, Tag, WorkBlock } from '@/app/types/task';
+import { claimOrphanedData } from '@/app/lib/backend-api';
+import { Tag } from '@/app/types/task';
 import { useTasks, useTags } from '@/app/hooks/useTasksAndTags';
 import { useTaskManagerState } from '@/app/hooks/useTaskManagerState';
 import { useTaskHandlers } from '@/app/hooks/useTaskHandlers';
@@ -41,12 +40,12 @@ import { useTaskFiltering } from '@/app/hooks/useTaskFiltering';
 import StatsCard from '@/app/components/StatsCard';
 import TaskItem from '@/app/components/task/TaskItem';
 import AISubTaskItem from './components/task/AISubTasks';
-import TaskControls from '@/app/components/TaskControls';
+import { TaskControls } from '@/app/components/TaskControls';
 import NewTaskModal from '@/app/components/task/NewTaskModal';
 import EditTaskModal from '@/app/components/task/EditTaskModal';
 import CreateTagModal from '@/app/components/tag/CreateTagModal';
 import EditTagModal from '@/app/components/tag/EditTagListModal';
-import { Filter, ChevronDown, ChevronUp, FileText, Settings, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Filter, ChevronDown, ChevronUp, FileText, Settings, Menu, X } from 'lucide-react';
 import BigPictureCalendar from '@/app/components/BigPictureCalendar';
 import SettingsModal from '@/app/components/SettingsModal';
 import NotesGridView from '@/app/components/notes/NotesGridView';
@@ -103,87 +102,17 @@ const TaskManager: React.FC = () => {
   };
   const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks, sendTaskToAI, addTasks } = useTasks();
 
+  const occupiedPriorityLevels = useMemo(
+    () => tasks
+      .filter(task => !task.completed && task.priority != null)
+      .map(task => task.priority as number),
+    [tasks]
+  );
+
   const { tags, tagsLoading, addTag, delTag, updateTag } = useTags();
 
   const [showSettings, setShowSettings] = useState(false);
-
-  // ── Work Blocks (Smart Scheduling) ──────────────────────────────────────────
-  const [workBlocks, setWorkBlocks] = useState<WorkBlock[]>([]);
-  const [workBlockConfirmedToast, setWorkBlockConfirmedToast] = useState(false);
-  const [deadlineWarningToast, setDeadlineWarningToast] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchWorkBlocks().then(setWorkBlocks).catch(() => {/* non-critical */});
-  }, []);
-
-  const handleScheduleTask = async (task: Task): Promise<WorkBlock> => {
-    const block = await requestScheduleSuggestion(task);
-    setWorkBlocks(prev => [...prev.filter(b => b.id !== block.id), block]);
-    return block;
-  };
-
-  const handleWorkBlockAction = async (id: number, status: 'confirmed' | 'dismissed') => {
-    if (status === 'dismissed') {
-      // Optimistic: remove from state immediately so both the task row and
-      // calendar card disappear without waiting for the network round-trip.
-      setWorkBlocks(prev => prev.filter(b => b.id !== id));
-      try {
-        await updateWorkBlockStatus(id, status);
-      } catch {
-        // Restore state on failure by re-fetching the authoritative list.
-        fetchWorkBlocks().then(setWorkBlocks).catch(() => {});
-      }
-    } else {
-      try {
-        const updated = await updateWorkBlockStatus(id, status);
-        setWorkBlocks(prev => prev.map(b => b.id === id ? updated : b));
-        setWorkBlockConfirmedToast(true);
-        setTimeout(() => setWorkBlockConfirmedToast(false), 2500);
-      } catch {
-        // non-critical — block stays in current state
-      }
-    }
-  };
-
-  const handleRescheduleWorkBlock = (id: number, startTime: string, endTime: string) => {
-    // Optimistic: move the block in state immediately so the calendar
-    // reflects the drop without waiting for the server round-trip.
-    setWorkBlocks(prev =>
-      prev.map(b => b.id === id ? { ...b, start_time: startTime, end_time: endTime } : b),
-    );
-
-    // Deadline check: warn if the new slot falls after the task's due_date.
-    const block = workBlocks.find(b => b.id === id);
-    if (block) {
-      const task = tasks.find(t => t.id === block.task_id);
-      if (task?.due_date) {
-        const newDay  = new Date(startTime);
-        const deadline = new Date(task.due_date as string);
-        // Compare calendar dates only (ignore time component of due_date).
-        deadline.setHours(23, 59, 59, 999);
-        if (newDay > deadline) {
-          const msg = `Work block moved past "${task.title}" deadline — consider updating the due date.`;
-          setDeadlineWarningToast(msg);
-          setTimeout(() => setDeadlineWarningToast(null), 5000);
-        }
-      }
-    }
-
-    rescheduleWorkBlock(id, startTime, endTime)
-      .then(updated => setWorkBlocks(prev => prev.map(b => b.id === id ? updated : b)))
-      .catch(() => fetchWorkBlocks().then(setWorkBlocks).catch(() => {}));
-  };
-
-  const handleDeleteWorkBlock = async (id: number) => {
-    // Optimistic: remove from calendar state immediately so there is no
-    // "ghost" event sitting on the calendar while the DELETE is in-flight.
-    setWorkBlocks(prev => prev.filter(b => b.id !== id));
-    try {
-      await deleteWorkBlock(id);
-    } catch {
-      fetchWorkBlocks().then(setWorkBlocks).catch(() => {});
-    }
-  };
+  const [taskSidebarOpen, setTaskSidebarOpen] = useState(true);
 
   // Mobile-specific state
   const [showStats, setShowStats] = useState(false);
@@ -307,10 +236,34 @@ const TaskManager: React.FC = () => {
   }
 
   return (
-    <>
-      <div className="min-h-screen bg-bg">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
+      <div className="relative min-h-screen bg-bg">
+        <div
+          className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-10"
+        >
           {/* Header - Mobile Optimized */}
+          <TaskControls
+            searchTerm={state.searchTerm}
+            onSearchChange={state.setSearchTerm}
+            filter={state.filter}
+            sortOrder={state.sortOrder}
+            onFilterChange={handlers.handleFilterChange}
+            selectedTags={state.selectedTags}
+            onTagToggle={handlers.toggleSelectedTag}
+            showTagDropdown={state.showTagDropdown}
+            onTagDropdownToggle={() => state.setShowTagDropdown(prev => !prev)}
+            tags={tags}
+            searchPlaceholder={'Search tasks & notes…'}
+            onNewTask={() => state.setShowNewTaskModal(true)}
+            onNewNote={async () => { const note = await addNote(); setNoteEditorOverlay(note); }}
+            onViewNotes={() => router.push('/notes')}
+            onCreateTag={() => state.setShowCreateTagModal(true)}
+            onEditTag={() => { if (tags.length > 0) handlers.openEditTagModal(tags[0]); }}
+            onCreateHabit={() => {}}
+            onEditHabit={() => {}}
+            menuCollapsed={!taskSidebarOpen}
+            onToggleMenu={() => setTaskSidebarOpen(prev => !prev)}
+          />
+          
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:mb-4 sm:gap-0">
             <div className="flex items-center gap-2 sm:gap-3">
               <div>
@@ -334,6 +287,14 @@ const TaskManager: React.FC = () => {
                 style={{ backgroundColor: 'var(--tm-danger)' }}
               >
                 Logout
+              </button>
+              <button
+                onClick={() => setTaskSidebarOpen(prev => !prev)}
+                className="fixed z-50 btn px-3 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 shadow-md"
+                style={{ top: '1rem', right: '0.75rem', backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
+                aria-label={taskSidebarOpen ? 'Close task menu' : 'Open task menu'}
+              >
+                {taskSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
               </button>
             </div>
           </div>
@@ -361,8 +322,10 @@ const TaskManager: React.FC = () => {
                   total={stats.total.tasks.length}
                   completed={stats.completed.tasks.length}
                   active={stats.active.tasks.length}
-                  urgent={stats.urgent.tasks.length}
-                  tags={stats.total.tags}
+                  topPriority={stats.prioritized.tasks.length}
+                  activeTags={stats.active.tags}
+                  completedTags={stats.completed.tags}
+                  prioritizedTags={stats.prioritized.tags}
                 />
                 <StatsCard
                   variant="notes"
@@ -374,134 +337,113 @@ const TaskManager: React.FC = () => {
             </div>
           </div>
 
-          {/* Task Controls */}
-          <div className="mb-4 sm:mb-6">
-            <TaskControls
-              searchTerm={state.searchTerm}
-              onSearchChange={state.setSearchTerm}
-              filter={state.filter}
-              sortOrder={state.sortOrder}
-              onFilterChange={handlers.handleFilterChange}
-              selectedTags={state.selectedTags}
-              onTagToggle={handlers.toggleSelectedTag}
-              showTagDropdown={state.showTagDropdown}
-              onTagDropdownToggle={() => state.setShowTagDropdown(prev => !prev)}
-              tags={tags}
-              searchPlaceholder={'Search tasks & notes…'}
-              onNewTask={() => state.setShowNewTaskModal(true)}
-              onNewNote={async () => { const note = await addNote(); setNoteEditorOverlay(note); }}
-              onViewNotes={() => router.push('/notes')}
-              onCreateTag={() => state.setShowCreateTagModal(true)}
-              onEditTag={() => { if (tags.length > 0) handlers.openEditTagModal(tags[0]); }}
-            />
-          </div>
-
-          {/* Tasks & Notes — split layout */}
-          <div
-            ref={splitContainerRef}
-            className="flex flex-col md:flex-row"
-            style={{ ['--tasks-w' as string]: `${tasksWidthPct}%` }}
-          >
-
-            {/* Tasks column */}
-            <div className="split-tasks flex flex-col space-y-2 sm:space-y-3">
-              {filteredTasks.length === 0 ? (
-                <div className="card p-6 sm:p-8 text-center mt-2">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
-                    style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-                  >
-                    <Filter className="w-6 h-6 text-text-muted" />
-                  </div>
-                  <h3 className="text-base font-semibold text-text-primary mb-2">No tasks found</h3>
-                  <p className="text-sm text-text-secondary">Try adjusting your filters</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2 overflow-y-auto h-[50vh] lg:h-[600px] pl-2 pr-1 scrollbar-custom">
-                  {filteredTasks.map((task, index) => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      index={index}
-                      onToggleComplete={toggleComplete}
-                      tags={tags}
-                      onDeleteTask={deleteTask}
-                      onEditTaskClick={() =>
-                        state.setShowEditTaskModal({ status: true, task })
-                      }
-                      compact={tasksWidthPct < 33}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Drag handle — visible only on md+ */}
+          <div className="space-y-4">
+            {/* Tasks & Notes — split layout */}
             <div
-              onMouseDown={handleSplitterMouseDown}
-              className="hidden md:flex w-2 shrink-0 items-stretch cursor-col-resize group py-1"
+              ref={splitContainerRef}
+              className="flex flex-col md:flex-row"
+              style={{ ['--tasks-w' as string]: `${tasksWidthPct}%` }}
             >
-              <div className="mx-auto w-px rounded-full transition-colors duration-150"
-                style={{ backgroundColor: 'var(--tm-border)' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--tm-accent)')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--tm-border)')}
-              />
-            </div>
 
-            {/* Notes column */}
-            <div className="split-notes relative flex flex-col space-y-2 sm:space-y-3">
-              {filteredNotes.length === 0 ? (
-                <div className="card p-6 sm:p-8 text-center mt-2">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
-                    style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-                  >
-                    <FileText className="w-6 h-6 text-text-muted" />
+              {/* Tasks column */}
+              <div className="split-tasks flex flex-col space-y-2 sm:space-y-3">
+                {filteredTasks.length === 0 ? (
+                  <div className="card p-6 sm:p-8 text-center mt-2">
+                    <div
+                      className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                      style={{ backgroundColor: 'var(--tm-surface-raised)' }}
+                    >
+                      <Filter className="w-6 h-6 text-text-muted" />
+                    </div>
+                    <h3 className="text-base font-semibold text-text-primary mb-2">No tasks found</h3>
+                    <p className="text-sm text-text-secondary">Try adjusting your filters</p>
                   </div>
-                  <h3 className="text-base font-semibold text-text-primary mb-2">No notes yet</h3>
-                  <p className="text-sm text-text-secondary">Create a note to get started</p>
-                </div>
-              ) : (
-                <div className="overflow-y-auto h-[50vh] lg:h-[600px] pl-2 pr-1 scrollbar-custom pt-2">
-                  <NotesGridView
-                    notes={filteredNotes}
-                    allTags={tags}
-                    activeNoteId={activeNoteId}
-                    onSelectNote={note => { setActiveNoteId(note.id); setNoteEditorOverlay(note); }}
-                    onDeleteNote={deleteNote}
-                    onFolderClick={(tag, notes) => setNotesFolderOverlay({ tag, notes })}
-                    wide
-                  />
-                </div>
-              )}
-              {notesFolderOverlay && (
-                <TagFolderOverlay
-                  tag={notesFolderOverlay.tag}
-                  notes={notesFolderOverlay.notes}
-                  activeNoteId={activeNoteId}
-                  allTags={tags}
-                  onUpdate={updateNote}
-                  onDeleteNote={deleteNote}
-                  onClose={() => setNotesFolderOverlay(null)}
-                />
-              )}
-              {noteEditorOverlay && (
-                <NoteEditorOverlay
-                  note={noteEditorOverlay}
-                  allTags={tags}
-                  onUpdate={(id, changes) => {
-                    updateNote(id, changes);
-                    if (changes.title !== undefined) {
-                      setNoteEditorOverlay(prev => prev ? { ...prev, title: changes.title! } : prev);
-                    }
-                  }}
-                  onDeleteNote={id => { deleteNote(id); setNoteEditorOverlay(null); }}
-                  onClose={() => setNoteEditorOverlay(null)}
-                />
-              )}
-            </div>
+                ) : (
+                  <div className="flex flex-col gap-2 overflow-y-auto h-[50vh] lg:h-[600px] pl-2 pr-1 scrollbar-custom">
+                    {filteredTasks.map((task, index) => (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        index={index}
+                        onToggleComplete={toggleComplete}
+                        tags={tags}
+                        onDeleteTask={deleteTask}
+                        onEditTaskClick={() =>
+                          state.setShowEditTaskModal({ status: true, task })
+                        }
+                        compact={tasksWidthPct < 33}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
 
-          </div>
+              {/* Drag handle — visible only on md+ */}
+              <div
+                onMouseDown={handleSplitterMouseDown}
+                className="hidden md:flex w-2 shrink-0 items-stretch cursor-col-resize group py-1"
+              >
+                <div
+                  className="mx-auto w-px rounded-full transition-colors duration-150"
+                  style={{ backgroundColor: 'var(--tm-border)' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--tm-accent)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--tm-border)')}
+                />
+              </div>
+
+              {/* Notes column */}
+              <div className="split-notes relative flex flex-col space-y-2 sm:space-y-3">
+                {filteredNotes.length === 0 ? (
+                  <div className="card p-6 sm:p-8 text-center mt-2">
+                    <div
+                      className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                      style={{ backgroundColor: 'var(--tm-surface-raised)' }}
+                    >
+                      <FileText className="w-6 h-6 text-text-muted" />
+                    </div>
+                    <h3 className="text-base font-semibold text-text-primary mb-2">No notes yet</h3>
+                    <p className="text-sm text-text-secondary">Create a note to get started</p>
+                  </div>
+                ) : (
+                  <div className="overflow-y-auto h-[50vh] lg:h-[600px] pl-2 pr-1 scrollbar-custom pt-2">
+                    <NotesGridView
+                      notes={filteredNotes}
+                      allTags={tags}
+                      activeNoteId={activeNoteId}
+                      onSelectNote={note => { setActiveNoteId(note.id); setNoteEditorOverlay(note); }}
+                      onDeleteNote={deleteNote}
+                      onFolderClick={(tag, notes) => setNotesFolderOverlay({ tag, notes })}
+                      wide
+                    />
+                  </div>
+                )}
+                {notesFolderOverlay && (
+                  <TagFolderOverlay
+                    tag={notesFolderOverlay.tag}
+                    notes={notesFolderOverlay.notes}
+                    activeNoteId={activeNoteId}
+                    allTags={tags}
+                    onUpdate={updateNote}
+                    onDeleteNote={deleteNote}
+                    onClose={() => setNotesFolderOverlay(null)}
+                  />
+                )}
+                {noteEditorOverlay && (
+                  <NoteEditorOverlay
+                    note={noteEditorOverlay}
+                    allTags={tags}
+                    onUpdate={(id, changes) => {
+                      updateNote(id, changes);
+                      if (changes.title !== undefined) {
+                        setNoteEditorOverlay(prev => prev ? { ...prev, title: changes.title! } : prev);
+                      }
+                    }}
+                    onDeleteNote={id => { deleteNote(id); setNoteEditorOverlay(null); }}
+                    onClose={() => setNoteEditorOverlay(null)}
+                  />
+                )}
+              </div>
+            </div>
           </div>
         </div>
       
@@ -542,6 +484,8 @@ const TaskManager: React.FC = () => {
         newAITask={state.newAITask}
         setNewAITask={state.setNewAITask}
         handleNewAITask={handleNewAITask}
+        activeTaskCount={tasks.filter(task => !task.completed).length}
+        usedPriorityLevels={occupiedPriorityLevels}
       />
 
       <EditTaskModal
@@ -552,6 +496,8 @@ const TaskManager: React.FC = () => {
         onToggleTag={handlers.toggleEditTag}
         onSubmit={handlers.handleEditTask}
         values={state.showEditTaskModal}
+        activeTaskCount={tasks.filter(task => !task.completed).length}
+        usedPriorityLevels={occupiedPriorityLevels}
       />
 
       <CreateTagModal
@@ -582,28 +528,7 @@ const TaskManager: React.FC = () => {
       />
 
       {/* ── Work block confirmed toast ──────────────────────────────────── */}
-      {workBlockConfirmedToast && (
-        <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-xl pointer-events-none"
-          style={{ backgroundColor: '#059669', color: '#fff' }}
-        >
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          Work block added to your calendar!
-        </div>
-      )}
-
-      {/* ── Deadline overrun warning toast ──────────────────────────────── */}
-      {deadlineWarningToast && (
-        <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-xl pointer-events-none max-w-sm text-center"
-          style={{ backgroundColor: 'var(--tm-warning)', color: '#fff' }}
-        >
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          {deadlineWarningToast}
-        </div>
-      )}
-
-    </>
+      </div>
   );
 };
 

@@ -63,7 +63,8 @@ export const useTasks = () => {
           ? {
               ...t,
               completed: newCompleted,
-              completed_date: newCompletedDate
+              completed_date: newCompletedDate,
+              priority: newCompleted ? null : t.priority
             }
           : t
       )
@@ -74,7 +75,7 @@ export const useTasks = () => {
         title: task.title,
         description: task.description,
         completed: newCompleted,
-        urgent: task.urgent,
+        priority: newCompleted ? null : task.priority,
         due_date: task.due_date ? (task.due_date instanceof Date ? task.due_date.toISOString().slice(0, 10) : task.due_date) : '',
         due_time: task.due_time ? (task.due_time instanceof Date ? task.due_time.toISOString().slice(11, 16) : task.due_time) : '',
         tags: task.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
@@ -87,7 +88,7 @@ export const useTasks = () => {
       alert("Failed to update task completion");
       // Revert local state
       setTasks(tasks.map(t =>
-        t.id === id ? { ...t, completed: task.completed, completed_date: task.completed_date } : t
+        t.id === id ? { ...t, completed: task.completed, completed_date: task.completed_date, priority: task.priority } : t
       ));
     }
   };
@@ -205,7 +206,8 @@ const normalizedTask = {
           
           tags: updatedTask.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
 
-          category: updatedTask.category ?? null
+          category: updatedTask.category ?? null,
+        priority: updatedTask.completed ? null : updatedTask.priority
         };
         const updated = await updateWholeTask(id, taskToUpdate) as Task;
         setTasks(prev => prev.map(task => task.id === id ? updated : task));

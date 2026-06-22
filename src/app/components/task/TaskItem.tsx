@@ -14,9 +14,72 @@ These variables are used to display task information and handle user interaction
 */
 
 import React from 'react';
-import { Check, Clock, AlertCircle, Trash2, Pencil, BarChart3, Calendar } from 'lucide-react';
+import { Check, Clock, Trash2, SquarePen, BarChart3, Calendar, Siren } from 'lucide-react';
 import { Task } from '@/app/types/task';
 import { getDueColor, getDurationColor, getComplexityColor, formatTime12Hour, formatDueDate } from '@/app/utils/taskUtils';
+
+function getPriorityStyle(priority: number | null): { bg: string; text: string; padding: string; borderRadius: string } {
+  if (priority === null) {
+    return {
+      bg: 'var(--tm-surface-raised)',
+      text: 'var(--tm-text-muted)',
+      padding: '0.1rem 0.45rem',
+      borderRadius: '9px',
+    };
+  }
+
+  if (priority === 1) {
+    return {
+      bg: '#dc2626',
+      text: '#ffffff',
+      padding: '0.1rem 0.45rem',
+      borderRadius: '9px',
+    };
+  }
+
+  if (priority === 2) {
+    return {
+      bg: '#ea580c',
+      text: '#ffffff',
+      padding: '0.1rem 0.45rem',
+      borderRadius: '9px',
+    };
+  }
+
+  if (priority === 3) {
+    return {
+      bg: '#f97316',
+      text: '#ffffff',
+      padding: '0.1rem 0.45rem',
+      borderRadius: '9px',
+    };
+  }
+
+  if (priority === 4) {
+    return {
+      bg: '#f59e0b',
+      text: '#ffffff',
+      padding: '0.1rem 0.45rem',
+      borderRadius: '9px',
+    };
+  }
+
+  if (priority === 5) {
+    return {
+      bg: '#eab308',
+      text: '#ffffff',
+      padding: '0.1rem 0.45rem',
+      borderRadius: '9px',
+    };
+  }
+
+  return {
+    bg: '#2563eb',
+    text: '#ffffff',
+    padding: '0.1rem 0.45rem',
+    borderRadius: '9px',
+  };
+}
 
 interface TaskItemProps {
   task: Task;
@@ -44,6 +107,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
     task.due_date instanceof Date ? task.due_date.toISOString() : task.due_date ?? null;
   const normalizedDueTime: string | null =
     task.due_time instanceof Date ? task.due_time.toISOString() : task.due_time ?? null;
+  const priorityStyle = getPriorityStyle(task.priority);
 
   if (compact) {
     return (
@@ -51,7 +115,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
         className={`card px-3 py-2 animate-fade-in ${task.completed ? 'opacity-75' : ''}`}
         style={{ animationDelay: `${index * 0.05}s` }}
       >
-        {/* Row 1: checkbox · title · urgent · actions */}
+        {/* Row 1: checkbox · title · priority · actions */}
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={() => onToggleComplete?.(task.id)}
@@ -73,22 +137,18 @@ const TaskItem: React.FC<TaskItemProps> = ({
             {task.title}
           </span>
 
-          {task.urgent && (
+          {task.priority != null && (
             <span
-              className="chip text-[9px] font-bold flex items-center gap-0.5 flex-shrink-0"
-              style={{ backgroundColor: 'var(--tm-warning-subtle)', color: 'var(--tm-warning)' }}
+              className="chip text-[9px] font-bold flex-shrink-0 flex items-center gap-1"
+              style={{
+                backgroundColor: priorityStyle.bg,
+                color: priorityStyle.text,
+                padding: priorityStyle.padding,
+                borderRadius: priorityStyle.borderRadius,
+              }}
             >
-              <AlertCircle className="w-3 h-3" />
-            </span>
-          )}
-
-          {normalizedDueDate && (
-            <span className={`text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded flex-shrink-0 ${getDueColor(task.due_date)}`}>
-              <Calendar className="w-3 h-3" />
-              {formatDueDate(normalizedDueDate, normalizedDueTime)}
-              {normalizedDueTime && (
-                <>{' · '}<Clock className="w-3 h-3" />{formatTime12Hour(normalizedDueTime)}</>
-              )}
+              <Siren className="w-3 h-3" />
+              {task.priority}
             </span>
           )}
 
@@ -98,7 +158,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
             title="Edit task"
             aria-label="Edit task"
           >
-            <Pencil className="w-3.5 h-3.5" />
+            <SquarePen className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => handleDeleteTask(task)}
@@ -170,13 +230,18 @@ const TaskItem: React.FC<TaskItemProps> = ({
                   {task.category}
                 </span>
               )}
-              {task.urgent && (
+              {task.priority != null && (
                 <span
                   className="chip font-bold flex items-center gap-1"
-                  style={{ backgroundColor: 'var(--tm-warning-subtle)', color: 'var(--tm-warning)' }}
+                  style={{
+                    backgroundColor: priorityStyle.bg,
+                    color: priorityStyle.text,
+                    padding: priorityStyle.padding,
+                    borderRadius: priorityStyle.borderRadius,
+                  }}
                 >
-                  <AlertCircle className="w-3 h-3" />
-                  <span className="hidden sm:inline">URGENT</span>
+                  <Siren className="w-4 h-4" />
+                  {task.priority}
                 </span>
               )}
               <button
@@ -185,7 +250,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
                 title="Edit task"
                 aria-label="Edit task"
               >
-                <Pencil className="w-4 h-4" />
+                <SquarePen className="w-4 h-4" />
               </button>
               <button
                 onClick={() => handleDeleteTask(task)}

@@ -1,5 +1,5 @@
 import React, { Dispatch, SetStateAction, useState } from 'react';
-import { X, Calendar, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Calendar, Clock, Loader2 } from 'lucide-react';
 import { BaseTaskForm, Tag, TaskCategory, Task } from '@/app/types/task';
 
 interface NewTaskModalProps {
@@ -13,6 +13,8 @@ interface NewTaskModalProps {
   handleNewAITask: (task: BaseTaskForm) => Promise<void>;
   newAITask: Task | undefined;
   setNewAITask: Dispatch<SetStateAction<Task | undefined>>;
+  activeTaskCount: number;
+  usedPriorityLevels: number[];
 }
 
 const NewTaskModal: React.FC<NewTaskModalProps> = ({
@@ -25,12 +27,19 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
   onSubmit,
   handleNewAITask,
   newAITask,
-  setNewAITask
+  setNewAITask,
+  activeTaskCount,
+  usedPriorityLevels
 }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
   const isAIMode = !!newTask.category;
+  const occupiedPriorities = new Set(usedPriorityLevels);
+  const priorityRange = Array.from({ length: activeTaskCount + 1 }, (_, index) => index + 1);
+  const availablePriorities = priorityRange.filter(
+    (priority) => priority === newTask.priority || !occupiedPriorities.has(priority)
+  );
 
   const handleTaskChange = (updatedTask: BaseTaskForm) => {
     onTaskChange(updatedTask);
@@ -38,7 +47,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
       ...prev,
       title: updatedTask.title,
       description: updatedTask.description,
-      urgent: updatedTask.urgent,
+      priority: updatedTask.priority,
       category: updatedTask.category,
       estimated_time: updatedTask.estimated_time,
       complexity: updatedTask.complexity,
@@ -88,20 +97,28 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
 
-          {/* Urgent Checkbox */}
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              id="urgent"
-              checked={newTask.urgent}
-              onChange={(e) => handleTaskChange({ ...newTask, urgent: e.target.checked })}
-              className="w-5 h-5 rounded accent-accent border-border"
-            />
-            <span className="text-sm font-medium text-text-secondary flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" style={{ color: 'var(--tm-warning)' }} />
-              Mark as urgent
-            </span>
-          </label>
+          {/* Priority */}
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-2">Priority</label>
+            <select
+              value={newTask.priority ?? ''}
+              onChange={(e) => {
+                const val = e.target.value === '' ? null : parseInt(e.target.value);
+                handleTaskChange({ ...newTask, priority: val });
+              }}
+              className="input-field"
+            >
+              <option value="">No priority</option>
+              {availablePriorities.map((priority) => (
+                <option key={priority} value={priority}>
+                  {priority}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-text-muted mt-1">
+              1 = highest priority. Leave blank for no priority. Available values are {availablePriorities.join(', ')}.
+            </p>
+          </div>
 
           {/* Title */}
           <div>
