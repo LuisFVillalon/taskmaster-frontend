@@ -537,3 +537,55 @@ export async function verifyHabitStreaks(): Promise<{ reset_count: number }> {
   return res.json();
 }
 
+// ── AI Debrief ────────────────────────────────────────────────────────────────
+
+export interface AIDebrief {
+  smart_habit_scheduling: string;
+  horizon_scanning: string;
+  tag_volume_audit: string;
+}
+
+const AI_BASE_URL = process.env.NEXT_PUBLIC_TASKMASTER_AI_URL!;
+
+/** Calls the AI debrief service and returns the Time & Tag Audit result. */
+export async function fetchAIDebrief(): Promise<AIDebrief> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Not authenticated — no active Supabase session.");
+  const res = await fetch(`${AI_BASE_URL}/ai-debrief`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+      'x-timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+  });
+  await assertOk(res, "fetchAIDebrief");
+  const body = await res.json();
+  return body.debrief as AIDebrief;
+}
+
+// ── Task Debrief ──────────────────────────────────────────────────────────────
+
+export interface TaskDebrief {
+  today_action_plan: string;
+  future_horizon_warning: string;
+  workload_analysis: string;
+}
+
+/** Calls the AI service and returns an execution-order action plan, horizon warning, and workload analysis. */
+export async function fetchTaskDebrief(): Promise<TaskDebrief> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Not authenticated — no active Supabase session.");
+  const res = await fetch(`${AI_BASE_URL}/task-debrief`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+      'x-timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+  });
+  await assertOk(res, "fetchTaskDebrief");
+  const body = await res.json();
+  return body.debrief as TaskDebrief;
+}
+

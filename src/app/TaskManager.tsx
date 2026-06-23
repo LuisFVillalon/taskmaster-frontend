@@ -31,6 +31,7 @@ import { useNotes } from '@/app/hooks/useNotes';
 import { useHabits } from '@/app/hooks/useHabits';
 import { Note } from '@/app/types/notes';
 import PageSpinner from '@/app/components/common/PageSpinner';
+import TaskDebriefPanel from '@/app/components/TaskDebriefPanel';
 
 const TaskManager: React.FC = () => {
   const router = useRouter();
@@ -77,7 +78,7 @@ const TaskManager: React.FC = () => {
     //    in-memory state (task list, notes, etc.).
     router.replace('/login');
   };
-  const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks, addTasks } = useTasks();
+  const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks } = useTasks();
 
   const occupiedPriorityLevels = useMemo(
     () => tasks
@@ -293,6 +294,8 @@ const TaskManager: React.FC = () => {
               </button>
             </div>
           </div>
+
+          <TaskDebriefPanel />
 
           {/* Academic Calendar & Stats Cards - Mobile Responsive */}
           <div className='grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6'>
