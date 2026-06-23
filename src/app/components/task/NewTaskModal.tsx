@@ -1,6 +1,6 @@
-import React, { Dispatch, SetStateAction, useState } from 'react';
+import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import { BaseTaskForm, Tag, Task } from '@/app/types/task';
+import { BaseTaskForm, Tag } from '@/app/types/task';
 import TaskFormFields, { TaskFormData } from './TaskFormFields';
 
 interface NewTaskModalProps {
@@ -11,52 +11,25 @@ interface NewTaskModalProps {
   tags: Tag[];
   onToggleTag: (tag: Tag) => void;
   onSubmit: (e: React.FormEvent) => void;
-  handleNewAITask: (task: BaseTaskForm) => Promise<void>;
-  newAITask: Task | undefined;
-  setNewAITask: Dispatch<SetStateAction<Task | undefined>>;
   activeTaskCount: number;
   usedPriorityLevels: number[];
 }
 
 const NewTaskModal: React.FC<NewTaskModalProps> = ({
   isOpen, onClose, newTask, onTaskChange, tags, onToggleTag,
-  onSubmit, handleNewAITask, newAITask, setNewAITask,
-  activeTaskCount, usedPriorityLevels,
+  onSubmit, activeTaskCount, usedPriorityLevels,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const isAIMode = !!newTask.category;
-
   const handleFieldChange = (next: TaskFormData) => {
     onTaskChange({ ...newTask, ...next } as BaseTaskForm);
-    setNewAITask(prev => ({ ...prev, ...next } as Task));
-  };
-
-  const handleToggleTag = (tag: Tag) => {
-    onToggleTag(tag);
-    setNewAITask(prev => {
-      if (!prev) return prev;
-      const alreadySelected = prev.tags?.some(t => t.id === tag.id);
-      return {
-        ...prev,
-        tags: alreadySelected
-          ? (prev.tags ?? []).filter(t => t.id !== tag.id)
-          : [...(prev.tags ?? []), tag],
-      };
-    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     setIsLoading(true);
     await onSubmit(e);
-    setIsLoading(false);
-  };
-
-  const handleAISubmit = async () => {
-    setIsLoading(true);
-    await handleNewAITask(newAITask!);
     setIsLoading(false);
   };
 
@@ -82,7 +55,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
             values={newTask as TaskFormData}
             onChange={handleFieldChange}
             tags={tags}
-            onToggleTag={handleToggleTag}
+            onToggleTag={onToggleTag}
             activeTaskCount={activeTaskCount}
             usedPriorityLevels={usedPriorityLevels}
             showCategory
@@ -92,15 +65,9 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
             <button type="button" onClick={onClose} disabled={isLoading} className="btn btn-secondary flex-1 py-2.5">
               Cancel
             </button>
-            {isAIMode ? (
-              <button type="button" onClick={handleAISubmit} disabled={isLoading} className="btn btn-primary flex-1 py-2.5">
-                {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : 'Create AI Task Plan'}
-              </button>
-            ) : (
-              <button type="submit" disabled={isLoading} className="btn btn-primary flex-1 py-2.5">
-                {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : 'Create Task'}
-              </button>
-            )}
+            <button type="submit" disabled={isLoading} className="btn btn-primary flex-1 py-2.5">
+              {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : 'Create Task'}
+            </button>
           </div>
         </form>
       </div>

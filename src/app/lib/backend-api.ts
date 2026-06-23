@@ -63,13 +63,20 @@ export async function claimOrphanedData(): Promise<{
 } | null> {
   try {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${API_BASE_URL}/claim-data`, {
-      method: 'POST',
-      headers,
-    });
-    if (!res.ok) return null;
-    const body = await res.json();
-    return body.claimed ?? null;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch(`${API_BASE_URL}/claim-data`, {
+        method: 'POST',
+        headers,
+        signal: controller.signal,
+      });
+      if (!res.ok) return null;
+      const body = await res.json();
+      return body.claimed ?? null;
+    } finally {
+      clearTimeout(timeout);
+    }
   } catch {
     return null;
   }

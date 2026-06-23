@@ -13,7 +13,7 @@ These variables and handlers manage all user interactions related to task and ta
 */
 
 import React from 'react';
-import { FilterType, EditTaskForm, Tag, EditTaskModalState, Task, NewTag, BaseTaskForm } from '@/app/types/task';
+import { FilterType, EditTaskForm, Tag, EditTaskModalState, NewTag, BaseTaskForm } from '@/app/types/task';
 
 interface UseTaskHandlersProps {
   // State setters
@@ -28,8 +28,6 @@ interface UseTaskHandlersProps {
   setSortOrder: React.Dispatch<React.SetStateAction<Record<FilterType, 'asc' | 'desc'>>>;
   setSelectedTags: React.Dispatch<React.SetStateAction<Tag[]>>;
   setFilter: React.Dispatch<React.SetStateAction<FilterType>>;
-  setAiPlan: React.Dispatch<React.SetStateAction<Task[]>>;
-  setDisplayAISubTasks: React.Dispatch<React.SetStateAction<boolean>>;
 
   // Current state values
   newTask: BaseTaskForm;
@@ -43,10 +41,6 @@ interface UseTaskHandlersProps {
   addTag: (tag: { name: string; color: string }) => Promise<Tag | false>;
   updateTag: (tag: Tag) => Promise<number | null>;
   delTag: (tag: Tag) => Promise<number | null>;
-  sendTaskToAI: (task: BaseTaskForm) => Promise<{
-    new_task: Task;
-    subtasks: Task[];
-  }>;
 }
 
 export const useTaskHandlers = ({
@@ -70,9 +64,6 @@ export const useTaskHandlers = ({
   addTag,
   updateTag,
   delTag,
-  sendTaskToAI,
-  setAiPlan,
-  setDisplayAISubTasks
 }: UseTaskHandlersProps) => {
 
   const toggleSelectedTag = (tag: Tag) => {
@@ -109,73 +100,6 @@ export const useTaskHandlers = ({
           created_date: '',
         });
 
-    }
-  };
-
-  const handleNewAITask = async (aiTask: BaseTaskForm) => {
-    if (!aiTask.title.trim()) {
-      alert("Title is required.");
-      return;
-    }
-
-    const isAIMode = !!aiTask.category;
-
-    if (isAIMode) {
-      if (!aiTask.estimated_time || aiTask.estimated_time < 0.5) {
-        alert("Estimated hours (minimum 0.5) are required for AI plan.");
-        return;
-      }
-
-      if (!aiTask.complexity || aiTask.complexity < 1) {
-        alert("Complexity level is required for AI plan.");
-        return;
-      }
-
-      if (!aiTask.due_date || !aiTask.due_time) {
-        alert("Due date and time are required for AI plan.");
-        return;
-      }
-
-      const success_task_send_to_ai = await sendTaskToAI(aiTask);
-      console.log(success_task_send_to_ai)
-      const now = new Date().toISOString();
-
-      // ✅ Flatten into proper Task[]
-      const all_ai_tasks: Task[] = [
-        success_task_send_to_ai.new_task,
-        ...success_task_send_to_ai.subtasks.map(task => ({
-          ...task,
-          created_date: now,
-        })),
-      ];
-      const sortedTasks = [...all_ai_tasks].sort((a, b) => {
-        // If one task has no due_date, push it to the bottom
-        if (!a.due_date) return 1;
-        if (!b.due_date) return -1;
-
-        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-      });
-      console.log(sortedTasks)
-      setAiPlan(sortedTasks);
-      setDisplayAISubTasks(true);
-
-      console.log("success sending task to ai");
-
-      setShowNewTaskModal(false);
-
-      setNewTask({
-        id: 0,
-        title: '',
-        description: '',
-        priority: null,
-        due_date: '',
-        due_time: '',
-        tags: [],
-        category: null,
-        estimated_time: null,
-        complexity: null,
-        created_date: '',
-      });
     }
   };
 
@@ -312,7 +236,5 @@ export const useTaskHandlers = ({
     toggleTag,
     toggleEditTag,
     handleFilterChange,
-    handleNewAITask,
-
   };
 };

@@ -7,7 +7,7 @@ import TiptapImage from '@tiptap/extension-image';
 import TiptapHighlight from '@tiptap/extension-highlight';
 import {
   Bold, ChevronDown, ChevronUp, Download, FileText, Highlighter,
-  Italic, Library, List, ListOrdered, Loader2,
+  Italic, List, ListOrdered, Loader2,
   PanelLeftClose, PanelLeftOpen, Save,
 } from 'lucide-react';
 import { Note } from '@/app/types/notes';
@@ -30,8 +30,6 @@ interface NoteEditorProps {
   note: Note | null;
   allTags: Tag[];
   onUpdate: (id: number, changes: Partial<Pick<Note, 'title' | 'content' | 'tags'>>) => void;
-  showResources?: boolean;
-  onToggleResources?: () => void;
   sidebarOpen?: boolean;
   onToggleSidebar?: () => void;
 }
@@ -80,7 +78,6 @@ const ToolbarBtn: React.FC<ToolbarBtnProps> = ({ onClick, active, title, childre
 
 const NoteEditor: React.FC<NoteEditorProps> = ({
   note, allTags, onUpdate,
-  showResources = false, onToggleResources,
   sidebarOpen = true, onToggleSidebar,
 }) => {
   const [title, setTitle]               = useState(note?.title ?? '');
@@ -753,30 +750,6 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               : <Download className="w-3.5 h-3.5" />}
             <span className="hidden sm:inline">{pdfLoading ? 'Exporting…' : 'PDF'}</span>
           </button>
-
-          {onToggleResources && (
-            <button
-              type="button"
-              onClick={onToggleResources}
-              title={showResources ? 'Hide Smart Resources' : 'Show Smart Resources'}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-              style={showResources ? {
-                backgroundColor: 'var(--tm-accent-subtle)',
-                color: 'var(--tm-accent)',
-              } : {
-                color: 'var(--tm-text-secondary)',
-              }}
-              onMouseEnter={e => {
-                if (!showResources) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
-              }}
-              onMouseLeave={e => {
-                if (!showResources) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '';
-              }}
-            >
-              <Library className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Resources</span>
-            </button>
-          )}
 
           <button
             onClick={handleSave}

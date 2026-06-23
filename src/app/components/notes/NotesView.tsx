@@ -10,7 +10,6 @@ import { Note } from '@/app/types/notes';
 import { useResizableSplit } from '@/app/hooks/useResizableSplit';
 import NotesList from './NotesList';
 import NoteEditor from './NoteEditor';
-import ResourceSidebar from './ResourceSidebar';
 import DragHandle from '@/app/components/common/DragHandle';
 
 interface NotesViewProps {
@@ -36,10 +35,8 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
 
   const [activeNoteId, setActiveNoteId]   = useState<number | null>(null);
   const [mobileView, setMobileView]       = useState<'list' | 'editor'>('list');
-  const [showResources, setShowResources] = useState(false);
   const [sidebarOpen, setSidebarOpen]     = useState(true);
   const [leftWidth, setLeftWidth]         = useState(DEFAULT_SIDE);
-  const [rightWidth, setRightWidth]       = useState(DEFAULT_SIDE);
   const [isResizingLeft, setIsResizingLeft]   = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const initialSelectionApplied = useRef(false);
@@ -79,11 +76,6 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
     min: MIN_SIDE, max: MAX_SIDE, anchor: 'left',
     onResize: setLeftWidth,
     onResizingChange: setIsResizingLeft,
-  });
-
-  const handleRightDragStart = useResizableSplit(panelRef, {
-    min: MIN_SIDE, max: MAX_SIDE, anchor: 'right',
-    onResize: setRightWidth,
   });
 
   const panel = (
@@ -130,24 +122,10 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
           note={activeNote}
           allTags={tags}
           onUpdate={updateNote}
-          showResources={showResources}
-          onToggleResources={() => setShowResources(v => !v)}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(v => !v)}
         />
       </div>
-
-      {showResources && activeNote && <DragHandle onMouseDown={handleRightDragStart} />}
-
-      {/* Right resources sidebar */}
-      {showResources && activeNote && (
-        <div
-          className="hidden sm:flex flex-shrink-0 border-l border-border-subtle flex-col overflow-hidden"
-          style={{ width: rightWidth }}
-        >
-          <ResourceSidebar noteContent={activeNote.content} onClose={() => setShowResources(false)} />
-        </div>
-      )}
     </div>
   );
 

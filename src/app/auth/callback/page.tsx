@@ -26,8 +26,12 @@ export default function AuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // Safety net: if session exchange or API call hangs, redirect after 15s.
+    const fallback = setTimeout(() => router.replace('/'), 15000);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
+        clearTimeout(fallback);
         claimAndRedirect(router);
       } else {
         // Session not ready yet — wait for the Supabase client to process the
@@ -35,6 +39,7 @@ export default function AuthCallbackPage() {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           (_event, session) => {
             if (session) {
+              clearTimeout(fallback);
               subscription.unsubscribe();
               claimAndRedirect(router);
             }
@@ -42,6 +47,8 @@ export default function AuthCallbackPage() {
         );
       }
     });
+
+    return () => clearTimeout(fallback);
   }, [router]);
 
   return (

@@ -20,9 +20,6 @@ import { fetchTasks,
     saveTasksToDBAPI, 
     updateWholeTask
 } from "@/app/lib/backend-api";
-import { 
-    sendNewTaskToAIAPI
-} from "@/app/lib/ai-api";
 import { Task, Tag, BaseTaskForm, EditTaskForm, NewTag } from '@/app/types/task';
 import { toLocalISOString } from '@/app/utils/dateUtils';
 
@@ -131,38 +128,6 @@ export const useTasks = () => {
     }
   };  
 
-  const sendTaskToAI = async (newAITask: BaseTaskForm) => {
-    try {
-const normalizedTask = {
-  ...newAITask,
-  user_id: null,
-  completed: false,
-  due_date: newAITask.due_date instanceof Date
-    ? newAITask.due_date.toISOString().slice(0, 10)
-    : (newAITask.due_date ?? ''),
-  due_time: newAITask.due_time instanceof Date
-    ? newAITask.due_time.toISOString().slice(11, 16)
-    : (newAITask.due_time ?? ''),
-  category: newAITask.category ?? undefined,
-  created_date: newAITask.created_date instanceof Date
-    ? toLocalISOString(newAITask.created_date)
-    : (newAITask.created_date ?? ''),
-  completed_date: null,
-  estimated_time: newAITask.estimated_time ?? 0,
-  complexity:
-  newAITask.complexity === 0
-    ? null
-    : newAITask.complexity ?? null,
-};
-        const aiTasks = await sendNewTaskToAIAPI(normalizedTask);
-        return aiTasks;
-    } catch (err) {
-        console.error(err);
-        alert("Failed to send task to AI app");
-        return null;
-    }
-  };   
-
   const deleteTask = async (delTask: Task) => {
     // Optimistic update: remove immediately so the UI responds instantly.
     setTasks(prev => prev.filter(task => task.id !== delTask.id));
@@ -227,7 +192,6 @@ const normalizedTask = {
     setTasks,
     deleteTask,
     updateTask,
-    sendTaskToAI,
     addTasks
   };
 };

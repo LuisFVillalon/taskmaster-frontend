@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Task, FilterType, Tag, EditTaskModalState, NewTag, BaseTaskForm, NewHabit } from '@/app/types/task';
+import { FilterType, Tag, EditTaskModalState, NewTag, BaseTaskForm, NewHabit } from '@/app/types/task';
 
 export const useTaskManagerState = () => {
   const [sortOrder, setSortOrder] = useState<Record<FilterType, 'asc' | 'desc'>>({
@@ -16,8 +16,6 @@ export const useTaskManagerState = () => {
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [aiPlan, setAiPlan] = useState<Task[]>([]);
-  const [displayAISubTasks, setDisplayAISubTasks]= useState(false);
 
   // Modal states
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
@@ -52,7 +50,6 @@ export const useTaskManagerState = () => {
     complexity: null,
     created_date: '',
   });
-  const [newAITask, setNewAITask] = useState<Task>();
   const [listView, setListView] = useState<'list' | 'calendar'>('list');
 
   return {
@@ -84,13 +81,7 @@ export const useTaskManagerState = () => {
     newHabit,
     setNewHabit,
     newTask,
-    newAITask,
     setNewTask,
-    setNewAITask,
-    aiPlan,
-    setAiPlan,
-    displayAISubTasks,
-    setDisplayAISubTasks,
     listView,
     setListView,
   };
