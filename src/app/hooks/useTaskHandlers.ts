@@ -38,7 +38,7 @@ interface UseTaskHandlersProps {
   filter: FilterType;
 
   // API functions
-  addTask: (task: BaseTaskForm) => Promise<boolean>;
+  addTask: (task: BaseTaskForm) => Promise<Task | false>;
   updateTask: (id: number, task: EditTaskForm) => Promise<boolean>;
   addTag: (tag: { name: string; color: string }) => Promise<Tag | false>;
   updateTag: (tag: Tag) => Promise<number | null>;
