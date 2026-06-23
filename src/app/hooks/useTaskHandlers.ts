@@ -13,7 +13,7 @@ These variables and handlers manage all user interactions related to task and ta
 */
 
 import React from 'react';
-import { FilterType, EditTaskForm, Tag, EditTaskModalState, NewTag, BaseTaskForm } from '@/app/types/task';
+import { FilterType, EditTaskForm, Tag, EditTaskModalState, NewTag, BaseTaskForm, Task } from '@/app/types/task';
 
 interface UseTaskHandlersProps {
   // State setters
