@@ -30,7 +30,7 @@ export interface Tag {
   color: string;
 }
 
-export type FilterType = 'all' | 'active' | 'completed' | 'priority';
+export type FilterType = 'all' | 'active' | 'completed' | 'priority' | 'complexity' | 'created' | 'duration';
 export type TaskCategory = 'homework' | 'test' | 'project' | 'interview' | 'skill';
 
 export interface Task {
@@ -78,6 +78,11 @@ export interface EditTaskForm extends BaseTaskForm {
 }
 
 export type NewTag = Omit<Tag, "id">;
+
+export interface NewHabit {
+  title: string;
+  tags: Tag[];
+}
 
 export interface TagStats {
   name: string;

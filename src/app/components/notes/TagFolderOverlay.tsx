@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, ExternalLink, X } from 'lucide-react';
 import { Note } from '@/app/types/notes';
 import { Tag } from '@/app/types/task';
 import NoteFileIcon from './NoteFileIcon';
@@ -26,6 +27,7 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
   onDeleteNote,
   onClose,
 }) => {
+  const router = useRouter();
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
 
   useEffect(() => {
@@ -80,13 +82,25 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
               </span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="btn btn-ghost p-1 rounded-md"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {isEditorView && (
+              <button
+                onClick={() => { router.push(`/notes?id=${selectedNote!.id}`); onClose(); }}
+                className="btn btn-ghost p-1 rounded-md"
+                aria-label="View in Notes"
+                title="View in Notes"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="btn btn-ghost p-1 rounded-md"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}

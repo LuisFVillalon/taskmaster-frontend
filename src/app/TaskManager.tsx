@@ -1,37 +1,11 @@
-/*
-Purpose: This file contains the main TaskManager component, which serves as the root component 
-for the task management application. It integrates various hooks and components to display tasks, 
-handle user interactions, and manage application state.
-
-MOBILE-FRIENDLY UPDATES:
-- Responsive grid layouts that stack on mobile
-- Touch-friendly button sizes
-- Optimized spacing for small screens
-- Collapsible sections for mobile
-- Better overflow handling
-- Improved typography scaling
-
-Variables Summary:
-- tasks: Array of task objects fetched from the backend, used to display the task list.
-- isLoading: Boolean indicating if tasks are being loaded, used for loading spinner.
-- toggleComplete, addTask, deleteTask, updateTask, setTasks: Functions from useTasks hook for CRUD operations on tasks.
-- tags: Array of tag objects, used for tagging tasks.
-- tagsLoading: Boolean for tag loading state.
-- addTag, delTag, updateTag: Functions for tag management CRUD operations on tag.
-- state: Object from useTaskManagerState containing UI state variables like modals visibility, form data, filters.
-- handlers: Object from useTaskHandlers providing event handlers for user actions.
-- filteredTasks: Filtered and sorted array of tasks based on current filters.
-- stats: Object with statistics like total, active, completed tasks.
-
-These variables are used to render the UI components and handle user interactions throughout the component.
-*/
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useResizableSplit } from '@/app/hooks/useResizableSplit';
+import DragHandle from '@/app/components/common/DragHandle';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
-import { claimOrphanedData } from '@/app/lib/backend-api';
+import { claimOrphanedData, createHabit, deleteHabit, updateHabit } from '@/app/lib/backend-api';
 import { Tag, FilterType } from '@/app/types/task';
 import { useTasks, useTags } from '@/app/hooks/useTasksAndTags';
 import { useTaskManagerState } from '@/app/hooks/useTaskManagerState';
@@ -45,6 +19,9 @@ import NewTaskModal from '@/app/components/task/NewTaskModal';
 import EditTaskModal from '@/app/components/task/EditTaskModal';
 import CreateTagModal from '@/app/components/tag/CreateTagModal';
 import EditTagModal from '@/app/components/tag/EditTagListModal';
+import CreateHabitModal from '@/app/components/habit/CreateHabitModal';
+import ManageHabitsModal from '@/app/components/habit/ManageHabitsModal';
+import HabitHistoryModal from '@/app/components/habit/HabitHistoryModal';
 import { Filter, ChevronDown, ChevronUp, FileText, Settings, Menu, X, CheckSquare } from 'lucide-react';
 import BigPictureCalendar from '@/app/components/BigPictureCalendar';
 import SettingsModal from '@/app/components/SettingsModal';
@@ -52,8 +29,10 @@ import NotesGridView from '@/app/components/notes/NotesGridView';
 import TagFolderOverlay from '@/app/components/notes/TagFolderOverlay';
 import NoteEditorOverlay from '@/app/components/notes/NoteEditorOverlay';
 import { useNotes } from '@/app/hooks/useNotes';
+import { useHabits } from '@/app/hooks/useHabits';
 import { Note } from '@/app/types/notes';
 import BriefingCard from '@/app/components/BriefingCard';
+import PageSpinner from '@/app/components/common/PageSpinner';
 
 const TaskManager: React.FC = () => {
   const router = useRouter();
@@ -112,37 +91,29 @@ const TaskManager: React.FC = () => {
   const { tags, tagsLoading, addTag, delTag, updateTag } = useTags();
 
   const [showSettings, setShowSettings] = useState(false);
+  const [showManageHabitsModal, setShowManageHabitsModal] = useState(false);
+  const [createHabitFromManage, setCreateHabitFromManage] = useState(false);
+  const [historyHabitId, setHistoryHabitId] = useState<number | null>(null);
   const [taskSidebarOpen, setTaskSidebarOpen] = useState(true);
-  const [taskColTagDropdown, setTaskColTagDropdown] = useState(false);
 
   // Mobile-specific state
   const [showStats, setShowStats] = useState(false);
 
-  // Resizable split pane
+  // Resizable split pane — percentage-based, so we use a custom handler
   const [tasksWidthPct, setTasksWidthPct] = useState(50);
   const splitContainerRef = useRef<HTMLDivElement>(null);
-  const isDragging = useRef(false);
 
-  const handleSplitterMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    isDragging.current = true;
-
-    const onMove = (ev: MouseEvent) => {
-      if (!isDragging.current || !splitContainerRef.current) return;
-      const { left, width } = splitContainerRef.current.getBoundingClientRect();
-      const pct = ((ev.clientX - left) / width) * 100;
-      setTasksWidthPct(Math.min(70, Math.max(15, pct)));
-    };
-
-    const onUp = () => {
-      isDragging.current = false;
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  };
+  const handleSplitterMouseDown = useResizableSplit(
+    splitContainerRef as React.RefObject<HTMLElement>,
+    {
+      anchor: 'left',
+      onResize: (px) => {
+        if (!splitContainerRef.current) return;
+        const { width } = splitContainerRef.current.getBoundingClientRect();
+        setTasksWidthPct(Math.min(95, Math.max(5, (px / width) * 100)));
+      },
+    },
+  );
 
   // State management
   const state = useTaskManagerState();
@@ -185,6 +156,9 @@ const TaskManager: React.FC = () => {
     state.selectedTags
   );
 
+  const { habits, toggle: toggleHabit, toggleDate: toggleHabitDate, refetch: refetchHabits } = useHabits();
+  const historyHabit = habits.find(h => h.id === historyHabitId) ?? null;
+
   // Notes state — use raw notes so TaskManager can filter them with the shared
   // selectedTags / searchTerm state from TaskControls instead of the hook's own.
   const { notes: allNotes, addNote, deleteNote, updateNote } = useNotes();
@@ -222,19 +196,48 @@ const TaskManager: React.FC = () => {
     return result;
   }, [allNotes, state.selectedTags, state.searchTerm]);
 
-  if (isLoading || tagsLoading) {
-    return (
-      <div className="min-h-screen bg-bg flex items-center justify-center">
-        <div className="text-center">
-          <div
-            className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4"
-            style={{ borderColor: 'var(--tm-accent)', borderTopColor: 'transparent' }}
-          />
-          <p className="text-text-secondary">Loading {isLoading ? 'tasks' : 'tags'}…</p>
-        </div>
-      </div>
-    );
-  }
+  const handleDeleteHabit = async (id: number) => {
+    try {
+      await deleteHabit(id);
+      refetchHabits();
+    } catch (err) {
+      console.error('Failed to delete habit:', err);
+      alert('Failed to delete habit — please try again.');
+    }
+  };
+
+  const handleUpdateHabit = async (id: number, title: string, habitTags: Tag[]) => {
+    try {
+      await updateHabit(id, { title, tags: habitTags });
+      refetchHabits();
+    } catch (err) {
+      console.error('Failed to update habit:', err);
+      alert('Failed to update habit — please try again.');
+    }
+  };
+
+  const handleCreateHabit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!state.newHabit.title.trim()) return;
+    try {
+      await createHabit({
+        title: state.newHabit.title.trim(),
+        tags: state.newHabit.tags,
+      });
+      state.setNewHabit({ title: '', tags: [] });
+      state.setShowCreateHabitModal(false);
+      if (createHabitFromManage) {
+        setCreateHabitFromManage(false);
+        setShowManageHabitsModal(true);
+      }
+      refetchHabits();
+    } catch (err) {
+      console.error('Failed to create habit:', err);
+      alert('Failed to save habit — please try again.');
+    }
+  };
+
+  if (isLoading || tagsLoading) return <PageSpinner size="lg" />;
 
   return (
       <div className="relative min-h-screen bg-bg">
@@ -254,13 +257,11 @@ const TaskManager: React.FC = () => {
             onTagDropdownToggle={() => state.setShowTagDropdown(prev => !prev)}
             tags={tags}
             searchPlaceholder={'Search tasks & notes…'}
-            onNewTask={() => state.setShowNewTaskModal(true)}
+            onNewTask={() => router.push('/tasks')}
             onNewNote={async () => { const note = await addNote(); setNoteEditorOverlay(note); }}
             onViewNotes={() => router.push('/notes')}
-            onCreateTag={() => state.setShowCreateTagModal(true)}
-            onEditTag={() => { if (tags.length > 0) handlers.openEditTagModal(tags[0]); }}
-            onCreateHabit={() => {}}
-            onEditHabit={() => {}}
+            onEditTag={() => handlers.openEditTagModal(tags[0])}
+            onEditHabit={() => setShowManageHabitsModal(true)}
             menuCollapsed={!taskSidebarOpen}
             onToggleMenu={() => setTaskSidebarOpen(prev => !prev)}
           />
@@ -319,6 +320,13 @@ const TaskManager: React.FC = () => {
 
               <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-3 lg:gap-4 ${!showStats ? 'hidden lg:grid' : ''}`}>
                 <StatsCard
+                  variant="habits"
+                  habits={habits}
+                  onToggle={toggleHabit}
+                  onCreate={() => state.setShowCreateHabitModal(true)}
+                  onViewHistory={(id) => setHistoryHabitId(id)}
+                />
+                <StatsCard
                   variant="tasks"
                   total={stats.total.tasks.length}
                   completed={stats.completed.tasks.length}
@@ -364,50 +372,6 @@ const TaskManager: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* Tags dropdown */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setTaskColTagDropdown(prev => !prev)}
-                      className="px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 btn-secondary"
-                    >
-                      <Filter className="w-4 h-4" />
-                      Tags
-                      {state.selectedTags.length > 0 && (
-                        <span
-                          className="ml-0.5 text-xs rounded-full px-1.5 py-0.5 font-semibold"
-                          style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-                        >
-                          {state.selectedTags.length}
-                        </span>
-                      )}
-                    </button>
-                    {taskColTagDropdown && (
-                      <div
-                        className="absolute z-50 left-0 top-full mt-1 w-52 rounded-xl border border-border overflow-hidden"
-                        style={{ backgroundColor: 'var(--tm-surface)', boxShadow: 'var(--tm-shadow-lg)' }}
-                      >
-                        <button
-                          onClick={() => { state.selectedTags.forEach(tag => handlers.toggleSelectedTag(tag)); setTaskColTagDropdown(false); }}
-                          className="w-full text-left px-4 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-raised transition-colors"
-                        >
-                          Clear tags
-                        </button>
-                        <div className="max-h-48 overflow-y-auto">
-                          {tags.map(tag => {
-                            const checked = state.selectedTags.some(t => t.id === tag.id);
-                            return (
-                              <label key={tag.id} className="flex items-center gap-3 px-4 py-2 text-sm cursor-pointer hover:bg-surface-raised transition-colors text-text-primary">
-                                <input type="checkbox" checked={checked} onChange={() => handlers.toggleSelectedTag(tag)} className="accent-accent rounded" />
-                                <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
-                                <span>{tag.name}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
                   {/* Create Task button */}
                   <button
                     onClick={() => state.setShowNewTaskModal(true)}
@@ -443,7 +407,7 @@ const TaskManager: React.FC = () => {
                         onEditTaskClick={() =>
                           state.setShowEditTaskModal({ status: true, task })
                         }
-                        compact={tasksWidthPct < 33}
+                        compact={tasksWidthPct < 40}
                       />
                     ))}
                   </div>
@@ -451,17 +415,7 @@ const TaskManager: React.FC = () => {
               </div>
 
               {/* Drag handle — visible only on md+ */}
-              <div
-                onMouseDown={handleSplitterMouseDown}
-                className="hidden md:flex w-2 shrink-0 items-stretch cursor-col-resize group py-1"
-              >
-                <div
-                  className="mx-auto w-px rounded-full transition-colors duration-150"
-                  style={{ backgroundColor: 'var(--tm-border)' }}
-                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--tm-accent)')}
-                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--tm-border)')}
-                />
-              </div>
+              <DragHandle onMouseDown={handleSplitterMouseDown} />
 
               {/* Notes column */}
               <div className="split-notes relative flex flex-col space-y-2 sm:space-y-3">
@@ -600,8 +554,42 @@ const TaskManager: React.FC = () => {
           allTags={tags}
           onDeleteTag={handlers.handleDeleteTag}
           onEditTag={handlers.handleEditTag}
+          onCreateTag={() => state.setShowCreateTagModal(true)}
         />
       )}
+
+      <CreateHabitModal
+        isOpen={state.showCreateHabitModal}
+        onClose={() => {
+          state.setShowCreateHabitModal(false);
+          state.setNewHabit({ title: '', tags: [] });
+          if (createHabitFromManage) {
+            setCreateHabitFromManage(false);
+            setShowManageHabitsModal(true);
+          }
+        }}
+        newHabit={state.newHabit}
+        onHabitChange={state.setNewHabit}
+        onSubmit={handleCreateHabit}
+        availableTags={tags}
+      />
+
+      <ManageHabitsModal
+        isOpen={showManageHabitsModal}
+        onClose={() => setShowManageHabitsModal(false)}
+        habits={habits}
+        availableTags={tags}
+        onCreateHabit={() => { setShowManageHabitsModal(false); setCreateHabitFromManage(true); state.setShowCreateHabitModal(true); }}
+        onDeleteHabit={handleDeleteHabit}
+        onUpdateHabit={handleUpdateHabit}
+        onViewHistory={(id) => { setShowManageHabitsModal(false); setHistoryHabitId(id); }}
+      />
+
+      <HabitHistoryModal
+        habit={historyHabit}
+        onClose={() => setHistoryHabitId(null)}
+        onToggleDate={toggleHabitDate}
+      />
 
       <SettingsModal
         isOpen={showSettings}

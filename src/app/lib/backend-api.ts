@@ -406,3 +406,127 @@ export async function deleteWorkBlock(id: number): Promise<void> {
   await assertOk(res, "deleteWorkBlock");
 }
 
+// ── Habits ────────────────────────────────────────────────────────────────────
+
+export interface Habit {
+  id: number;
+  title: string;
+  user_id?: string | null;
+  current_streak: number;
+  max_streak: number;
+  logged_today: boolean;
+  tags: { id: number; name: string; color?: string | null }[];
+}
+
+/** Fetches all habits for the authenticated user, including today's completion state. */
+export async function fetchHabits(): Promise<Habit[]> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/get-habits`, { headers });
+  await assertOk(res, "fetchHabits");
+  return res.json();
+}
+
+/** Creates a new habit and returns the persisted record. */
+export async function createHabit(habit: {
+  title: string;
+  tags?: { id: number; name: string; color?: string | null }[];
+}): Promise<Habit> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/create-habit`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(habit),
+  });
+  await assertOk(res, "createHabit");
+  return res.json();
+}
+
+/** Updates a habit's title and tags. Returns the updated record. */
+export async function updateHabit(
+  id: number,
+  habit: {
+    title: string;
+    tags?: { id: number; name: string; color?: string | null }[];
+  },
+): Promise<Habit> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/update-habit/${id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(habit),
+  });
+  await assertOk(res, "updateHabit");
+  return res.json();
+}
+
+/** Deletes a habit (and all its logs via CASCADE). */
+export async function deleteHabit(id: number): Promise<Habit> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/del-habit/${id}`, {
+    method: 'DELETE',
+    headers,
+  });
+  await assertOk(res, "deleteHabit");
+  return res.json();
+}
+
+export interface HabitHistoryEntry {
+  date: string;   // YYYY-MM-DD
+  logged: boolean;
+}
+
+/** Fetches logged/not-logged status for the past 30 days for a habit. */
+export async function fetchHabitHistory(habitId: number): Promise<HabitHistoryEntry[]> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/habit-history/${habitId}`, { headers });
+  await assertOk(res, "fetchHabitHistory");
+  return res.json();
+}
+
+/**
+ * Toggles completion for a specific past date (or today).
+ * Recalculates current_streak and max_streak from full history.
+ * Returns the updated habit.
+ */
+export async function toggleHabitDate(habitId: number, date: string): Promise<Habit> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/toggle-habit-date/${habitId}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ date }),
+  });
+  await assertOk(res, "toggleHabitDate");
+  return res.json();
+}
+
+/**
+ * Toggles today's completion for a habit.
+ * - If not logged today: inserts a log, increments current_streak (and max_streak if needed).
+ * - If already logged today: deletes the log, decrements current_streak.
+ * Returns the updated habit with the new streak values and logged_today state.
+ */
+export async function toggleHabit(id: number): Promise<Habit> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/toggle-habit/${id}`, {
+    method: 'PATCH',
+    headers,
+  });
+  await assertOk(res, "toggleHabit");
+  return res.json();
+}
+
+/**
+ * Checks all habits for the user and resets current_streak to 0 for any
+ * habit whose last log entry is older than yesterday.
+ * Call this once on app load (e.g. in a useEffect on mount) to keep streaks accurate.
+ */
+export async function verifyHabitStreaks(): Promise<{ reset_count: number }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/verify-streaks`, {
+    method: 'POST',
+    headers,
+  });
+  await assertOk(res, "verifyHabitStreaks");
+  return res.json();
+}
+

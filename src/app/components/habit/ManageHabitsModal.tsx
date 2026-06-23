@@ -1,0 +1,254 @@
+import React, { useState } from 'react';
+import { X, Flame, Star, LayersPlus, Pencil, Trash2, Check, CalendarDays } from 'lucide-react';
+import { Habit } from '@/app/lib/backend-api';
+import { Tag } from '@/app/types/task';
+
+interface ManageHabitsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  habits: Habit[];
+  availableTags?: Tag[];
+  onCreateHabit?: () => void;
+  onDeleteHabit?: (id: number) => Promise<void>;
+  onUpdateHabit?: (id: number, title: string, tags: Tag[]) => Promise<void>;
+  onViewHistory?: (id: number) => void;
+}
+
+const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
+  isOpen,
+  onClose,
+  habits,
+  availableTags = [],
+  onCreateHabit,
+  onDeleteHabit,
+  onUpdateHabit,
+  onViewHistory,
+}) => {
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editTags, setEditTags] = useState<Tag[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  if (!isOpen) return null;
+
+  const startEdit = (habit: Habit) => {
+    setEditingId(habit.id);
+    setEditTitle(habit.title);
+    setEditTags(habit.tags.map(t => ({ id: t.id, name: t.name, color: t.color ?? '#6B7280' })));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditTitle('');
+    setEditTags([]);
+  };
+
+  const toggleEditTag = (tag: Tag) => {
+    setEditTags(prev =>
+      prev.some(t => t.id === tag.id) ? prev.filter(t => t.id !== tag.id) : [...prev, tag],
+    );
+  };
+
+  const handleSave = async (id: number) => {
+    if (!editTitle.trim() || !onUpdateHabit) return;
+    setSaving(true);
+    try {
+      await onUpdateHabit(id, editTitle.trim(), editTags);
+      cancelEdit();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!onDeleteHabit) return;
+    setDeletingId(id);
+    try {
+      await onDeleteHabit(id);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[60]">
+      <div className="modal-panel max-w-md w-full">
+        <div
+          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center rounded-t-[1.25rem]"
+          style={{ backgroundColor: 'var(--tm-surface)' }}
+        >
+          <h3 className="text-lg font-semibold text-text-primary">Manage Habits</h3>
+          <div className="flex items-center gap-2">
+            {onCreateHabit && (
+              <button
+                onClick={onCreateHabit}
+                className="px-3 py-1.5 rounded-xl font-medium text-sm flex items-center gap-2 btn-primary"
+                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+              >
+                <LayersPlus className="w-4 h-4" />
+                Create Habit
+              </button>
+            )}
+            <button onClick={onClose} className="btn btn-ghost" aria-label="Close">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5">
+          {habits.length === 0 ? (
+            <p className="text-sm text-text-muted text-center py-4">No habits yet. Create one to get started!</p>
+          ) : (
+            <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto scrollbar-custom pr-1">
+              {habits.map(habit => (
+                <div
+                  key={habit.id}
+                  className="rounded-xl p-4 border border-border"
+                  style={{ backgroundColor: 'var(--tm-surface-raised)' }}
+                >
+                  {editingId === habit.id ? (
+                    /* ── Inline edit form ── */
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={e => setEditTitle(e.target.value)}
+                        className="input-field w-full text-sm"
+                        autoFocus
+                      />
+                      {availableTags.length > 0 && (
+                        <div
+                          className="grid grid-cols-2 gap-1.5 p-2 rounded-lg border border-border max-h-28 overflow-y-auto scrollbar-custom"
+                          style={{ backgroundColor: 'var(--tm-surface)' }}
+                        >
+                          {availableTags.map(tag => {
+                            const selected = editTags.some(t => t.id === tag.id);
+                            return (
+                              <button
+                                key={tag.id}
+                                type="button"
+                                onClick={() => toggleEditTag(tag)}
+                                style={{
+                                  backgroundColor: selected ? tag.color : 'var(--tm-surface-raised)',
+                                  color: selected ? '#ffffff' : 'var(--tm-text-primary)',
+                                  border: `1px solid ${selected ? tag.color : 'var(--tm-border)'}`,
+                                }}
+                                className="px-2 py-1 rounded-md text-xs font-medium transition-colors"
+                              >
+                                {tag.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          className="btn btn-secondary px-3 py-1 text-xs"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSave(habit.id)}
+                          disabled={saving || !editTitle.trim()}
+                          className="btn btn-primary px-3 py-1 text-xs flex items-center gap-1"
+                        >
+                          <Check className="w-3 h-3" />
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ── Read-only view ── */
+                    <>
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <span className="font-medium text-text-primary text-sm leading-snug">{habit.title}</span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="flex items-center gap-1" title="Current streak">
+                            <Flame className="w-4 h-4" style={{ color: '#F97316' }} />
+                            <span className="text-sm font-semibold" style={{ color: '#F97316' }}>
+                              {habit.current_streak}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1" title="Best streak">
+                            <Star className="w-4 h-4" style={{ color: '#EAB308' }} />
+                            <span className="text-sm font-semibold" style={{ color: '#EAB308' }}>
+                              {habit.max_streak}
+                            </span>
+                          </div>
+                          {onViewHistory && (
+                            <button
+                              onClick={() => onViewHistory(habit.id)}
+                              className="btn btn-ghost p-1"
+                              title="View history"
+                              aria-label="View history"
+                            >
+                              <CalendarDays className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
+                            </button>
+                          )}
+                          {onUpdateHabit && (
+                            <button
+                              onClick={() => startEdit(habit)}
+                              className="btn btn-ghost p-1"
+                              title="Edit habit"
+                              aria-label="Edit habit"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
+                            </button>
+                          )}
+                          {onDeleteHabit && (
+                            <button
+                              onClick={() => handleDelete(habit.id)}
+                              disabled={deletingId === habit.id}
+                              className="btn btn-ghost p-1"
+                              title="Delete habit"
+                              aria-label="Delete habit"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-text-muted hover:text-red-500" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {habit.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {habit.tags.map(tag => (
+                            <span
+                              key={tag.id}
+                              className="text-xs font-medium px-2 py-0.5 rounded-full text-white"
+                              style={{ backgroundColor: tag.color ?? '#6B7280' }}
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-4 mt-2">
+                        <span className="text-xs text-text-muted">
+                          Current streak: <span className="font-medium" style={{ color: '#F97316' }}>{habit.current_streak} day{habit.current_streak !== 1 ? 's' : ''}</span>
+                        </span>
+                        <span className="text-xs text-text-muted">
+                          Best: <span className="font-medium" style={{ color: '#EAB308' }}>{habit.max_streak} day{habit.max_streak !== 1 ? 's' : ''}</span>
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 flex justify-end">
+            <button onClick={onClose} className="btn btn-secondary px-5 py-2">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ManageHabitsModal;

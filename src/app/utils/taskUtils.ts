@@ -1,18 +1,38 @@
-/*
-Purpose: This file contains utility functions for formatting and processing task-related data, 
-including date/time formatting, color determination, and statistics calculation.
-
-Variables Summary:
-- formatDueTime: Function to format time strings or Date objects into readable time format.
-- formatDueDate: Function to format dates into relative terms like "Today", "Tomorrow", or specific dates.
-- getDueDateColor: Function to determine text color based on due date urgency.
-- getTaskDateTime: Function to get a timestamp for sorting tasks by due date/time.
-- countTasksByTag: Function to count occurrences of each tag across tasks.
-
-These utilities are used throughout the application for displaying and sorting task information.
-*/
-
 import { Task } from '@/app/types/task';
+
+// ── Priority ───────────────────────────────────────────────────────────────────
+
+export const PRIORITY_COLORS: Record<number, { bg: string; text: string }> = {
+  1: { bg: '#dc2626', text: '#ffffff' },
+  2: { bg: '#ea580c', text: '#ffffff' },
+  3: { bg: '#f97316', text: '#ffffff' },
+  4: { bg: '#f59e0b', text: '#ffffff' },
+  5: { bg: '#eab308', text: '#ffffff' },
+};
+
+const DEFAULT_PRIORITY_COLOR = { bg: '#2563eb', text: '#ffffff' };
+const NULL_PRIORITY_COLOR = { bg: 'var(--tm-surface-raised)', text: 'var(--tm-text-muted)' };
+
+export function getPriorityStyle(priority: number | null) {
+  if (priority === null) return NULL_PRIORITY_COLOR;
+  return PRIORITY_COLORS[priority] ?? DEFAULT_PRIORITY_COLOR;
+}
+
+export function getDueDateColor(due: string | Date | null, completed: boolean): string {
+  if (!due || completed) return 'var(--tm-text-muted)';
+  const dueDate = typeof due === 'string' ? new Date(due + 'T00:00:00') : new Date(due);
+  const diffDays = Math.ceil((dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return '#b91c1c';
+  if (diffDays <= 3) return '#a16207';
+  return '#15803d';
+}
+
+export function formatDueDateShort(due: string | Date | null): string | null {
+  if (!due) return null;
+  const d = typeof due === 'string' ? new Date(due + 'T00:00:00') : due;
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 export const formatDueDate = (
   date: string | Date | null | undefined,

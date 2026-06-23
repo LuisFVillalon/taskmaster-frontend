@@ -46,7 +46,7 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-50">
+    <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[60]">
       <div className="modal-panel max-w-sm w-full">
         {/* Header */}
         <div

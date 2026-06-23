@@ -17,7 +17,7 @@ These variables handle the state for editing and deleting tags within the modal.
 */
 
 import React, { useState } from 'react';
-import { X, Trash2, Pencil } from 'lucide-react';
+import { X, Trash2, Pencil, FolderPlus } from 'lucide-react';
 import { Tag } from '@/app/types/task';
 
 interface EditTagModalProps {
@@ -26,6 +26,7 @@ interface EditTagModalProps {
   allTags: Tag[];
   onDeleteTag?: (tag: Tag) => void;
   onEditTag?: (tag: Tag) => void;
+  onCreateTag?: () => void;
 }
 
 const TAG_COLORS = [
@@ -45,7 +46,8 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
   onClose,
   allTags,
   onDeleteTag,
-  onEditTag
+  onEditTag,
+  onCreateTag
 }) => {
   const [deletingTag, setDeletingTag] = useState<Tag | null>(null);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
@@ -90,9 +92,21 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
             style={{ backgroundColor: 'var(--tm-surface)' }}
           >
             <h3 className="text-lg font-semibold text-text-primary">Manage Tags</h3>
-            <button onClick={onClose} className="btn btn-ghost" aria-label="Close">
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {onCreateTag && (
+                <button
+                  onClick={onCreateTag}
+                  className="px-3 py-1.5 rounded-xl font-medium text-sm flex items-center gap-1.5 btn-primary"
+                  style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+                >
+                  <FolderPlus className="w-4 h-4" />
+                  Create Tag
+                </button>
+              )}
+              <button onClick={onClose} className="btn btn-ghost" aria-label="Close">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
           <div className="p-5">
             <div className="grid grid-cols-3 gap-3">

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Search, Filter, CheckSquare, FileText, Files, FolderPlus, FolderPen, X, LayersPlus, Blocks } from 'lucide-react';
+import { Search, Filter, Files, FolderPen, X, Blocks, ListTodo, Menu } from 'lucide-react';
 import { FilterType, Tag } from '@/app/types/task';
 
 interface TaskControlsProps {
@@ -19,9 +19,7 @@ interface TaskControlsProps {
   onNewTask?: () => void;
   onNewNote?: () => void;
   onViewNotes?: () => void;
-  onCreateTag?: () => void;
   onEditTag?: () => void;
-  onCreateHabit?: () => void;
   onEditHabit?: () => void;
   menuCollapsed: boolean;
   onToggleMenu: () => void;
@@ -40,11 +38,8 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
   tags,
   searchPlaceholder = 'Search tasks…',
   onNewTask,
-  onNewNote,
   onViewNotes,
-  onCreateTag,
   onEditTag,
-  onCreateHabit,
   onEditHabit,
   menuCollapsed,
   onToggleMenu,
@@ -62,10 +57,10 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
         <div className="card">
           <div className="flex flex-col gap-4 px-4 py-4 border-b border-border sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <Filter className="w-5 h-5 text-text-secondary" />
+            <Menu className="w-5 h-5 text-text-secondary" />
             <div>
-              <p className="font-semibold text-text-primary">Task Menu</p>
-              <p className="text-xs text-text-secondary">Filters, tags, and quick actions</p>
+              <p className="font-semibold text-text-primary">Main Menu</p>
+              <p className="text-xs text-text-secondary">Search, filter, and quick actions</p>
             </div>
           </div>
           <button
@@ -98,29 +93,6 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
 
           {/* Filters row */}
           <div className="flex gap-2 flex-wrap">
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-              {(['all', 'active', 'completed', 'priority'] as FilterType[]).map(f => (
-                <button
-                  key={f}
-                  onClick={() => onFilterChange(f)}
-                  className={`px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 ${
-                    filter === f
-                      ? 'btn-primary'
-                      : 'btn-secondary'
-                  }`}
-                  style={filter === f ? {
-                    backgroundColor: 'var(--tm-accent)',
-                    color: 'var(--tm-accent-text)',
-                  } : {}}
-                >
-                  {f === 'active' ? 'Due date' : f.charAt(0).toUpperCase() + f.slice(1)}
-                  <span className="ml-1 opacity-70">
-                    {sortOrder[f] === 'asc' ? '↑' : '↓'}
-                  </span>
-                </button>
-              ))}
-            </div>
-
             {/* Tag filter dropdown */}
             <div className="relative">
               <button
@@ -180,50 +152,32 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
                 </div>
               )}
             </div>
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+              {(['all', 'active',  'priority', 'completed', 'complexity', 'duration',  'created'] as FilterType[]).map(f => (
+                <button
+                  key={f}
+                  onClick={() => onFilterChange(f)}
+                  className={`px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 ${
+                    filter === f
+                      ? 'btn-primary'
+                      : 'btn-secondary'
+                  }`}
+                  style={filter === f ? {
+                    backgroundColor: 'var(--tm-accent)',
+                    color: 'var(--tm-accent-text)',
+                  } : {}}
+                >
+                  {f === 'active' ? 'Due date' : f === 'duration' ? 'Est. Time' : f.charAt(0).toUpperCase() + f.slice(1)}
+                  <span className="ml-1 opacity-70">
+                    {sortOrder[f] === 'asc' ? '↑' : '↓'}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Action buttons */}
           <div className="flex gap-2 flex-wrap ml-auto">
-            {onNewTask && (
-              <button
-                onClick={onNewTask}
-                className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
-                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-              >
-                <CheckSquare className="w-4 h-4" />
-                Create Task
-              </button>
-            )}
-            {onNewNote && (
-              <button
-                onClick={onNewNote}
-                className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
-                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-              >
-                <FileText className="w-4 h-4" />
-                Create Note
-              </button>
-            )}
-            {onViewNotes && (
-              <button
-                onClick={onViewNotes}
-                className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
-                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-              >
-                <Files className="w-4 h-4" />
-                View Notes
-              </button>
-            )}
-            {onCreateTag && (
-              <button
-                onClick={onCreateTag}
-                className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
-                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-              >
-                <FolderPlus className="w-4 h-4" />
-                Create Tag
-              </button>
-            )}
             {onEditTag && (
               <button
                 onClick={onEditTag}
@@ -231,17 +185,7 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
                 style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
               >
                 <FolderPen className="w-4 h-4" />
-                Edit Tag
-              </button>
-            )}
-            {onCreateHabit && (
-              <button
-                onClick={onCreateHabit}
-                className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
-                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-              >
-                <LayersPlus className="w-4 h-4" />
-                Create Habit
+                Manage Tags
               </button>
             )}
             {onEditHabit && (
@@ -251,7 +195,27 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
                 style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
               >
                 <Blocks className="w-4 h-4" />
-                Edit Habit
+                Manage Habits
+              </button>
+            )}
+            {onNewTask && (
+              <button
+                onClick={onNewTask}
+                className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+              >
+                <ListTodo className="w-4 h-4" />
+                Manage Tasks
+              </button>
+            )}
+            {onViewNotes && (
+              <button
+                onClick={onViewNotes}
+                className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+              >
+                <Files className="w-4 h-4" />
+                Manage Notes
               </button>
             )}
           </div>

@@ -2,12 +2,12 @@
 
 import React from 'react';
 import ProtectedPage from '@/app/components/common/ProtectedPage';
-import NotesView from '@/app/components/notes/NotesView';
+import TasksView from '@/app/components/tasks/TasksView';
 
-export default function NotesPage() {
+export default function TasksPage() {
   return (
     <ProtectedPage>
-      <NotesView />
+      <TasksView />
     </ProtectedPage>
   );
 }

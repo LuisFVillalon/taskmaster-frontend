@@ -37,6 +37,12 @@ export const useTaskFiltering = (
             ? task.completed
             : filter === 'priority'
             ? !task.completed
+            : filter === 'complexity'
+            ? !task.completed
+            : filter === 'created'
+            ? true
+            : filter === 'duration'
+            ? !task.completed
             : true;
 
         // Search filtering
@@ -54,13 +60,29 @@ export const useTaskFiltering = (
         return matchesStatus && matchesSearch && matchesTags;
       })
       .sort((a, b) => {
+        const dir = sortOrder[filter] === 'asc' ? 1 : -1;
         if (filter === 'priority') {
           const pa = a.priority ?? Infinity;
           const pb = b.priority ?? Infinity;
-          return sortOrder[filter] === 'asc' ? pa - pb : pb - pa;
+          return (pa - pb) * dir;
+        }
+        if (filter === 'complexity') {
+          const ca = a.complexity ?? Infinity;
+          const cb = b.complexity ?? Infinity;
+          return (ca - cb) * dir;
+        }
+        if (filter === 'created') {
+          const da = new Date(a.created_date).getTime();
+          const db = new Date(b.created_date).getTime();
+          return (da - db) * dir;
+        }
+        if (filter === 'duration') {
+          const ea = a.estimated_time ?? Infinity;
+          const eb = b.estimated_time ?? Infinity;
+          return (ea - eb) * dir;
         }
         const diff = getTaskDateTime(a) - getTaskDateTime(b);
-        return sortOrder[filter] === 'asc' ? diff : -diff;
+        return diff * dir;
       });
 
     const stats: StatsData = {

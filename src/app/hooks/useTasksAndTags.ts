@@ -93,7 +93,7 @@ export const useTasks = () => {
     }
   };
 
-  const addTask = async (newTask: BaseTaskForm) => {
+  const addTask = async (newTask: BaseTaskForm): Promise<Task | false> => {
     try {
         const taskWithDates = {
           ...newTask,
@@ -107,10 +107,10 @@ export const useTasks = () => {
           completed_date: null,
           completed: false
         };
-        const createdTask = await createTask(taskWithDates);
+        const createdTask: Task = await createTask(taskWithDates);
         setTasks([createdTask, ...tasks]);
 
-        return true;
+        return createdTask;
     } catch (err) {
         console.error(err);
         alert("Failed to create task");
