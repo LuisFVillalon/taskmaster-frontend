@@ -1,105 +1,47 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useResizableSplit } from '@/app/hooks/useResizableSplit';
-import DragHandle from '@/app/components/common/DragHandle';
+import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
-import { claimOrphanedData, createHabit, deleteHabit, updateHabit, fetchProfile, planTasks, PlanTasksResult, AiSubtask, createTask } from '@/app/lib/backend-api';
-import { Tag, FilterType } from '@/app/types/task';
+import { createHabit, deleteHabit, updateHabit, planTasks, AiSubtask, createTask } from '@/app/lib/backend-api';
+import { Tag } from '@/app/types/task';
 import { useTasks, useTags } from '@/app/hooks/useTasksAndTags';
 import { useTaskManagerState } from '@/app/hooks/useTaskManagerState';
+import { useTaskManagerUIState } from '@/app/hooks/useTaskManagerUIState';
 import { useTaskHandlers } from '@/app/hooks/useTaskHandlers';
 import { useTaskFiltering } from '@/app/hooks/useTaskFiltering';
-import StatsCard from '@/app/components/StatsCard';
-import TaskItem from '@/app/components/task/TaskItem';
-import { TaskControls } from '@/app/components/TaskControls';
-import NewTaskModal from '@/app/components/task/NewTaskModal';
-import AiSubtasksModal from '@/app/components/task/AiSubtasksModal';
-import CreateTagModal from '@/app/components/tag/CreateTagModal';
-import EditTagModal from '@/app/components/tag/EditTagListModal';
-import CreateHabitModal from '@/app/components/habit/CreateHabitModal';
-import ManageHabitsModal from '@/app/components/habit/ManageHabitsModal';
-import HabitHistoryModal from '@/app/components/habit/HabitHistoryModal';
-import { Filter, ChevronDown, ChevronUp, FileText, Settings, Menu, X, CheckSquare } from 'lucide-react';
-import BigPictureCalendar from '@/app/components/BigPictureCalendar';
-import SettingsModal from '@/app/components/SettingsModal';
-import NotesGridView from '@/app/components/notes/NotesGridView';
-import TagFolderOverlay from '@/app/components/notes/TagFolderOverlay';
-import NoteEditorOverlay from '@/app/components/notes/NoteEditorOverlay';
+import { useClaimOrphanedData } from '@/app/hooks/useClaimOrphanedData';
+import { useProfileName } from '@/app/hooks/useProfileName';
 import { useNotes } from '@/app/hooks/useNotes';
 import { useHabits } from '@/app/hooks/useHabits';
 import { Note } from '@/app/types/notes';
-import PageSpinner from '@/app/components/common/PageSpinner';
+import DragHandle from '@/app/components/common/DragHandle';
+import { TaskControls } from '@/app/components/TaskControls';
+import TasksPanel from '@/app/components/tasks/TasksPanel';
+import NotesPanel from '@/app/components/notes/NotesPanel';
+import CalendarAndStats from '@/app/components/CalendarAndStats';
+import TaskManagerModals from '@/app/components/TaskManagerModals';
 import TaskDebriefPanel from '@/app/components/TaskDebriefPanel';
+import PageSpinner from '@/app/components/common/PageSpinner';
+import { Settings, Menu, X } from 'lucide-react';
 
 const TaskManager: React.FC = () => {
   const router = useRouter();
   const { signOut, user } = useAuth();
 
-  // ── One-time orphaned-data claim ────────────────────────────────────────────
-  // Runs once per user account (guarded by a localStorage flag).
-  // Fixes any account that signed up before claim-data was wired to the login
-  // flow — including the current session — without requiring a re-login.
-  const claimRan = useRef(false);
-  useEffect(() => {
-    if (!user || claimRan.current) return;
-    const flagKey = `taskmaster_claimed_${user.id}`;
-    if (localStorage.getItem(flagKey)) return;  // already ran for this account
-    claimRan.current = true;
-
-    claimOrphanedData().then(claimed => {
-      if (claimed) {
-        // Mark as done so we never call this again for this account.
-        localStorage.setItem(flagKey, '1');
-        const total = claimed.tasks + claimed.notes + claimed.tags + claimed.calendar_settings;
-        if (total > 0) {
-          // Data was found and linked — reload so tasks/notes lists refresh.
-          console.info(`[claim-data] Linked ${claimed.tasks} tasks, ${claimed.notes} notes to account.`);
-          window.location.reload();
-        } else {
-          // Nothing to claim — still mark as done to skip future attempts.
-          localStorage.setItem(flagKey, '1');
-        }
-      }
-    });
-  }, [user]);
-
-  const [profileName, setProfileName] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('tm_profile_name');
-  });
-  useEffect(() => {
-    if (!user) return;
-    fetchProfile()
-      .then(p => {
-        if (p) {
-          setProfileName(p.name);
-          localStorage.setItem('tm_profile_name', p.name);
-        } else if (!profileName) {
-          setProfileName(user.email?.split('@')[0] ?? null);
-        }
-      })
-      .catch(() => {
-        if (!profileName) setProfileName(user.email?.split('@')[0] ?? null);
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  useClaimOrphanedData(user);
+  const profileName = useProfileName(user);
 
   const handleLogout = async () => {
-    // 1. Destroy the Supabase session (clears the JWT from storage).
     await signOut();
-    // 2. Clear any user-specific cached data so the next user starts clean.
-    //    Wipe every taskmaster_* key rather than individual keys so nothing
-    //    leaks if new cache keys are added later.
     Object.keys(localStorage)
       .filter(k => k.startsWith('taskmaster_'))
       .forEach(k => localStorage.removeItem(k));
-    // 3. Navigate to login — this unmounts the entire app, wiping all
-    //    in-memory state (task list, notes, etc.).
     router.replace('/login');
   };
+
   const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks } = useTasks();
+  const { tags, tagsLoading, addTag, delTag, updateTag } = useTags();
 
   const updatePriority = async (taskId: number, priority: number | null) => {
     const task = tasks.find(t => t.id === taskId);
@@ -122,51 +64,14 @@ const TaskManager: React.FC = () => {
   };
 
   const occupiedPriorityLevels = useMemo(
-    () => tasks
-      .filter(task => !task.completed && task.priority != null)
-      .map(task => task.priority as number),
-    [tasks]
+    () => tasks.filter(t => !t.completed && t.priority != null).map(t => t.priority as number),
+    [tasks],
   );
+  const activeTaskCount = useMemo(() => tasks.filter(t => !t.completed).length, [tasks]);
 
-  const activeTaskCount = useMemo(
-    () => tasks.filter(t => !t.completed).length,
-    [tasks]
-  );
-
-  const { tags, tagsLoading, addTag, delTag, updateTag } = useTags();
-
-  const [showSettings, setShowSettings] = useState(false);
-  const [showManageHabitsModal, setShowManageHabitsModal] = useState(false);
-  const [createHabitFromManage, setCreateHabitFromManage] = useState(false);
-  const [historyHabitId, setHistoryHabitId] = useState<number | null>(null);
-  const [taskSidebarOpen, setTaskSidebarOpen] = useState(false);
-
-  // AI Smart Plan result — set after /plan-tasks returns, cleared on save/discard
-  const [aiPlanResult, setAiPlanResult] = useState<PlanTasksResult | null>(null);
-
-  // Mobile-specific state
-  const [showStats, setShowStats] = useState(false);
-
-  // Resizable split pane — percentage-based, so we use a custom handler
-  const [tasksWidthPct, setTasksWidthPct] = useState(50);
-  const splitContainerRef = useRef<HTMLDivElement>(null);
-
-  const handleSplitterMouseDown = useResizableSplit(
-    splitContainerRef as React.RefObject<HTMLElement>,
-    {
-      anchor: 'left',
-      onResize: (px) => {
-        if (!splitContainerRef.current) return;
-        const { width } = splitContainerRef.current.getBoundingClientRect();
-        setTasksWidthPct(Math.min(95, Math.max(5, (px / width) * 100)));
-      },
-    },
-  );
-
-  // State management
   const state = useTaskManagerState();
+  const ui = useTaskManagerUIState();
 
-  // Handlers
   const handlers = useTaskHandlers({
     setShowNewTaskModal: state.setShowNewTaskModal,
     setNewTask: state.setNewTask,
@@ -190,26 +95,16 @@ const TaskManager: React.FC = () => {
     delTag,
   });
 
-  // Filtering and stats
   const { filteredTasks, stats } = useTaskFiltering(
-    tasks,
-    state.filter,
-    state.sortOrder,
-    state.searchTerm,
-    state.selectedTags
+    tasks, state.filter, state.sortOrder, state.searchTerm, state.selectedTags,
   );
 
   const { habits, toggle: toggleHabit, toggleDate: toggleHabitDate, refetch: refetchHabits } = useHabits();
-  const historyHabit = habits.find(h => h.id === historyHabitId) ?? null;
+  const historyHabit = habits.find(h => h.id === ui.historyHabitId) ?? null;
 
-  // Notes state — use raw notes so TaskManager can filter them with the shared
-  // selectedTags / searchTerm state from TaskControls instead of the hook's own.
   const { notes: allNotes, addNote, deleteNote, updateNote } = useNotes();
-  const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
-  const [notesFolderOverlay, setNotesFolderOverlay] = useState<{ tag: Tag; notes: Note[] } | null>(null);
   const [noteEditorOverlay, setNoteEditorOverlay] = useState<Note | null>(null);
 
-  // Per-tag note counts for the Total StatsCard
   const noteTags = useMemo(() => {
     const map: Record<number, { name: string; color: string; count: number }> = {};
     allNotes.forEach(note => {
@@ -230,6 +125,8 @@ const TaskManager: React.FC = () => {
         note.content.replace(/<[^>]+>/g, '').toLowerCase().includes(lower),
     );
   }, [allNotes, state.searchTerm]);
+
+  // ── Habit handlers ────────────────────────────────────────────────────────────
 
   const handleDeleteHabit = async (id: number) => {
     try {
@@ -255,15 +152,12 @@ const TaskManager: React.FC = () => {
     e.preventDefault();
     if (!state.newHabit.title.trim()) return;
     try {
-      await createHabit({
-        title: state.newHabit.title.trim(),
-        tags: state.newHabit.tags,
-      });
+      await createHabit({ title: state.newHabit.title.trim(), tags: state.newHabit.tags });
       state.setNewHabit({ title: '', tags: [] });
       state.setShowCreateHabitModal(false);
-      if (createHabitFromManage) {
-        setCreateHabitFromManage(false);
-        setShowManageHabitsModal(true);
+      if (ui.createHabitFromManage) {
+        ui.setCreateHabitFromManage(false);
+        ui.setShowManageHabitsModal(true);
       }
       refetchHabits();
     } catch (err) {
@@ -271,6 +165,8 @@ const TaskManager: React.FC = () => {
       alert('Failed to save habit — please try again.');
     }
   };
+
+  // ── AI Smart Plan handlers ────────────────────────────────────────────────────
 
   const handleSmartPlan = async (task: typeof state.newTask) => {
     const result = await planTasks({
@@ -289,10 +185,8 @@ const TaskManager: React.FC = () => {
       session_type: task.session_type ?? 'deep_work',
       created_date: new Date().toISOString(),
     });
-
-    // Parent task is already persisted by the AI endpoint; add it to local state.
     setTasks(prev => [result.new_task, ...prev]);
-    setAiPlanResult(result);
+    ui.setAiPlanResult(result);
     state.setShowNewTaskModal(false);
     state.setNewTask({
       id: 0, title: '', description: '', priority: null,
@@ -320,7 +214,7 @@ const TaskManager: React.FC = () => {
         ),
       );
       setTasks(prev => [...saved, ...prev]);
-      setAiPlanResult(null);
+      ui.setAiPlanResult(null);
     } catch (err) {
       console.error('Failed to save subtasks:', err);
       alert('Failed to save subtasks. Please try again.');
@@ -331,398 +225,190 @@ const TaskManager: React.FC = () => {
   if (isLoading || tagsLoading) return <PageSpinner size="lg" />;
 
   return (
-      <div className="relative min-h-screen bg-bg">
-        <div
-          className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-10"
-        >
-          {/* Header - Mobile Optimized */}
-          <TaskControls
-            searchTerm={state.searchTerm}
-            onSearchChange={state.setSearchTerm}
-            filter={state.filter}
-            sortOrder={state.sortOrder}
-            onFilterChange={handlers.handleFilterChange}
-            selectedTags={state.selectedTags}
-            onTagToggle={handlers.toggleSelectedTag}
-            showTagDropdown={state.showTagDropdown}
-            onTagDropdownToggle={() => state.setShowTagDropdown(prev => !prev)}
-            tags={tags}
-            searchPlaceholder={'Search tasks & notes…'}
-            onNewTask={() => router.push('/tasks')}
-            onNewNote={async () => { const note = await addNote(); setNoteEditorOverlay(note); }}
-            onViewNotes={() => router.push('/notes')}
-            onEditTag={() => handlers.openEditTagModal(tags[0])}
-            onEditHabit={() => setShowManageHabitsModal(true)}
-            menuCollapsed={!taskSidebarOpen}
-            onToggleMenu={() => setTaskSidebarOpen(prev => !prev)}
-          />
-          
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:mb-4 sm:gap-0">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-5xl font-bold text-text-primary">Task Master</h1>
-                <p className="text-xs sm:text-sm lg:text-base text-text-secondary">Less planning, more doing.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="hidden sm:block text-xs sm:text-sm text-text-secondary whitespace-nowrap">
-                Welcome back, {profileName}
-              </span>
-              <button
-                onClick={() => setShowSettings(true)}
-                className="btn px-3 py-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium w-full sm:w-auto flex items-center gap-1.5"
-                style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
-                title="Account Settings"
-              >
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Settings</span>
-              </button>
-              <button
-                onClick={handleLogout}
-                className="btn px-3 py-2 sm:px-4 text-white rounded-lg text-xs sm:text-sm font-medium w-full sm:w-auto"
-                style={{ backgroundColor: 'var(--tm-danger)' }}
-              >
-                Logout
-              </button>
-              <button
-                onClick={() => setTaskSidebarOpen(prev => !prev)}
-                className="fixed z-50 btn px-3 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 shadow-md"
-                style={{ top: '1rem', right: '0.75rem', backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
-                aria-label={taskSidebarOpen ? 'Close task menu' : 'Open task menu'}
-              >
-                {taskSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-              </button>
-            </div>
+    <div className="relative min-h-screen bg-bg">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
+
+        <TaskControls
+          searchTerm={state.searchTerm}
+          onSearchChange={state.setSearchTerm}
+          filter={state.filter}
+          sortOrder={state.sortOrder}
+          onFilterChange={handlers.handleFilterChange}
+          selectedTags={state.selectedTags}
+          onTagToggle={handlers.toggleSelectedTag}
+          showTagDropdown={state.showTagDropdown}
+          onTagDropdownToggle={() => state.setShowTagDropdown(prev => !prev)}
+          tags={tags}
+          searchPlaceholder={'Search tasks & notes…'}
+          onNewTask={() => router.push('/tasks')}
+          onNewNote={async () => { const note = await addNote(); setNoteEditorOverlay(note); }}
+          onViewNotes={() => router.push('/notes')}
+          onEditTag={() => handlers.openEditTagModal(tags[0])}
+          onEditHabit={() => ui.setShowManageHabitsModal(true)}
+          menuCollapsed={!ui.taskSidebarOpen}
+          onToggleMenu={() => ui.setTaskSidebarOpen(prev => !prev)}
+        />
+
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:mb-4 sm:gap-0">
+          <div>
+            <h1 className="text-2xl sm:text-3xl lg:text-5xl font-bold text-text-primary">Task Master</h1>
+            <p className="text-xs sm:text-sm lg:text-base text-text-secondary">Less planning, more doing.</p>
           </div>
-
-          <TaskDebriefPanel />
-
-          {/* Academic Calendar & Stats Cards - Mobile Responsive */}
-          <div className='grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6'>
-            <BigPictureCalendar/>
-
-            {/* Stats Cards - Collapsible on mobile */}
-            <div className="w-full lg:w-auto">
-              <button
-                onClick={() => setShowStats(!showStats)}
-                className="lg:hidden w-full flex items-center justify-between p-3 card mb-2"
-              >
-                <span className="font-semibold text-text-primary">Statistics</span>
-                {showStats ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-              </button>
-
-              <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-3 lg:gap-4 ${!showStats ? 'hidden lg:grid' : ''}`}>
-                <StatsCard
-                  variant="habits"
-                  habits={habits}
-                  onToggle={toggleHabit}
-                  onCreate={() => state.setShowCreateHabitModal(true)}
-                  onViewHistory={(id) => setHistoryHabitId(id)}
-                />
-                <StatsCard
-                  variant="tasks"
-                  total={stats.total.tasks.length}
-                  completed={stats.completed.tasks.length}
-                  active={stats.active.tasks.length}
-                  topPriority={stats.prioritized.tasks.length}
-                  activeTags={stats.active.tags}
-                  completedTags={stats.completed.tags}
-                  prioritizedTags={stats.prioritized.tags}
-                />
-                <StatsCard
-                  variant="notes"
-                  noteCount={allNotes.length}
-                  taggedCount={allNotes.filter(n => n.tags.length > 0).length}
-                  noteTags={noteTags}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {/* Tasks & Notes — split layout */}
-            <div
-              ref={splitContainerRef}
-              className="flex flex-col md:flex-row"
-              style={{ ['--tasks-w' as string]: `${tasksWidthPct}%` }}
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:block text-xs sm:text-sm text-text-secondary whitespace-nowrap">
+              Welcome back, {profileName}
+            </span>
+            <button
+              onClick={() => ui.setShowSettings(true)}
+              className="btn px-3 py-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium w-full sm:w-auto flex items-center gap-1.5"
+              style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
+              title="Account Settings"
             >
-
-              {/* Tasks column */}
-              <div className="split-tasks flex flex-col space-y-2 sm:space-y-3">
-                {/* Inline filter row + create button */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {/* Tags filter button + dropdown */}
-                  <div className="relative flex-shrink-0">
-                    <button
-                      onClick={() => state.setShowTagDropdown(prev => !prev)}
-                      className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex items-center gap-1.5 ${state.selectedTags.length > 0 ? 'btn-primary' : 'btn-secondary'}`}
-                      style={state.selectedTags.length > 0 ? { backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' } : {}}
-                    >
-                      <Filter className="w-4 h-4" />
-                      Tags
-                      {state.selectedTags.length > 0 && (
-                        <span className="text-xs rounded-full px-1.5 py-0.5 font-semibold opacity-90">
-                          {state.selectedTags.length}
-                        </span>
-                      )}
-                    </button>
-
-                    {state.showTagDropdown && (
-                      <div
-                        className="absolute z-50 top-full mt-1 left-0 w-52 rounded-xl shadow-[var(--tm-shadow-lg)] border border-border overflow-hidden"
-                        style={{ backgroundColor: 'var(--tm-surface)' }}
-                      >
-                        <button
-                          onClick={() => {
-                            state.selectedTags.forEach(tag => handlers.toggleSelectedTag(tag));
-                            state.setShowTagDropdown(false);
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-raised transition-colors"
-                        >
-                          Clear tags
-                        </button>
-                        <div className="max-h-60 overflow-y-auto">
-                          {tags.map(tag => {
-                            const checked = state.selectedTags.some(t => t.id === tag.id);
-                            return (
-                              <label
-                                key={tag.id}
-                                className="flex items-center gap-3 px-4 py-2 text-sm cursor-pointer hover:bg-surface-raised transition-colors text-text-primary"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => handlers.toggleSelectedTag(tag)}
-                                  className="accent-accent rounded"
-                                />
-                                <span
-                                  className="w-3 h-3 rounded-full flex-shrink-0"
-                                  style={{ backgroundColor: tag.color }}
-                                />
-                                <span>{tag.name}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
-                    {(['all', 'active', 'priority'] as FilterType[]).map(f => (
-                      <button
-                        key={f}
-                        onClick={() => handlers.handleFilterChange(f)}
-                        className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 ${state.filter === f ? 'btn-primary' : 'btn-secondary'}`}
-                        style={state.filter === f ? { backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' } : {}}
-                      >
-                        {f === 'active' ? 'Due date' : f.charAt(0).toUpperCase() + f.slice(1)}
-                        <span className="opacity-70">{state.sortOrder[f] === 'asc' ? '↑' : '↓'}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Create Task button */}
-                  <button
-                    onClick={() => state.setShowNewTaskModal(true)}
-                    className="ml-auto px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 btn-primary"
-                    style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-                  >
-                    <CheckSquare className="w-4 h-4" />
-                    Create Task
-                  </button>
-                </div>
-
-                {filteredTasks.length === 0 ? (
-                  <div className="card p-6 sm:p-8 text-center mt-2">
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
-                      style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-                    >
-                      <Filter className="w-6 h-6 text-text-muted" />
-                    </div>
-                    <h3 className="text-base font-semibold text-text-primary mb-2">No tasks found</h3>
-                    <p className="text-sm text-text-secondary">Try adjusting your filters</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2 overflow-y-auto h-[50vh] lg:h-[600px] pl-2 pr-1 scrollbar-custom">
-                    {filteredTasks.map((task, index) => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        index={index}
-                        onToggleComplete={toggleComplete}
-                        tags={tags}
-                        onDeleteTask={deleteTask}
-                        onUpdatePriority={updatePriority}
-                        activeTaskCount={activeTaskCount}
-                        occupiedPriorities={occupiedPriorityLevels}
-                        compact={tasksWidthPct < 40}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Drag handle — visible only on md+ */}
-              <DragHandle onMouseDown={handleSplitterMouseDown} />
-
-              {/* Notes column */}
-              <div className="split-notes relative flex flex-col space-y-2 sm:space-y-3">
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={async () => { const note = await addNote(); setNoteEditorOverlay(note); }}
-                    className="px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 btn-primary"
-                    style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-                  >
-                    <FileText className="w-4 h-4" />
-                    Create Note
-                  </button>
-                </div>
-                {filteredNotes.length === 0 ? (
-                  <div className="card p-6 sm:p-8 text-center mt-2">
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
-                      style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-                    >
-                      <FileText className="w-6 h-6 text-text-muted" />
-                    </div>
-                    <h3 className="text-base font-semibold text-text-primary mb-2">No notes yet</h3>
-                    <p className="text-sm text-text-secondary">Create a note to get started</p>
-                  </div>
-                ) : (
-                  <div className="overflow-y-auto h-[50vh] lg:h-[600px] pl-2 pr-1 scrollbar-custom pt-2">
-                    <NotesGridView
-                      notes={filteredNotes}
-                      allTags={tags}
-                      activeNoteId={activeNoteId}
-                      onSelectNote={note => { setActiveNoteId(note.id); setNoteEditorOverlay(note); }}
-                      onDeleteNote={deleteNote}
-                      onFolderClick={(tag, notes) => setNotesFolderOverlay({ tag, notes })}
-                      wide
-                    />
-                  </div>
-                )}
-                {notesFolderOverlay && (
-                  <TagFolderOverlay
-                    tag={notesFolderOverlay.tag}
-                    notes={notesFolderOverlay.notes}
-                    activeNoteId={activeNoteId}
-                    allTags={tags}
-                    onUpdate={updateNote}
-                    onDeleteNote={deleteNote}
-                    onClose={() => setNotesFolderOverlay(null)}
-                  />
-                )}
-                {noteEditorOverlay && (
-                  <NoteEditorOverlay
-                    note={noteEditorOverlay}
-                    allTags={tags}
-                    onUpdate={(id, changes) => {
-                      updateNote(id, changes);
-                      if (changes.title !== undefined) {
-                        setNoteEditorOverlay(prev => prev ? { ...prev, title: changes.title! } : prev);
-                      }
-                    }}
-                    onDeleteNote={id => { deleteNote(id); setNoteEditorOverlay(null); }}
-                    onClose={() => setNoteEditorOverlay(null)}
-                  />
-                )}
-              </div>
-            </div>
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Settings</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="btn px-3 py-2 sm:px-4 text-white rounded-lg text-xs sm:text-sm font-medium w-full sm:w-auto"
+              style={{ backgroundColor: 'var(--tm-danger)' }}
+            >
+              Logout
+            </button>
+            <button
+              onClick={() => ui.setTaskSidebarOpen(prev => !prev)}
+              className="fixed z-50 btn px-3 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 shadow-md"
+              style={{ top: '1rem', right: '0.75rem', backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
+              aria-label={ui.taskSidebarOpen ? 'Close task menu' : 'Open task menu'}
+            >
+              {ui.taskSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
           </div>
         </div>
-      
-      {/* Modals */}
-      <NewTaskModal
-        isOpen={state.showNewTaskModal}
-        onClose={() => state.setShowNewTaskModal(false)}
+
+        <TaskDebriefPanel />
+
+        <CalendarAndStats
+          habits={habits}
+          onToggleHabit={toggleHabit}
+          onCreateHabit={() => state.setShowCreateHabitModal(true)}
+          onViewHabitHistory={id => ui.setHistoryHabitId(id)}
+          showStats={ui.showStats}
+          onToggleStats={() => ui.setShowStats(prev => !prev)}
+          stats={stats}
+          allNotes={allNotes}
+          noteTags={noteTags}
+        />
+
+        {/* Tasks & Notes — split layout */}
+        <div className="space-y-4">
+          <div
+            ref={ui.splitContainerRef}
+            className="flex flex-col md:flex-row"
+            style={{ ['--tasks-w' as string]: `${ui.tasksWidthPct}%` }}
+          >
+            <TasksPanel
+              filter={state.filter}
+              sortOrder={state.sortOrder}
+              selectedTags={state.selectedTags}
+              showTagDropdown={state.showTagDropdown}
+              onTagDropdownToggle={() => state.setShowTagDropdown(prev => !prev)}
+              onClearTags={() => {
+                state.selectedTags.forEach(tag => handlers.toggleSelectedTag(tag));
+                state.setShowTagDropdown(false);
+              }}
+              onTagToggle={handlers.toggleSelectedTag}
+              onFilterChange={handlers.handleFilterChange}
+              onCreateTask={() => state.setShowNewTaskModal(true)}
+              tags={tags}
+              filteredTasks={filteredTasks}
+              onToggleComplete={toggleComplete}
+              onDeleteTask={deleteTask}
+              onUpdatePriority={updatePriority}
+              activeTaskCount={activeTaskCount}
+              occupiedPriorities={occupiedPriorityLevels}
+              compact={ui.tasksWidthPct < 40}
+            />
+
+            <DragHandle onMouseDown={ui.handleSplitterMouseDown} />
+
+            <NotesPanel
+              notes={filteredNotes}
+              tags={tags}
+              noteEditorOverlay={noteEditorOverlay}
+              onAddNote={addNote}
+              onUpdateNote={updateNote}
+              onDeleteNote={deleteNote}
+              onEditorChange={setNoteEditorOverlay}
+            />
+          </div>
+        </div>
+      </div>
+
+      <TaskManagerModals
+        // New task
+        showNewTaskModal={state.showNewTaskModal}
+        onCloseNewTaskModal={() => state.setShowNewTaskModal(false)}
         newTask={state.newTask}
         onTaskChange={state.setNewTask}
-        tags={tags}
         onToggleTag={handlers.toggleTag}
-        onSubmit={handlers.handleCreateTask}
+        onSubmitTask={handlers.handleCreateTask}
         onSmartPlan={handleSmartPlan}
-        activeTaskCount={tasks.filter(task => !task.completed).length}
-        usedPriorityLevels={occupiedPriorityLevels}
-      />
-
-      {aiPlanResult && (
-        <AiSubtasksModal
-          isOpen={!!aiPlanResult}
-          parentTask={aiPlanResult.new_task}
-          subtasks={aiPlanResult.subtasks}
-          overloadWarning={aiPlanResult.overload_warning}
-          onSave={handleSaveSubtasks}
-          onDiscard={() => setAiPlanResult(null)}
-        />
-      )}
-
-
-
-      <CreateTagModal
-        isOpen={state.showCreateTagModal}
-        onClose={() => state.setShowCreateTagModal(false)}
+        activeTaskCount={activeTaskCount}
+        occupiedPriorityLevels={occupiedPriorityLevels}
+        tags={tags}
+        // AI plan
+        aiPlanResult={ui.aiPlanResult}
+        onSaveSubtasks={handleSaveSubtasks}
+        onDiscardAiPlan={() => ui.setAiPlanResult(null)}
+        // Create tag
+        showCreateTagModal={state.showCreateTagModal}
+        onCloseCreateTagModal={() => state.setShowCreateTagModal(false)}
         newTag={state.newTag}
         onTagChange={state.setNewTag}
-        onSubmit={handlers.handleCreateTag}
-      />
-
-      {state.editingTag && (
-        <EditTagModal
-          isOpen={state.showEditTagModal}
-          onClose={() => {
-            state.setShowEditTagModal(false);
-            state.setEditingTag(null);
-          }}
-          allTags={tags}
-          onDeleteTag={handlers.handleDeleteTag}
-          onEditTag={handlers.handleEditTag}
-          onCreateTag={() => state.setShowCreateTagModal(true)}
-        />
-      )}
-
-      <CreateHabitModal
-        isOpen={state.showCreateHabitModal}
-        onClose={() => {
+        onSubmitTag={handlers.handleCreateTag}
+        // Edit tag
+        editingTag={state.editingTag}
+        showEditTagModal={state.showEditTagModal}
+        onCloseEditTagModal={() => { state.setShowEditTagModal(false); state.setEditingTag(null); }}
+        onDeleteTag={handlers.handleDeleteTag}
+        onEditTag={handlers.handleEditTag}
+        onOpenCreateTag={() => state.setShowCreateTagModal(true)}
+        // Create habit
+        showCreateHabitModal={state.showCreateHabitModal}
+        onCloseCreateHabitModal={() => {
           state.setShowCreateHabitModal(false);
           state.setNewHabit({ title: '', tags: [] });
-          if (createHabitFromManage) {
-            setCreateHabitFromManage(false);
-            setShowManageHabitsModal(true);
+          if (ui.createHabitFromManage) {
+            ui.setCreateHabitFromManage(false);
+            ui.setShowManageHabitsModal(true);
           }
         }}
         newHabit={state.newHabit}
         onHabitChange={state.setNewHabit}
-        onSubmit={handleCreateHabit}
-        availableTags={tags}
-      />
-
-      <ManageHabitsModal
-        isOpen={showManageHabitsModal}
-        onClose={() => setShowManageHabitsModal(false)}
+        onSubmitHabit={handleCreateHabit}
+        // Manage habits
+        showManageHabitsModal={ui.showManageHabitsModal}
+        onCloseManageHabitsModal={() => ui.setShowManageHabitsModal(false)}
         habits={habits}
-        availableTags={tags}
-        onCreateHabit={() => { setShowManageHabitsModal(false); setCreateHabitFromManage(true); state.setShowCreateHabitModal(true); }}
+        onCreateHabitFromManage={() => {
+          ui.setShowManageHabitsModal(false);
+          ui.setCreateHabitFromManage(true);
+          state.setShowCreateHabitModal(true);
+        }}
         onDeleteHabit={handleDeleteHabit}
         onUpdateHabit={handleUpdateHabit}
-        onViewHistory={(id) => { setShowManageHabitsModal(false); setHistoryHabitId(id); }}
-      />
-
-      <HabitHistoryModal
-        habit={historyHabit}
-        onClose={() => setHistoryHabitId(null)}
-        onToggleDate={toggleHabitDate}
-      />
-
-      <SettingsModal
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
+        onViewHabitHistory={id => { ui.setShowManageHabitsModal(false); ui.setHistoryHabitId(id); }}
+        // Habit history
+        historyHabit={historyHabit}
+        onCloseHabitHistory={() => ui.setHistoryHabitId(null)}
+        onToggleHabitDate={toggleHabitDate}
+        // Settings
+        showSettings={ui.showSettings}
+        onCloseSettings={() => ui.setShowSettings(false)}
         onAccountDeleted={handleLogout}
       />
-
-      {/* ── Work block confirmed toast ──────────────────────────────────── */}
-      </div>
+    </div>
   );
 };
 

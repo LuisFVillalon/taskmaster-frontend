@@ -1,17 +1,3 @@
-/*
-Purpose: This custom hook provides event handlers for managing tasks and tags, including creation, 
-editing, deletion, and UI state changes.
-
-Variables Summary:
-- setShowNewTaskModal, setNewTask, etc.: State setter functions for UI modals and forms.
-- newTask, showEditTaskModal, newTag, filter, sortOrder, selectedTags: Current state values.
-- addTask, updateTask, addTag, updateTag, delTag: API functions for CRUD operations.
-
-Returns an object with handler functions like handleCreateTask, handleEditTask, toggleSelectedTag, etc.
-
-These variables and handlers manage all user interactions related to task and tag management.
-*/
-
 import React from 'react';
 import { FilterType, EditTaskForm, Tag, EditTaskModalState, NewTag, BaseTaskForm, Task } from '@/app/types/task';
 
@@ -43,6 +29,12 @@ interface UseTaskHandlersProps {
   delTag: (tag: Tag) => Promise<number | null>;
 }
 
+/** Toggles an item in an array by its `id`. Returns a new array. */
+const toggleById = <T extends { id: number }>(arr: T[], item: T): T[] =>
+  arr.some(t => t.id === item.id)
+    ? arr.filter(t => t.id !== item.id)
+    : [...arr, item];
+
 export const useTaskHandlers = ({
   setShowNewTaskModal,
   setNewTask,
@@ -67,11 +59,7 @@ export const useTaskHandlers = ({
 }: UseTaskHandlersProps) => {
 
   const toggleSelectedTag = (tag: Tag) => {
-    setSelectedTags(prev =>
-      prev.some(t => t.id === tag.id)
-        ? prev.filter(t => t.id !== tag.id)
-        : [...prev, tag]
-    );
+    setSelectedTags(prev => toggleById(prev, tag));
   };
 
   const handleCreateTask = async (e: React.FormEvent) => {
@@ -84,22 +72,20 @@ export const useTaskHandlers = ({
     // 🚀 Now safe to create
     const success = await addTask(newTask);
     if (success) {
-        setShowNewTaskModal(false);
-
-        setNewTask({
-          id: 0,
-          title: '',
-          description: '',
-          priority: null,
-          due_date: '',
-          due_time: '',
-          tags: [],
-          category: null,
-          estimated_time: null,
-          session_type: null,
-          created_date: '',
-        });
-
+      setShowNewTaskModal(false);
+      setNewTask({
+        id: 0,
+        title: '',
+        description: '',
+        priority: null,
+        due_date: '',
+        due_time: '',
+        tags: [],
+        category: null,
+        estimated_time: null,
+        session_type: null,
+        created_date: '',
+      });
     }
   };
 
@@ -183,31 +169,13 @@ export const useTaskHandlers = ({
   };
 
   const toggleTag = (tag: Tag) => {
-    setNewTask((prev: BaseTaskForm) => {
-      const exists = prev.tags.some(t => t.id === tag.id);
-
-      return {
-        ...prev,
-        tags: exists
-          ? prev.tags.filter(t => t.id !== tag.id)
-          : [...prev.tags, tag]
-      };
-    });
+    setNewTask((prev: BaseTaskForm) => ({ ...prev, tags: toggleById(prev.tags, tag) }));
   };
 
   const toggleEditTag = (tag: Tag) => {
     setShowEditTaskModal(prev => {
       if (!prev.task) return prev;
-      const exists = prev.task.tags.some(t => t.id === tag.id);
-      return {
-        ...prev,
-        task: {
-          ...prev.task,
-          tags: exists
-            ? prev.task.tags.filter(t => t.id !== tag.id)
-            : [...prev.task.tags, tag]
-        }
-      };
+      return { ...prev, task: { ...prev.task, tags: toggleById(prev.task.tags, tag) } };
     });
   };
 
@@ -219,7 +187,7 @@ export const useTaskHandlers = ({
         [newFilter]: prev[newFilter] === 'asc' ? 'desc' : 'asc'
       }));
     } else {
-        setFilter(newFilter)
+      setFilter(newFilter);
     }
   };
 

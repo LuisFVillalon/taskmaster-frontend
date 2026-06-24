@@ -42,6 +42,13 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
   const isAIMode = showCategory && !!values.category;
   const advancedOpen = showAdvanced || forceAdvancedOpen || isAIMode;
 
+  // Returns an asterisk: red when AI mode makes the field truly required, blue otherwise.
+  // Pass `aiOnly` to hide the asterisk entirely when not in AI mode.
+  const requiredMark = (aiOnly = false) => {
+    if (aiOnly && !isAIMode) return null;
+    return <span style={{ color: isAIMode ? 'var(--tm-danger)' : '#3b82f6' }}>*</span>;
+  };
+
   const occupiedPriorities = new Set(
     usedPriorityLevels.filter(p => p !== values.priority),
   );
@@ -133,7 +140,7 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
               {/* Estimated Hours */}
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">
-                  Estimated Hours<span style={{ color: isAIMode ? 'var(--tm-danger)' : '#3b82f6' }}>*</span>
+                  Estimated Hours{requiredMark()}
                 </label>
                 <input
                   type="number"
@@ -151,7 +158,7 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
               {/* Session type */}
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">
-                  Session Type<span style={{ color: isAIMode ? 'var(--tm-danger)' : '#3b82f6' }}>*</span>
+                  Session Type{requiredMark()}
                 </label>
                 <div className="flex flex-col gap-2">
                   {([
@@ -223,7 +230,7 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-2">
-            Due Date{advancedOpen && <span style={{ color: isAIMode ? 'var(--tm-danger)' : '#3b82f6' }}>*</span>}
+            Due Date{advancedOpen && requiredMark()}
           </label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted pointer-events-none" />
@@ -238,14 +245,14 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
         </div>
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-2">
-            Due Time{isAIMode && <span style={{ color: 'var(--tm-danger)' }}>*</span>}
+            Due Time{requiredMark(true)}
           </label>
           <div className="relative">
             <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted pointer-events-none" />
             <input
               type="time"
               required={isAIMode}
-              value={dueTimeValue as string}
+              value={dueTimeValue}
               onChange={e => set({ due_time: e.target.value })}
               className="input-field pl-10"
             />

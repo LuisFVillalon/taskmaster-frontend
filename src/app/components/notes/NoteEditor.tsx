@@ -6,24 +6,13 @@ import StarterKit from '@tiptap/starter-kit';
 import TiptapImage from '@tiptap/extension-image';
 import TiptapHighlight from '@tiptap/extension-highlight';
 import {
-  Bold, ChevronDown, ChevronUp, Download, Link2, FileText, Highlighter,
-  Italic, List, ListOrdered, Loader2,
+  ChevronDown, ChevronUp, Download, Link2, FileText, Loader2,
   PanelLeftClose, PanelLeftOpen, Save, LibraryBig, X,
 } from 'lucide-react';
+import { EditorToolbar } from './EditorToolbar';
 import { Note } from '@/app/types/notes';
 import { Tag } from '@/app/types/task';
 import { fetchLearningResources, LearningResourcesResponse } from '@/app/lib/backend-api';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-/** Defined outside the component so identity is stable across renders. */
-const HIGHLIGHT_COLORS = [
-  { color: '#fef08a', label: 'Yellow' },
-  { color: '#bbf7d0', label: 'Green' },
-  { color: '#bae6fd', label: 'Blue' },
-  { color: '#fbcfe8', label: 'Pink' },
-  { color: '#fed7aa', label: 'Orange' },
-] as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,46 +24,6 @@ interface NoteEditorProps {
   onToggleSidebar?: () => void;
   showExtendedActions?: boolean;
 }
-
-// ─── Toolbar button ────────────────────────────────────────────────────────────
-
-interface ToolbarBtnProps {
-  onClick: () => void;
-  active: boolean;
-  title: string;
-  children: React.ReactNode;
-}
-
-const ToolbarBtn: React.FC<ToolbarBtnProps> = ({ onClick, active, title, children }) => (
-  <button
-    type="button"
-    onMouseDown={e => {
-      // Prevent the editor from losing focus when clicking toolbar buttons.
-      e.preventDefault();
-      onClick();
-    }}
-    title={title}
-    className="px-2 py-1.5 rounded-lg text-sm transition-colors"
-    style={active ? {
-      backgroundColor: 'var(--tm-accent-subtle)',
-      color: 'var(--tm-accent)',
-    } : {
-      color: 'var(--tm-text-secondary)',
-    }}
-    onMouseEnter={e => {
-      if (!active) {
-        (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
-      }
-    }}
-    onMouseLeave={e => {
-      if (!active) {
-        (e.currentTarget as HTMLButtonElement).style.backgroundColor = '';
-      }
-    }}
-  >
-    {children}
-  </button>
-);
 
 // ─── NoteEditor ───────────────────────────────────────────────────────────────
 
@@ -89,27 +38,13 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const [emptyToast, setEmptyToast]     = useState(false);
   const [pdfError, setPdfError]         = useState(false);
   const [tagsOpen, setTagsOpen]         = useState(false);
-  const [highlightOpen, setHighlightOpen] = useState(false);
   const [resourcesStatus, setResourcesStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [resourcesData, setResourcesData]     = useState<LearningResourcesResponse | null>(null);
   const [resourcesOpen, setResourcesOpen]     = useState(false);
 
-  const contentTimer       = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const titleTimer         = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const savedTimer         = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const highlightPickerRef = useRef<HTMLDivElement>(null);
-
-  // Close highlight picker when clicking outside it
-  useEffect(() => {
-    if (!highlightOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (highlightPickerRef.current && !highlightPickerRef.current.contains(e.target as Node)) {
-        setHighlightOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [highlightOpen]);
+  const contentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const titleTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Editor setup ───────────────────────────────────────────────────────────
   const editor = useEditor({
@@ -601,173 +536,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       style={{ backgroundColor: 'var(--tm-surface)' }}
     >
       {/* ── Toolbar ──────────────────────────────────────────────────────── */}
-      <div
-        className="flex items-center gap-0.5 px-4 py-2 border-b border-border-subtle flex-wrap"
-        style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-      >
-        {/* Sidebar toggle */}
-        {onToggleSidebar && (
+      <EditorToolbar editor={editor} sidebarOpen={sidebarOpen} onToggleSidebar={onToggleSidebar}>
+        {showExtendedActions && (
           <>
-            <button
-              type="button"
-              onClick={onToggleSidebar}
-              title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-              className="hidden sm:flex px-2 py-1.5 rounded-lg text-sm transition-colors"
-              style={{ color: 'var(--tm-text-secondary)' }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
-                (e.currentTarget as HTMLButtonElement).style.color = 'var(--tm-text-primary)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = '';
-                (e.currentTarget as HTMLButtonElement).style.color = 'var(--tm-text-secondary)';
-              }}
-            >
-              {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
-            </button>
-            <div className="hidden sm:block w-px h-5 mx-1 shrink-0" style={{ backgroundColor: 'var(--tm-border)' }} />
-          </>
-        )}
-
-        {/* Bold / Italic */}
-        <ToolbarBtn
-          onClick={() => editor?.chain().focus().toggleBold().run()}
-          active={editor?.isActive('bold') ?? false}
-          title="Bold (Ctrl+B)"
-        >
-          <Bold className="w-4 h-4" />
-        </ToolbarBtn>
-
-        <ToolbarBtn
-          onClick={() => editor?.chain().focus().toggleItalic().run()}
-          active={editor?.isActive('italic') ?? false}
-          title="Italic (Ctrl+I)"
-        >
-          <Italic className="w-4 h-4" />
-        </ToolbarBtn>
-
-        <div className="w-px h-5 mx-1 shrink-0" style={{ backgroundColor: 'var(--tm-border)' }} />
-
-        {/* Headings */}
-        <ToolbarBtn
-          onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
-          active={editor?.isActive('heading', { level: 1 }) ?? false}
-          title="Heading 1"
-        >
-          <span className="text-xs font-bold leading-none">H1</span>
-        </ToolbarBtn>
-
-        <ToolbarBtn
-          onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-          active={editor?.isActive('heading', { level: 2 }) ?? false}
-          title="Heading 2"
-        >
-          <span className="text-xs font-bold leading-none">H2</span>
-        </ToolbarBtn>
-
-        <div className="w-px h-5 mx-1 shrink-0" style={{ backgroundColor: 'var(--tm-border)' }} />
-
-        {/* Lists */}
-        <ToolbarBtn
-          onClick={() => editor?.chain().focus().toggleBulletList().run()}
-          active={editor?.isActive('bulletList') ?? false}
-          title="Bullet list"
-        >
-          <List className="w-4 h-4" />
-        </ToolbarBtn>
-
-        <ToolbarBtn
-          onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-          active={editor?.isActive('orderedList') ?? false}
-          title="Ordered list"
-        >
-          <ListOrdered className="w-4 h-4" />
-        </ToolbarBtn>
-
-        <div className="w-px h-5 mx-1 shrink-0" style={{ backgroundColor: 'var(--tm-border)' }} />
-
-        {/* ── Highlight colour picker ───────────────────────────────────── */}
-        {/*
-          The entire widget (trigger button + popover) shares one ref so the
-          outside-click handler can tell whether a click originated inside it.
-        */}
-        <div ref={highlightPickerRef} className="relative">
-          <ToolbarBtn
-            onClick={() => setHighlightOpen(v => !v)}
-            active={editor?.isActive('highlight') ?? false}
-            title="Highlight text"
-          >
-            <Highlighter className="w-4 h-4" />
-          </ToolbarBtn>
-
-          {highlightOpen && (
-            <div
-              className="absolute top-full left-0 mt-1.5 p-2 rounded-xl shadow-lg z-50 flex items-center gap-1.5"
-              style={{
-                backgroundColor: 'var(--tm-surface-raised)',
-                border: '1px solid var(--tm-border)',
-              }}
-            >
-              {/* Colour swatches */}
-              {HIGHLIGHT_COLORS.map(({ color, label }) => {
-                const isActive = editor?.isActive('highlight', { color }) ?? false;
-                return (
-                  <button
-                    key={color}
-                    type="button"
-                    onMouseDown={e => {
-                      e.preventDefault();
-                      if (isActive) {
-                        editor?.chain().focus().unsetHighlight().run();
-                      } else {
-                        editor?.chain().focus().setHighlight({ color }).run();
-                      }
-                      setHighlightOpen(false);
-                    }}
-                    title={label}
-                    className="w-6 h-6 rounded-md transition-transform hover:scale-110 active:scale-95"
-                    style={{
-                      backgroundColor: color,
-                      outline: isActive ? '2px solid var(--tm-accent)' : '2px solid transparent',
-                      outlineOffset: '1px',
-                    }}
-                  />
-                );
-              })}
-
-              {/* Divider */}
-              <div className="w-px h-4 mx-0.5 shrink-0" style={{ backgroundColor: 'var(--tm-border)' }} />
-
-              {/* Remove highlight */}
-              <button
-                type="button"
-                onMouseDown={e => {
-                  e.preventDefault();
-                  editor?.chain().focus().unsetHighlight().run();
-                  setHighlightOpen(false);
-                }}
-                title="Remove highlight"
-                className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold transition-colors"
-                style={{
-                  color: 'var(--tm-text-muted)',
-                  border: '1px solid var(--tm-border)',
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface)';
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = '';
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Right-side actions */}
-        <div className="ml-auto flex items-center gap-2">
-          {showExtendedActions && <>
             {/* Learning Resources */}
             <button
               type="button"
@@ -811,30 +582,30 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                 : <Download className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{pdfLoading ? 'Exporting…' : 'PDF'}</span>
             </button>
-          </>}
+          </>
+        )}
 
-          <button
-            onClick={handleSave}
-            className="btn flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium"
-            style={saveStatus === 'saved' ? {
-              backgroundColor: 'var(--tm-success-subtle)',
-              color: 'var(--tm-success)',
-            } : {
-              backgroundColor: 'var(--tm-accent)',
-              color: 'var(--tm-accent-text)',
-            }}
-          >
-            {saveStatus === 'saved' ? (
-              'Saved ✓'
-            ) : (
-              <>
-                <Save className="w-3.5 h-3.5" />
-                Save
-              </>
-            )}
-          </button>
-        </div>
-      </div>
+        <button
+          onClick={handleSave}
+          className="btn flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium"
+          style={saveStatus === 'saved' ? {
+            backgroundColor: 'var(--tm-success-subtle)',
+            color: 'var(--tm-success)',
+          } : {
+            backgroundColor: 'var(--tm-accent)',
+            color: 'var(--tm-accent-text)',
+          }}
+        >
+          {saveStatus === 'saved' ? (
+            'Saved ✓'
+          ) : (
+            <>
+              <Save className="w-3.5 h-3.5" />
+              Save
+            </>
+          )}
+        </button>
+      </EditorToolbar>
 
       {/* ── Main content: editor column + resources side panel ───────────── */}
       <div className="flex flex-1 overflow-hidden">

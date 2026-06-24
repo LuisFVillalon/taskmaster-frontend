@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Clock, Trash2, Calendar, SquareArrowUpRight, Siren } from 'lucide-react';
+import { Check, Clock, Trash2, Calendar, SquareArrowUpRight } from 'lucide-react';
 import { Task } from '@/app/types/task';
 import {
   getDueColor,
@@ -9,6 +9,9 @@ import {
   formatDueDate,
   PRIORITY_COLORS,
 } from '@/app/utils/taskUtils';
+import { toLocalDateStr, toLocalTimeStr } from '@/app/utils/dateUtils';
+import PriorityPicker from './PriorityPicker';
+import TaskTags from './TaskTags';
 
 interface TaskItemProps {
   task: Task;
@@ -21,63 +24,6 @@ interface TaskItemProps {
   occupiedPriorities?: number[];
   compact?: boolean;
 }
-
-const PRIORITY_STOPS = [
-  '#dc2626',
-  '#ea580c',
-  '#eab308',
-  '#16a34a',
-  '#2563eb',
-  '#ffffff',
-];
-
-const interpolateColor = (c1: string, c2: string, t: number) => {
-  const a = parseInt(c1.slice(1), 16);
-  const b = parseInt(c2.slice(1), 16);
-
-  const r1 = (a >> 16) & 255;
-  const g1 = (a >> 8) & 255;
-  const b1 = a & 255;
-
-  const r2 = (b >> 16) & 255;
-  const g2 = (b >> 8) & 255;
-  const b2 = b & 255;
-
-  const r = Math.round(r1 + (r2 - r1) * t);
-  const g = Math.round(g1 + (g2 - g1) * t);
-  const bl = Math.round(b1 + (b2 - b1) * t);
-
-  return `rgb(${r}, ${g}, ${bl})`;
-};
-
-const getPriorityStyle = (priority: number | null, maxPriority: number) => {
-  if (priority == null) {
-    return {
-      bg: '#f3f4f6',
-      text: '#6b7280',
-    };
-  }
-
-  const normalized = maxPriority <= 1 ? 0 : (priority - 1) / (maxPriority - 1);
-
-  const segmentCount = PRIORITY_STOPS.length - 1;
-  const segment = Math.min(
-    Math.floor(normalized * segmentCount),
-    segmentCount - 1
-  );
-
-  const localT = (normalized - segment / segmentCount) * segmentCount;
-  const bg = interpolateColor(
-    PRIORITY_STOPS[segment],
-    PRIORITY_STOPS[segment + 1],
-    localT
-  );
-
-  return {
-    bg,
-    text: normalized > 0.72 ? '#111827' : '#ffffff',
-  };
-};
 
 const TaskItem: React.FC<TaskItemProps> = ({
   task,
@@ -93,7 +39,6 @@ const TaskItem: React.FC<TaskItemProps> = ({
   const router = useRouter();
 
   const maxPriority = activeTaskCount ?? Object.keys(PRIORITY_COLORS).length;
-  const priorityStyle = getPriorityStyle(task.priority, maxPriority);
 
   const availablePriorities = React.useMemo(() => {
     const max = activeTaskCount ?? Object.keys(PRIORITY_COLORS).length;
@@ -103,28 +48,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
     );
   }, [activeTaskCount, occupiedPriorities, task.priority]);
 
-  const [showPriorityMenu, setShowPriorityMenu] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [descriptionOverflows, setDescriptionOverflows] = useState(false);
 
-  const priorityMenuRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
-
-  useEffect(() => {
-    if (!showPriorityMenu) return;
-
-    const handleClick = (e: MouseEvent) => {
-      if (
-        priorityMenuRef.current &&
-        !priorityMenuRef.current.contains(e.target as Node)
-      ) {
-        setShowPriorityMenu(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [showPriorityMenu]);
 
   useEffect(() => {
     const el = descriptionRef.current;
@@ -133,16 +60,12 @@ const TaskItem: React.FC<TaskItemProps> = ({
     const checkOverflow = () => {
       const computed = window.getComputedStyle(el);
       const lineHeight = parseFloat(computed.lineHeight);
-      const twoLineHeight = lineHeight * 2;
-
-      setDescriptionOverflows(el.scrollHeight > twoLineHeight + 1);
+      setDescriptionOverflows(el.scrollHeight > lineHeight * 2 + 1);
     };
 
     checkOverflow();
-
     const resizeObserver = new ResizeObserver(checkOverflow);
     resizeObserver.observe(el);
-
     window.addEventListener('resize', checkOverflow);
 
     return () => {
@@ -151,117 +74,16 @@ const TaskItem: React.FC<TaskItemProps> = ({
     };
   }, [task.description]);
 
-  const handlePrioritySelect = (priority: number | null) => {
-    onUpdatePriority?.(task.id, priority);
-    setShowPriorityMenu(false);
-  };
-
-  const priorityPicker = (iconSize: string) => (
-    <div ref={priorityMenuRef} className="relative flex-shrink-0">
-      <button
-        onClick={() => setShowPriorityMenu(v => !v)}
-        className={`chip font-bold flex items-center gap-1 transition-opacity hover:opacity-75 ${
-          task.priority == null ? 'opacity-40' : ''
-        }`}
-        style={{
-          backgroundColor: priorityStyle.bg,
-          color: priorityStyle.text,
-          padding: '0.1rem 0.45rem',
-          borderRadius: '9px',
-          fontSize: iconSize === 'sm' ? '9px' : '11px',
-        }}
-        title="Change priority"
-        aria-label="Change priority"
-      >
-        <Siren className={iconSize === 'sm' ? 'w-3 h-3' : 'w-4 h-4'} />
-        {task.priority ?? '—'}
-      </button>
-
-      {showPriorityMenu && (
-        <div className="absolute z-50 top-full mt-1 right-0 card p-1.5 flex flex-col gap-1 shadow-lg min-w-[72px]">
-          <div
-            className={`flex flex-col gap-1 ${
-              availablePriorities.length > 5
-                ? 'max-h-40 overflow-y-auto scrollbar-custom pr-0.5'
-                : ''
-            }`}
-          >
-            {availablePriorities.map(p => {
-              const s = getPriorityStyle(p, maxPriority);
-
-              return (
-                <button
-                  key={p}
-                  onClick={() => handlePrioritySelect(p)}
-                  className="chip text-[10px] font-bold flex items-center gap-1 w-full justify-center hover:opacity-80 transition-opacity"
-                  style={{
-                    backgroundColor: s.bg,
-                    color: s.text,
-                    padding: '0.15rem 0.5rem',
-                    borderRadius: '6px',
-                  }}
-                >
-                  <Siren className="w-3 h-3" />
-                  {p}
-                </button>
-              );
-            })}
-          </div>
-
-          {task.priority != null && (
-            <button
-              onClick={() => handlePrioritySelect(null)}
-              className="text-[10px] font-medium text-text-muted hover:text-text-primary transition-colors text-center pt-0.5"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
   const normalizedDueDate: string | null =
-    task.due_date instanceof Date
-      ? task.due_date.toISOString()
-      : task.due_date ?? null;
+    task.due_date instanceof Date ? toLocalDateStr(task.due_date) : (task.due_date ?? null);
 
   const normalizedDueTime: string | null =
-    task.due_time instanceof Date
-      ? task.due_time.toISOString()
-      : task.due_time ?? null;
-
-  const tagChips = (pl: string) =>
-    task.tags?.length > 0 && (
-      <div className={`flex items-center gap-1.5 flex-wrap ${pl}`}>
-        {task.tags.map((tagName, i) => {
-          const tagData = tags.find(t => t.name === tagName.name);
-
-          return (
-            <span
-              key={i}
-              className="chip px-2 py-1"
-              style={{
-                backgroundColor: tagData?.color ?? 'var(--tm-accent)',
-                color: 'white',
-                borderRadius: '6px',
-                fontSize: '11px',
-                fontWeight: 'bold',
-              }}
-            >
-              {tagName.name}
-            </span>
-          );
-        })}
-      </div>
-    );
+    task.due_time instanceof Date ? toLocalTimeStr(task.due_time) : (task.due_time ?? null);
 
   if (compact) {
     return (
       <div
-        className={`card px-3 py-2 animate-fade-in ${
-          task.completed ? 'opacity-75' : ''
-        }`}
+        className={`card px-3 py-2 animate-fade-in ${task.completed ? 'opacity-75' : ''}`}
         style={{ animationDelay: `${index * 0.05}s` }}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -279,15 +101,19 @@ const TaskItem: React.FC<TaskItemProps> = ({
 
           <span
             className={`flex-1 min-w-0 text-sm font-semibold truncate ${
-              task.completed
-                ? 'line-through text-text-muted'
-                : 'text-text-primary'
+              task.completed ? 'line-through text-text-muted' : 'text-text-primary'
             }`}
           >
             {task.title}
           </span>
 
-          {priorityPicker('sm')}
+          <PriorityPicker
+            priority={task.priority}
+            maxPriority={maxPriority}
+            availablePriorities={availablePriorities}
+            onSelect={(priority) => onUpdatePriority?.(task.id, priority)}
+            size="sm"
+          />
 
           <button
             onClick={() => router.push(`/tasks?taskId=${task.id}`)}
@@ -308,16 +134,14 @@ const TaskItem: React.FC<TaskItemProps> = ({
           </button>
         </div>
 
-        {tagChips('mt-1.5 pl-6')}
+        <TaskTags tags={task.tags} allTags={tags} className="mt-1.5 pl-6" />
       </div>
     );
   }
 
   return (
     <div
-      className={`card p-4 sm:p-6 animate-fade-in ${
-        task.completed ? 'opacity-75' : ''
-      }`}
+      className={`card p-4 sm:p-6 animate-fade-in ${task.completed ? 'opacity-75' : ''}`}
       style={{ animationDelay: `${index * 0.05}s` }}
     >
       <div className="flex items-start gap-3 sm:gap-4">
@@ -337,9 +161,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
           <div className="flex items-start justify-between gap-2 sm:gap-4 mb-1.5 sm:mb-2">
             <h3
               className={`text-base sm:text-lg font-semibold leading-snug ${
-                task.completed
-                  ? 'text-text-muted line-through'
-                  : 'text-text-primary'
+                task.completed ? 'text-text-muted line-through' : 'text-text-primary'
               }`}
             >
               {task.title}
@@ -358,7 +180,13 @@ const TaskItem: React.FC<TaskItemProps> = ({
                 </span>
               )}
 
-              {priorityPicker('md')}
+              <PriorityPicker
+                priority={task.priority}
+                maxPriority={maxPriority}
+                availablePriorities={availablePriorities}
+                onSelect={(priority) => onUpdatePriority?.(task.id, priority)}
+                size="md"
+              />
 
               <button
                 onClick={() => router.push(`/tasks?taskId=${task.id}`)}
@@ -391,9 +219,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
                   className={`text-xs sm:text-sm leading-relaxed ${
                     !isDescriptionExpanded ? 'line-clamp-2 pr-20' : ''
                   } ${
-                    task.completed
-                      ? 'line-through text-text-muted'
-                      : 'text-text-secondary'
+                    task.completed ? 'line-through text-text-muted' : 'text-text-secondary'
                   }`}
                 >
                   {task.description}
@@ -425,7 +251,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
             </div>
           )}
 
-          {tagChips('mb-3')}
+          <TaskTags tags={task.tags} allTags={tags} className="mb-3" />
 
           <div className="pt-3 border-t border-border-subtle">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs sm:text-sm">
@@ -433,29 +259,14 @@ const TaskItem: React.FC<TaskItemProps> = ({
                 <p className="text-text-muted font-semibold uppercase tracking-wide text-[10px] mb-1">
                   Due
                 </p>
-                <div
-                  className={`flex flex-col gap-1 px-3 py-2 rounded-lg ${getDueColor(
-                    task.due_date
-                  )}`}
-                >
+                <div className={`flex flex-col gap-1 px-3 py-2 rounded-lg ${getDueColor(task.due_date)}`}>
                   <div className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    <span>
-                      {formatDueDate(
-                        normalizedDueDate,
-                        normalizedDueTime ?? undefined
-                      )}
-                    </span>
+                    <span>{formatDueDate(normalizedDueDate, normalizedDueTime ?? undefined)}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
-                    <span>
-                      {formatTime12Hour(
-                        typeof task.due_time === 'string'
-                          ? task.due_time
-                          : null
-                      )}
-                    </span>
+                    <span>{formatTime12Hour(typeof task.due_time === 'string' ? task.due_time : null)}</span>
                   </div>
                 </div>
               </div>
@@ -464,17 +275,9 @@ const TaskItem: React.FC<TaskItemProps> = ({
                 <p className="text-text-muted font-semibold uppercase tracking-wide text-[10px] mb-1">
                   Est. Duration
                 </p>
-                <div
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg ${getDurationColor(
-                    Number(task.estimated_time)
-                  )}`}
-                >
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${getDurationColor(Number(task.estimated_time))}`}>
                   <Clock className="w-4 h-4" />
-                  <span>
-                    {task.estimated_time != null
-                      ? `${task.estimated_time} hrs`
-                      : '--'}
-                  </span>
+                  <span>{task.estimated_time != null ? `${task.estimated_time} hrs` : '--'}</span>
                 </div>
               </div>
 

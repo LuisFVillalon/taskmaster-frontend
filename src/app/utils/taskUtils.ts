@@ -1,6 +1,6 @@
 import { Task } from '@/app/types/task';
 
-// ── Priority ───────────────────────────────────────────────────────────────────
+// ── Priority (static badge colors for levels 1–10) ────────────────────────────
 
 export const PRIORITY_COLORS: Record<number, { bg: string; text: string }> = {
   1:  { bg: '#dc2626', text: '#ffffff' }, // red
@@ -23,7 +23,7 @@ export function getPriorityStyle(priority: number | null) {
   return PRIORITY_COLORS[priority] ?? DEFAULT_PRIORITY_COLOR;
 }
 
-// ── Dynamic priority color ─────────────────────────────────────────────────────
+// ── Priority (dynamic color interpolated by rank among active tasks) ──────────
 
 interface HslStop { h: number; s: number; l: number }
 
@@ -51,6 +51,7 @@ export function getPriorityColorByRank(rank: number, total: number): { bg: strin
   };
 }
 
+// Returns a raw CSS color value — use for text/icon coloring in TaskItem.
 export function getDueDateColor(due: string | Date | null, completed: boolean): string {
   if (!due || completed) return 'var(--tm-text-muted)';
   const dueDate = typeof due === 'string' ? new Date(due + 'T00:00:00') : new Date(due);
@@ -163,11 +164,13 @@ export const countTasksByTag = (tasks: Task[]) => {
   return Object.values(map);
 };
 
+// Returns Tailwind utility classes — use for badge/chip backgrounds.
+// Note: string dates are parsed as local midnight to prevent UTC-offset drift.
 export const getDueColor = (dueDate?: string | Date | null) => {
   if (!dueDate) return "text-gray-400 bg-gray-50";
 
   const now = new Date();
-  const due = new Date(dueDate);
+  const due = typeof dueDate === 'string' ? new Date(dueDate + 'T00:00:00') : new Date(dueDate);
   const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
   if (diffDays < 0) return "text-red-700 bg-red-50";
@@ -188,6 +191,38 @@ export const getComplexityColor = (level?: number | null) => {
   if (level <= 4) return "text-yellow-700 bg-yellow-50";
   return "text-red-700 bg-red-50";
 };
+
+// ── Priority badge (rank-based continuous color interpolation) ─────────────────
+// Used by PriorityPicker to color priority chips relative to the active task count.
+// Different from getPriorityStyle above, which maps a fixed level to a discrete color.
+
+const PRIORITY_BADGE_STOPS = ['#dc2626', '#ea580c', '#eab308', '#16a34a', '#2563eb', '#ffffff'];
+
+function hexInterpolate(c1: string, c2: string, t: number): string {
+  const a = parseInt(c1.slice(1), 16);
+  const b = parseInt(c2.slice(1), 16);
+  const r  = Math.round(((a >> 16) & 255) + (((b >> 16) & 255) - ((a >> 16) & 255)) * t);
+  const g  = Math.round(((a >> 8)  & 255) + (((b >> 8)  & 255) - ((a >> 8)  & 255)) * t);
+  const bl = Math.round((a & 255)         + ((b & 255)         - (a & 255))          * t);
+  return `rgb(${r}, ${g}, ${bl})`;
+}
+
+export function getPriorityBadgeStyle(
+  priority: number | null,
+  maxPriority: number,
+): { bg: string; text: string } {
+  if (priority == null) return { bg: '#f3f4f6', text: '#6b7280' };
+  const normalized = maxPriority <= 1 ? 0 : (priority - 1) / (maxPriority - 1);
+  const segCount = PRIORITY_BADGE_STOPS.length - 1;
+  const seg = Math.min(Math.floor(normalized * segCount), segCount - 1);
+  const localT = (normalized - seg / segCount) * segCount;
+  return {
+    bg: hexInterpolate(PRIORITY_BADGE_STOPS[seg], PRIORITY_BADGE_STOPS[seg + 1], localT),
+    text: normalized > 0.72 ? '#111827' : '#ffffff',
+  };
+}
+
+// ── Formatting ─────────────────────────────────────────────────────────────────
 
 export const formatTime12Hour = (time?: string | null) => {
   if (!time) return "--:--";

@@ -35,3 +35,14 @@ export const toLocalDateStr = (d: string | Date): string => {
   const pad2 = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 };
+
+/**
+ * Format a Date as a locale-safe HH:MM time string.
+ * Reads local hour/minute fields — never converts to UTC.
+ *
+ * @param d - The Date to format
+ */
+export const toLocalTimeStr = (d: Date): string => {
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};

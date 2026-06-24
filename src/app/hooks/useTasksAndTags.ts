@@ -1,27 +1,17 @@
-/*
-Purpose: This file contains custom hooks for managing tasks and tags data, including fetching from 
-API, and performing CRUD operations.
-
-Variables Summary:
-- useTasks: Manages task data with tasks array, isLoading boolean, and functions like toggleComplete, addTask, deleteTask, updateTask.
-- useTags: Manages tag data with tags array, tagsLoading boolean, and functions like addTag, delTag, updateTag.
-
-These hooks handle all data operations and state management for tasks and tags, interfacing with the backend API.
-*/
-
 import { useState, useEffect } from 'react';
-import { fetchTasks, 
-    fetchTags, 
-    createTask, 
-    createTag, 
-    onDelete, 
-    onDeleteTag,
-    updateTag as updateTagApi,
-    saveTasksToDBAPI, 
-    updateWholeTask
-} from "@/app/lib/backend-api";
+import {
+  fetchTasks,
+  fetchTags,
+  createTask,
+  createTag,
+  onDelete,
+  onDeleteTag,
+  updateTag as updateTagApi,
+  saveTasksToDBAPI,
+  updateWholeTask,
+} from '@/app/lib/backend-api';
 import { Task, Tag, BaseTaskForm, EditTaskForm, NewTag } from '@/app/types/task';
-import { toLocalISOString } from '@/app/utils/dateUtils';
+import { toLocalISOString, toLocalDateStr, toLocalTimeStr } from '@/app/utils/dateUtils';
 
 /**
  * Manages task state and CRUD operations.
@@ -73,8 +63,8 @@ export const useTasks = () => {
         description: task.description,
         completed: newCompleted,
         priority: newCompleted ? null : task.priority,
-        due_date: task.due_date ? (task.due_date instanceof Date ? task.due_date.toISOString().slice(0, 10) : task.due_date) : '',
-        due_time: task.due_time ? (task.due_time instanceof Date ? task.due_time.toISOString().slice(11, 16) : task.due_time) : '',
+        due_date: task.due_date ? (task.due_date instanceof Date ? toLocalDateStr(task.due_date) : task.due_date) : '',
+        due_time: task.due_time ? (task.due_time instanceof Date ? toLocalTimeStr(task.due_time) : task.due_time) : '',
         tags: task.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
         category: task.category ?? null,
         created_date: task.created_date instanceof Date ? toLocalISOString(task.created_date) : (typeof task.created_date === 'string' ? task.created_date : null),
@@ -92,39 +82,32 @@ export const useTasks = () => {
 
   const addTask = async (newTask: BaseTaskForm): Promise<Task | false> => {
     try {
-        const taskWithDates = {
-          ...newTask,
-          due_date: newTask.due_date instanceof Date
-            ? newTask.due_date.toISOString().slice(0, 10)
-            : (newTask.due_date ?? undefined),
-          due_time: newTask.due_time instanceof Date
-            ? newTask.due_time.toISOString().slice(11, 16)
-            : (newTask.due_time ?? undefined),
-          created_date: toLocalISOString(new Date()),
-          completed_date: null,
-          completed: false
-        };
-        const createdTask: Task = await createTask(taskWithDates);
-        setTasks([createdTask, ...tasks]);
-
-        return createdTask;
+      const taskWithDates = {
+        ...newTask,
+        due_date: newTask.due_date instanceof Date ? toLocalDateStr(newTask.due_date) : (newTask.due_date ?? undefined),
+        due_time: newTask.due_time instanceof Date ? toLocalTimeStr(newTask.due_time) : (newTask.due_time ?? undefined),
+        created_date: toLocalISOString(new Date()),
+        completed_date: null,
+        completed: false,
+      };
+      const createdTask: Task = await createTask(taskWithDates);
+      setTasks([createdTask, ...tasks]);
+      return createdTask;
     } catch (err) {
-        console.error(err);
-        alert("Failed to create task");
-        return false;
+      console.error(err);
+      alert("Failed to create task");
+      return false;
     }
   }; 
 
   const addTasks = async (newTasks: Task[]) => {
-
     try {
-
-        await saveTasksToDBAPI(newTasks);
-        return true;
+      await saveTasksToDBAPI(newTasks);
+      return true;
     } catch (err) {
-        console.error(err);
-        alert("Failed to create tasks");
-        return false;
+      console.error(err);
+      alert("Failed to create tasks");
+      return false;
     }
   };  
 
@@ -151,36 +134,23 @@ export const useTasks = () => {
 
   const updateTask = async (id: number, updatedTask: EditTaskForm) => {
     try {
-        const taskToUpdate = {
-          ...updatedTask,
-          due_date: updatedTask.due_date instanceof Date
-            ? updatedTask.due_date.toISOString().slice(0, 10)
-            : updatedTask.due_date ?? null,
-
-          due_time: updatedTask.due_time instanceof Date
-            ? updatedTask.due_time.toISOString().slice(11, 19) // HH:MM:SS
-            : updatedTask.due_time ?? null,
-
-          created_date: updatedTask.created_date instanceof Date
-            ? updatedTask.created_date.toISOString()
-            : updatedTask.created_date ?? null,
-
-          completed_date: updatedTask.completed_date instanceof Date
-            ? updatedTask.completed_date.toISOString()
-            : updatedTask.completed_date ?? null,
-          
-          tags: updatedTask.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
-
-          category: updatedTask.category ?? null,
-        priority: updatedTask.completed ? null : updatedTask.priority
-        };
-        const updated = await updateWholeTask(id, taskToUpdate) as Task;
-        setTasks(prev => prev.map(task => task.id === id ? updated : task));
-        return true;
+      const taskToUpdate = {
+        ...updatedTask,
+        due_date: updatedTask.due_date instanceof Date ? toLocalDateStr(updatedTask.due_date) : (updatedTask.due_date ?? null),
+        due_time: updatedTask.due_time instanceof Date ? toLocalTimeStr(updatedTask.due_time) : (updatedTask.due_time ?? null),
+        created_date: updatedTask.created_date instanceof Date ? toLocalISOString(updatedTask.created_date) : (updatedTask.created_date ?? null),
+        completed_date: updatedTask.completed_date instanceof Date ? toLocalISOString(updatedTask.completed_date) : (updatedTask.completed_date ?? null),
+        tags: updatedTask.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
+        category: updatedTask.category ?? null,
+        priority: updatedTask.completed ? null : updatedTask.priority,
+      };
+      const updated = await updateWholeTask(id, taskToUpdate) as Task;
+      setTasks(prev => prev.map(task => task.id === id ? updated : task));
+      return true;
     } catch (err) {
-        console.error(err);
-        alert("Failed to update task");
-        return false;
+      console.error(err);
+      alert("Failed to update task");
+      return false;
     }
   };
 
@@ -224,13 +194,7 @@ export const useTags = () => {
     if (!newTag.name.trim()) return false;
 
     try {
-      await createTag(newTag);
-      const tag: Tag = {
-        id: Math.max(0, ...tags.map(t => t.id)) + 1,
-        name: newTag.name,
-        color: newTag.color
-      };
-
+      const tag: Tag = await createTag(newTag);
       setTags(prev => [...prev, tag]);
       return tag;
     } catch (err) {
@@ -242,29 +206,25 @@ export const useTags = () => {
 
   const delTag = async (delTag: Tag) => {
     try {
-        await onDeleteTag(delTag.id);
-        setTags(prev =>
-            prev.filter(task => task.id !== delTag.id)
-        );
-        return delTag.id;
+      await onDeleteTag(delTag.id);
+      setTags(prev => prev.filter(t => t.id !== delTag.id));
+      return delTag.id;
     } catch (err) {
-        console.error('Delete failed:', err);
-        alert("Failed to delete tag");
-        return null;
+      console.error('Delete failed:', err);
+      alert("Failed to delete tag");
+      return null;
     }
   };
 
   const updateTag = async (tagToUpdate: Tag) => {
     try {
-        await updateTagApi(tagToUpdate.id, { name: tagToUpdate.name, color: tagToUpdate.color });
-        setTags(prev =>
-            prev.map(tag => tag.id === tagToUpdate.id ? tagToUpdate : tag)
-        );
-        return tagToUpdate.id;
+      await updateTagApi(tagToUpdate.id, { name: tagToUpdate.name, color: tagToUpdate.color });
+      setTags(prev => prev.map(tag => tag.id === tagToUpdate.id ? tagToUpdate : tag));
+      return tagToUpdate.id;
     } catch (err) {
-        console.error('Update failed:', err);
-        alert("Failed to update tag");
-        return null;
+      console.error('Update failed:', err);
+      alert("Failed to update tag");
+      return null;
     }
   };
   return {
