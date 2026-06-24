@@ -124,6 +124,7 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
           onUpdate={updateNote}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(v => !v)}
+          showExtendedActions
         />
       </div>
     </div>

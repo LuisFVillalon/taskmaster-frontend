@@ -16,11 +16,11 @@
  * provider from the JWT payload and returns 403 for OAuth accounts.
  */
 
-import React, { useState, useMemo } from 'react';
-import { X, Loader2, Eye, EyeOff, AlertTriangle, ExternalLink, ShieldCheck } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { X, Loader2, Eye, EyeOff, AlertTriangle, ExternalLink, ShieldCheck, User } from 'lucide-react';
 import { supabase } from '@/app/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
-import { updatePassword, deleteAccount } from '@/app/lib/backend-api';
+import { updatePassword, deleteAccount, fetchProfile, saveProfile } from '@/app/lib/backend-api';
 import { validatePassword, MIN_LENGTH } from '@/app/lib/passwordValidation';
 import PasswordStrengthMeter from '@/app/components/PasswordStrengthMeter';
 interface Props {
@@ -29,7 +29,7 @@ interface Props {
   onAccountDeleted: () => void;
 }
 
-type Section = 'password' | 'email' | 'delete';
+type Section = 'profile' | 'password' | 'email' | 'delete';
 
 // Providers that use a federated identity — they have no local password.
 const OAUTH_PROVIDERS = new Set(['google', 'github', 'facebook', 'twitter', 'apple']);
@@ -47,8 +47,46 @@ export default function SettingsModal({
   const isOAuth = OAUTH_PROVIDERS.has(provider);
   const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1); // "Google"
 
-  // Start on 'email' tab for OAuth users (password tab is locked for them).
-  const [section, setSection] = useState<Section>(isOAuth ? 'email' : 'password');
+  // Start on 'profile' tab by default.
+  const [section, setSection] = useState<Section>('profile');
+
+  // ── Profile ──────────────────────────────────────────────────────────────
+  const [profileName, setProfileName] = useState<string>(
+    () => (typeof window !== 'undefined' ? localStorage.getItem('tm_profile_name') ?? 'G.O.A.T.' : 'G.O.A.T.')
+  );
+  const [callItADay, setCallItADay] = useState<string>(
+    () => (typeof window !== 'undefined' ? localStorage.getItem('tm_call_it_a_day') ?? '22:00' : '22:00')
+  );
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchProfile().then(profile => {
+      if (profile) {
+        setProfileName(profile.name);
+        if (profile.shutoff_time) setCallItADay(profile.shutoff_time);
+      }
+    }).catch(() => {/* no-op: fall back to localStorage defaults */});
+  }, [isOpen]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError(null);
+    setProfileSaving(true);
+    try {
+      await saveProfile({ name: profileName, shutoff_time: callItADay });
+      localStorage.setItem('tm_profile_name', profileName);
+      localStorage.setItem('tm_call_it_a_day', callItADay);
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2000);
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : 'Failed to save profile.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   // ── Change Password ──────────────────────────────────────────────────────
   const [newPassword, setNewPassword]         = useState('');
@@ -155,7 +193,7 @@ export default function SettingsModal({
             <h2 className="text-lg font-bold text-text-primary">Account Settings</h2>
             {user?.email && (
               <p className="text-xs mt-0.5" style={{ color: 'var(--tm-text-muted)' }}>
-                {user.email}
+                {user.email}, aka {profileName}
                 {isOAuth && (
                   <span
                     className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide"
@@ -177,6 +215,13 @@ export default function SettingsModal({
           className="flex gap-1 px-6 py-3 border-b overflow-x-auto scrollbar-custom shrink-0"
           style={{ borderColor: 'var(--tm-border)', backgroundColor: 'var(--tm-surface-raised)' }}
         >
+          <button
+            onClick={() => setSection('profile')}
+            className={tabClass('profile')}
+            style={tabStyle('profile')}
+          >
+            Profile
+          </button>
           <button
             onClick={() => !isOAuth && setSection('password')}
             className={tabClass('password')}
@@ -202,6 +247,57 @@ export default function SettingsModal({
         </div>
 
         <div className="px-6 py-5 overflow-y-auto flex-1 scrollbar-custom">
+
+          {/* ── Profile Tab ──────────────────────────────────────────────── */}
+          {section === 'profile' && (
+            <form onSubmit={handleSaveProfile} className="space-y-5">
+              <div className="flex items-center gap-2 mb-1" style={{ color: 'var(--tm-text-secondary)' }}>
+                <User className="w-4 h-4" />
+                <p className="text-sm">Customize how Task Master knows you.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1">Your Name</label>
+                <input
+                  type="text"
+                  value={profileName}
+                  onChange={e => setProfileName(e.target.value)}
+                  placeholder="G.O.A.T."
+                  className="input-field w-full text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1">Call it a day at</label>
+                <input
+                  type="time"
+                  value={callItADay}
+                  onChange={e => setCallItADay(e.target.value)}
+                  className="input-field w-full text-sm"
+                />
+                <p className="text-xs mt-1" style={{ color: 'var(--tm-text-muted)' }}>
+                  The time you shut off and stop working for the day.
+                </p>
+              </div>
+
+              {profileSaved && (
+                <p className="text-sm" style={{ color: 'var(--tm-success)' }}>Profile saved.</p>
+              )}
+              {profileError && (
+                <p className="text-sm" style={{ color: 'var(--tm-danger)' }}>{profileError}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={profileSaving}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
+                style={{ backgroundColor: 'var(--tm-accent)' }}
+              >
+                {profileSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Profile
+              </button>
+            </form>
+          )}
 
           {/* ── Password Tab ─────────────────────────────────────────────── */}
           {section === 'password' && (

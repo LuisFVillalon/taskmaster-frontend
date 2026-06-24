@@ -11,26 +11,42 @@ interface NewTaskModalProps {
   tags: Tag[];
   onToggleTag: (tag: Tag) => void;
   onSubmit: (e: React.FormEvent) => void;
+  /** Called instead of onSubmit when the task has a category (Smart Plan mode). */
+  onSmartPlan: (task: BaseTaskForm) => Promise<void>;
   activeTaskCount: number;
   usedPriorityLevels: number[];
 }
 
 const NewTaskModal: React.FC<NewTaskModalProps> = ({
   isOpen, onClose, newTask, onTaskChange, tags, onToggleTag,
-  onSubmit, activeTaskCount, usedPriorityLevels,
+  onSubmit, onSmartPlan, activeTaskCount, usedPriorityLevels,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const isSmartPlan = !!newTask.category;
 
   const handleFieldChange = (next: TaskFormData) => {
     onTaskChange({ ...newTask, ...next } as BaseTaskForm);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
     setIsLoading(true);
-    await onSubmit(e);
-    setIsLoading(false);
+    try {
+      if (isSmartPlan) {
+        await onSmartPlan(newTask);
+      } else {
+        onSubmit(e);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -47,9 +63,6 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          <p className="text-xs text-text-muted -mb-1">
-            Fields marked <span style={{ color: 'var(--tm-danger)' }}>*</span> are required to save the task.
-          </p>
 
           <TaskFormFields
             values={newTask as TaskFormData}
@@ -61,12 +74,20 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
             showCategory
           />
 
+          {error && (
+            <p className="text-sm rounded-lg px-3 py-2" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--tm-danger)' }}>
+              {error}
+            </p>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} disabled={isLoading} className="btn btn-secondary flex-1 py-2.5">
               Cancel
             </button>
             <button type="submit" disabled={isLoading} className="btn btn-primary flex-1 py-2.5">
-              {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : 'Create Task'}
+              {isLoading
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> {isSmartPlan ? 'Generating…' : 'Creating…'}</>
+                : isSmartPlan ? 'Create Smart Plan' : 'Create Task'}
             </button>
           </div>
         </form>

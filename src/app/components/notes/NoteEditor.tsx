@@ -6,12 +6,13 @@ import StarterKit from '@tiptap/starter-kit';
 import TiptapImage from '@tiptap/extension-image';
 import TiptapHighlight from '@tiptap/extension-highlight';
 import {
-  Bold, ChevronDown, ChevronUp, Download, FileText, Highlighter,
+  Bold, ChevronDown, ChevronUp, Download, Link2, FileText, Highlighter,
   Italic, List, ListOrdered, Loader2,
-  PanelLeftClose, PanelLeftOpen, Save,
+  PanelLeftClose, PanelLeftOpen, Save, LibraryBig, X,
 } from 'lucide-react';
 import { Note } from '@/app/types/notes';
 import { Tag } from '@/app/types/task';
+import { fetchLearningResources, LearningResourcesResponse } from '@/app/lib/backend-api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,7 @@ interface NoteEditorProps {
   onUpdate: (id: number, changes: Partial<Pick<Note, 'title' | 'content' | 'tags'>>) => void;
   sidebarOpen?: boolean;
   onToggleSidebar?: () => void;
+  showExtendedActions?: boolean;
 }
 
 // ─── Toolbar button ────────────────────────────────────────────────────────────
@@ -79,6 +81,7 @@ const ToolbarBtn: React.FC<ToolbarBtnProps> = ({ onClick, active, title, childre
 const NoteEditor: React.FC<NoteEditorProps> = ({
   note, allTags, onUpdate,
   sidebarOpen = true, onToggleSidebar,
+  showExtendedActions = false,
 }) => {
   const [title, setTitle]               = useState(note?.title ?? '');
   const [saveStatus, setSaveStatus]     = useState<'idle' | 'saved'>('idle');
@@ -87,6 +90,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const [pdfError, setPdfError]         = useState(false);
   const [tagsOpen, setTagsOpen]         = useState(false);
   const [highlightOpen, setHighlightOpen] = useState(false);
+  const [resourcesStatus, setResourcesStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [resourcesData, setResourcesData]     = useState<LearningResourcesResponse | null>(null);
+  const [resourcesOpen, setResourcesOpen]     = useState(false);
 
   const contentTimer       = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleTimer         = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -188,6 +194,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     if (titleTimer.current)   clearTimeout(titleTimer.current);
     setTitle(note?.title ?? '');
     setSaveStatus('idle');
+    setResourcesOpen(false);
+    setResourcesStatus('idle');
+    setResourcesData(null);
     if (editor) {
       editor.commands.setContent(note?.content ?? '');
     }
@@ -511,6 +520,34 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     }
   };
 
+  const handleGetResources = async () => {
+    if (!note || !editor) return;
+
+    if (resourcesOpen) {
+      setResourcesOpen(false);
+      return;
+    }
+
+    if (editor.isEmpty) {
+      setEmptyToast(true);
+      setTimeout(() => setEmptyToast(false), 2500);
+      return;
+    }
+
+    setResourcesOpen(true);
+
+    if (resourcesStatus === 'done' && resourcesData) return;
+
+    setResourcesStatus('loading');
+    try {
+      const data = await fetchLearningResources(editor.getText());
+      setResourcesData(data);
+      setResourcesStatus('done');
+    } catch {
+      setResourcesStatus('error');
+    }
+  };
+
   // ── Empty state ────────────────────────────────────────────────────────────
 
   if (!note) {
@@ -730,26 +767,51 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
         {/* Right-side actions */}
         <div className="ml-auto flex items-center gap-2">
-          {/* Download PDF */}
-          <button
-            type="button"
-            onClick={handleDownloadPDF}
-            disabled={pdfLoading}
-            title="Download as PDF"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ color: 'var(--tm-text-secondary)' }}
-            onMouseEnter={e => {
-              if (!pdfLoading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = '';
-            }}
-          >
-            {pdfLoading
-              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              : <Download className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{pdfLoading ? 'Exporting…' : 'PDF'}</span>
-          </button>
+          {showExtendedActions && <>
+            {/* Learning Resources */}
+            <button
+              type="button"
+              onClick={handleGetResources}
+              title={resourcesOpen ? 'Close resources panel' : 'Get AI learning resources'}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                color: resourcesOpen ? 'var(--tm-accent)' : 'var(--tm-text-secondary)',
+                backgroundColor: resourcesOpen ? 'var(--tm-accent-subtle)' : undefined,
+              }}
+              onMouseEnter={e => {
+                if (!resourcesOpen) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
+              }}
+              onMouseLeave={e => {
+                if (!resourcesOpen) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '';
+              }}
+            >
+              {resourcesStatus === 'loading' && !resourcesOpen
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <LibraryBig className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">Resources</span>
+            </button>
+
+            {/* Download PDF */}
+            <button
+              type="button"
+              onClick={handleDownloadPDF}
+              disabled={pdfLoading}
+              title="Download as PDF"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ color: 'var(--tm-text-secondary)' }}
+              onMouseEnter={e => {
+                if (!pdfLoading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = '';
+              }}
+            >
+              {pdfLoading
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Download className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{pdfLoading ? 'Exporting…' : 'PDF'}</span>
+            </button>
+          </>}
 
           <button
             onClick={handleSave}
@@ -774,92 +836,188 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         </div>
       </div>
 
-      {/* ── Title ────────────────────────────────────────────────────────── */}
-      <div className="px-6 sm:px-10 pt-6 pb-2">
-        <input
-          type="text"
-          value={title}
-          onChange={e => handleTitleChange(e.target.value)}
-          placeholder="Untitled Note"
-          className="w-full text-2xl sm:text-3xl font-bold text-text-primary placeholder-text-muted focus:outline-none bg-transparent"
-        />
-      </div>
+      {/* ── Main content: editor column + resources side panel ───────────── */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Editor column */}
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {/* ── Title ──────────────────────────────────────────────────────── */}
+          <div className="px-6 sm:px-10 pt-6 pb-2">
+            <input
+              type="text"
+              value={title}
+              onChange={e => handleTitleChange(e.target.value)}
+              placeholder="Untitled Note"
+              className="w-full text-2xl sm:text-3xl font-bold text-text-primary placeholder-text-muted focus:outline-none bg-transparent"
+            />
+          </div>
 
-      {/* ── Tag picker (collapsible) ──────────────────────────────────────── */}
-      {allTags.length > 0 && (
-        <div className="px-6 sm:px-10 pb-3">
-          <button
-            type="button"
-            onClick={() => setTagsOpen(v => !v)}
-            aria-expanded={tagsOpen}
-            aria-controls="note-tag-picker"
-            className="flex items-center gap-1.5 text-xs font-medium mb-2 transition-opacity hover:opacity-70"
-            style={{ color: 'var(--tm-text-muted)' }}
-          >
-            {tagsOpen
-              ? <ChevronUp className="w-3.5 h-3.5" />
-              : <ChevronDown className="w-3.5 h-3.5" />}
+          {/* ── Tag picker (collapsible) ──────────────────────────────────────── */}
+          {allTags.length > 0 && (
+            <div className="px-6 sm:px-10 pb-3">
+              <button
+                type="button"
+                onClick={() => setTagsOpen(v => !v)}
+                aria-expanded={tagsOpen}
+                aria-controls="note-tag-picker"
+                className="flex items-center gap-1.5 text-xs font-medium mb-2 transition-opacity hover:opacity-70"
+                style={{ color: 'var(--tm-text-muted)' }}
+              >
+                {tagsOpen
+                  ? <ChevronUp className="w-3.5 h-3.5" />
+                  : <ChevronDown className="w-3.5 h-3.5" />}
 
-            {tagsOpen ? 'Hide tags' : (
-              note.tags.length > 0
-                ? (
-                  <span className="flex items-center gap-1.5">
-                    <span>Tags</span>
-                    {note.tags.slice(0, 5).map(t => (
-                      <span
-                        key={t.id}
-                        className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: t.color }}
-                        title={t.name}
-                      />
-                    ))}
-                    {note.tags.length > 5 && <span>+{note.tags.length - 5}</span>}
-                  </span>
-                )
-                : 'Add tags'
-            )}
-          </button>
+                {tagsOpen ? 'Hide tags' : (
+                  note.tags.length > 0
+                    ? (
+                      <span className="flex items-center gap-1.5">
+                        <span>Tags</span>
+                        {note.tags.slice(0, 5).map(t => (
+                          <span
+                            key={t.id}
+                            className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: t.color }}
+                            title={t.name}
+                          />
+                        ))}
+                        {note.tags.length > 5 && <span>+{note.tags.length - 5}</span>}
+                      </span>
+                    )
+                    : 'Add tags'
+                )}
+              </button>
 
-          <div
-            id="note-tag-picker"
-            role="region"
-            aria-label="Tag picker"
-            className="overflow-hidden transition-all duration-200"
-            style={{ maxHeight: tagsOpen ? '160px' : '0px', opacity: tagsOpen ? 1 : 0 }}
-          >
+              <div
+                id="note-tag-picker"
+                role="region"
+                aria-label="Tag picker"
+                className="overflow-hidden transition-all duration-200"
+                style={{ maxHeight: tagsOpen ? '160px' : '0px', opacity: tagsOpen ? 1 : 0 }}
+              >
+                <div
+                  className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 rounded-xl border border-border max-h-36 overflow-y-auto scrollbar-custom"
+                  style={{ backgroundColor: 'var(--tm-surface-raised)' }}
+                >
+                  {allTags.map(tag => {
+                    const selected = note.tags.some(t => t.id === tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => handleTagToggle(tag)}
+                        style={{
+                          backgroundColor: selected ? tag.color : 'var(--tm-surface)',
+                          color: selected ? '#ffffff' : 'var(--tm-text-primary)',
+                          border: `1px solid ${selected ? tag.color : 'var(--tm-border)'}`,
+                          transform: selected ? 'scale(1)' : 'scale(0.97)',
+                        }}
+                        className="px-3 py-2 rounded-lg text-sm font-medium transition-all hover:scale-100 active:scale-95"
+                      >
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mx-6 sm:mx-10 border-t border-border-subtle" />
+
+          {/* ── Editor body ──────────────────────────────────────────────────── */}
+          <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-4 scrollbar-custom">
+            <EditorContent editor={editor} />
+          </div>
+        </div>
+
+        {/* ── Resources side panel ──────────────────────────────────────────── */}
+        <div
+          className="shrink-0 flex flex-col border-l overflow-hidden transition-[width] duration-300 ease-in-out"
+          style={{
+            width: resourcesOpen ? '300px' : '0px',
+            borderColor: 'var(--tm-border)',
+            backgroundColor: 'var(--tm-surface-raised)',
+          }}
+        >
+          <div className="w-[300px] flex flex-col h-full">
+            {/* Panel header */}
             <div
-              className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 rounded-xl border border-border max-h-36 overflow-y-auto scrollbar-custom"
-              style={{ backgroundColor: 'var(--tm-surface-raised)' }}
+              className="flex items-center justify-between px-4 py-3 border-b shrink-0"
+              style={{ borderColor: 'var(--tm-border)' }}
             >
-              {allTags.map(tag => {
-                const selected = note.tags.some(t => t.id === tag.id);
-                return (
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold" style={{ color: 'var(--tm-text-primary)' }}>Learning Resources</span>
+                </div>
+                {resourcesData?.topic && (
+                  <div className="flex justify-start items-center gap-1 pr-2 py-0.5 rounded-full w-fit" style={{ backgroundColor: 'var(--tm-accent-subtle)' }}>
+                    <p className='text-xs'>Context caught: </p>
+                    <span className="text-sm font-medium" style={{ color: 'var(--tm-accent)' }}>{resourcesData.topic}</span>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setResourcesOpen(false)}
+                className="p-1 rounded-lg transition-colors"
+                style={{ color: 'var(--tm-text-secondary)' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--tm-surface)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '')}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Panel body */}
+            <div className="flex-1 overflow-y-auto scrollbar-custom">
+              {resourcesStatus === 'loading' && (
+                <div className="px-4 py-10 flex flex-col items-center gap-3">
+                  <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--tm-accent)' }} />
+                  <p className="text-sm" style={{ color: 'var(--tm-text-secondary)' }}>Analyzing your note…</p>
+                </div>
+              )}
+
+              {resourcesStatus === 'error' && (
+                <div className="px-4 py-8 flex flex-col items-center gap-3 text-center">
+                  <p className="text-sm" style={{ color: 'var(--tm-danger)' }}>Failed to fetch resources — please try again.</p>
                   <button
-                    key={tag.id}
                     type="button"
-                    onClick={() => handleTagToggle(tag)}
-                    style={{
-                      backgroundColor: selected ? tag.color : 'var(--tm-surface)',
-                      color: selected ? '#ffffff' : 'var(--tm-text-primary)',
-                      border: `1px solid ${selected ? tag.color : 'var(--tm-border)'}`,
-                      transform: selected ? 'scale(1)' : 'scale(0.97)',
-                    }}
-                    className="px-3 py-2 rounded-lg text-sm font-medium transition-all hover:scale-100 active:scale-95"
+                    onClick={handleGetResources}
+                    className="text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
+                    style={{ color: 'var(--tm-accent)', backgroundColor: 'var(--tm-accent-subtle)' }}
                   >
-                    {tag.name}
+                    Retry
                   </button>
-                );
-              })}
+                </div>
+              )}
+
+              {resourcesStatus === 'done' && resourcesData && (
+                <div className="px-3 py-3 flex flex-col gap-2.5">
+                  {resourcesData.resources.map((r, i) => (
+                    <a
+                      key={i}
+                      href={r.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex flex-col gap-1.5 p-3 rounded-xl border transition-all hover:shadow-sm"
+                      style={{ border: '1px solid var(--tm-border)', backgroundColor: 'var(--tm-surface)' }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--tm-accent)')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--tm-border)')}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: 'var(--tm-accent-subtle)', color: 'var(--tm-accent)' }}>
+                          {r.activity_label} · {r.platform}
+                        </span>
+                        <Link2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--tm-text-muted)' }} />
+                      </div>
+                      <p className="text-sm font-medium text-text-primary">{r.title}</p>
+                      <p className="text-xs leading-relaxed" style={{ color: 'var(--tm-text-muted)' }}>{r.why}</p>
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
-      )}
-
-      <div className="mx-6 sm:mx-10 border-t border-border-subtle" />
-
-      {/* ── Editor body ──────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-4 scrollbar-custom">
-        <EditorContent editor={editor} />
       </div>
 
       {/* ── Toasts ───────────────────────────────────────────────────────── */}

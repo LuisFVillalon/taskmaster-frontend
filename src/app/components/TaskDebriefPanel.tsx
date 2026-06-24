@@ -1,16 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Newspaper, RefreshCw, CalendarCheck, SkipForward, ChartArea, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Newspaper, RefreshCw, AlertTriangle, CalendarCheck, Zap, Repeat2, SkipForward, ChartArea, ChevronDown, ChevronUp, Star } from 'lucide-react';
 import { fetchTaskDebrief, TaskDebrief } from '@/app/lib/backend-api';
 
 type Status = 'idle' | 'loading' | 'done' | 'error';
+
+function splitFutureHorizon(items: unknown): { comingUp: string[]; earlyStart: string[] } {
+  const list: string[] = Array.isArray(items)
+    ? (items as unknown[]).map(String).filter(Boolean)
+    : (items && typeof items === 'string' ? [String(items)] : []);
+  const headerIdx = list.findIndex(s => /get an early start on:/i.test(s));
+  if (headerIdx === -1) return { comingUp: list, earlyStart: [] };
+  return { comingUp: list.slice(0, headerIdx), earlyStart: list.slice(headerIdx + 1) };
+}
 
 const TaskDebriefPanel: React.FC = () => {
   const [status, setStatus] = useState<Status>('idle');
   const [debrief, setDebrief] = useState<TaskDebrief | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   const run = async () => {
     setStatus('loading');
@@ -25,15 +34,24 @@ const TaskDebriefPanel: React.FC = () => {
     }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { run(); }, []);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && status === 'idle') run();
+  };
+
   return (
     <div className="card mb-4 sm:mb-6">
       <div className="flex items-center justify-between p-4 sm:p-5">
         <button
-          onClick={() => setOpen(prev => !prev)}
+          onClick={toggle}
           className="flex items-center gap-2 flex-1"
         >
           <Newspaper className="w-5 h-5" style={{ color: 'var(--tm-accent)' }} />
-          <h2 className="text-base font-semibold text-text-primary">Daily Debrief</h2>
+          <h2 className="text-base font-semibold text-text-primary">Daily Brief</h2>
         </button>
         <div className="flex items-center gap-2">
           {(status === 'done' || status === 'error') && (
@@ -46,14 +64,14 @@ const TaskDebriefPanel: React.FC = () => {
               <RefreshCw className="w-4 h-4" />
             </button>
           )}
-          <button onClick={() => setOpen(prev => !prev)}>
+          <button onClick={toggle}>
             {open ? <ChevronUp className="w-4 h-4 text-text-secondary" /> : <ChevronDown className="w-4 h-4 text-text-secondary" />}
           </button>
         </div>
       </div>
 
       {open && (
-        <div className="px-4 sm:px-5 pb-4 sm:pb-5">
+        <div className="px-4 sm:px-5 pb-4 sm:pb-5 space-y-3">
 
           {status === 'idle' && (
             <p className="text-sm text-text-secondary text-center py-3">
@@ -62,19 +80,17 @@ const TaskDebriefPanel: React.FC = () => {
           )}
 
           {status === 'loading' && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[0, 1, 2].map(i => (
-                <div
-                  key={i}
-                  className="rounded-lg p-3 space-y-2 animate-pulse"
-                  style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
-                >
-                  <div className="h-3.5 rounded w-1/2" style={{ backgroundColor: 'var(--tm-border)' }} />
-                  <div className="h-2.5 rounded" style={{ backgroundColor: 'var(--tm-border)' }} />
-                  <div className="h-2.5 rounded w-5/6" style={{ backgroundColor: 'var(--tm-border)' }} />
-                  <div className="h-2.5 rounded w-4/6" style={{ backgroundColor: 'var(--tm-border)' }} />
-                </div>
-              ))}
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[0, 1, 2, 3].map(i => (
+                  <SkeletonCard key={i} />
+                ))}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[4, 5, 6].map(i => (
+                  <SkeletonCard key={i} />
+                ))}
+              </div>
             </div>
           )}
 
@@ -82,53 +98,97 @@ const TaskDebriefPanel: React.FC = () => {
             <p className="text-sm py-2" style={{ color: 'var(--tm-danger)' }}>{error}</p>
           )}
 
-          {status === 'done' && debrief && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <DebriefSection
-                icon={<CalendarCheck className="w-4 h-4" />}
-                title="Today's Focus"
-                text={debrief.today_action_plan}
-              />
-              <DebriefSection
-                icon={<SkipForward className="w-4 h-4" />}
-                title="Coming Up"
-                text={debrief.future_horizon_warning}
-              />
-              <DebriefSection
-                icon={<ChartArea className="w-4 h-4" />}
-                title="Today's Load"
-                text={debrief.workload_analysis}
-              />
-            </div>
-          )}
+          {status === 'done' && debrief && (() => {
+            const { comingUp, earlyStart } = splitFutureHorizon(debrief.future_horizon_warning);
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <DebriefSection
+                    icon={<AlertTriangle className="w-4 h-4" />}
+                    title="Overdue Tasks"
+                    items={debrief.overdue_tasks}
+                    accentColor="#dc2626"
+                  />
+                  <DebriefSection
+                    icon={<CalendarCheck className="w-4 h-4" />}
+                    title="Due Today"
+                    items={debrief.tasks_due_today}
+                    accentColor="#16a34a"
+                  />
+                  <DebriefSection
+                    icon={<Zap className="w-4 h-4" />}
+                    title="Task Recommendations"
+                    items={debrief.task_recommendations}
+                  />
+                  <DebriefSection
+                    icon={<Repeat2 className="w-4 h-4" />}
+                    title="Remaining Habits"
+                    items={debrief.remaining_habits}
+                    accentColor="#9333ea"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <DebriefSection
+                    icon={<SkipForward className="w-4 h-4" />}
+                    title="Coming Up"
+                    items={comingUp}
+                  />
+                  <DebriefSection
+                    icon={<Star className="w-4 h-4" />}
+                    title="Get an Early Start On"
+                    items={earlyStart}
+                    accentColor="#eab308"
+                  />
+                  <DebriefSection
+                    icon={<ChartArea className="w-4 h-4" />}
+                    title="Today's Load"
+                    items={debrief.workload_analysis}
+                    accentColor="#f97316"
+                  />
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
   );
 };
 
-function toSentences(text: string): string[] {
-  // \d\.\d is tried first so decimal points (e.g. 3.5, 22.0) are consumed
-  // as a unit and never treated as sentence boundaries.
-  return text.match(/(?:\d\.\d|[^.!?])+[.!?]["']?/g)?.map(s => s.trim()).filter(Boolean) ?? [text];
+function SkeletonCard() {
+  return (
+    <div
+      className="rounded-lg p-3 space-y-2 animate-pulse"
+      style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
+    >
+      <div className="h-3.5 rounded w-1/2" style={{ backgroundColor: 'var(--tm-border)' }} />
+      <div className="h-2.5 rounded" style={{ backgroundColor: 'var(--tm-border)' }} />
+      <div className="h-2.5 rounded w-5/6" style={{ backgroundColor: 'var(--tm-border)' }} />
+      <div className="h-2.5 rounded w-4/6" style={{ backgroundColor: 'var(--tm-border)' }} />
+    </div>
+  );
 }
 
-function DebriefSection({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
-  const sentences = toSentences(text);
+function DebriefSection({ icon, title, items, accentColor }: { icon: React.ReactNode; title: string; items: unknown; accentColor?: string }) {
+  const accent = accentColor ?? 'var(--tm-accent)';
+  const safeItems: string[] = Array.isArray(items)
+    ? (items as unknown[]).map(String)
+    : (items && typeof items === 'string' ? [items] : []);
+
   return (
     <div
       className="rounded-lg p-3"
       style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
     >
-      <div className="flex items-center gap-1.5 mb-2" style={{ color: 'var(--tm-accent)' }}>
+      <div className="flex items-center gap-1.5 mb-2" style={{ color: accent }}>
         {icon}
         <span className="text-xs font-semibold uppercase tracking-wide">{title}</span>
       </div>
       <ul className="space-y-1">
-        {sentences.map((s, i) => (
+        {safeItems.map((item, i) => (
           <li key={i} className="flex gap-1.5 text-xs leading-relaxed text-text-secondary">
-            <span className="mt-1.5 flex-shrink-0 w-1 h-1 rounded-full" style={{ backgroundColor: 'var(--tm-accent)' }} />
-            {s}
+            <span className="mt-1.5 flex-shrink-0 w-1 h-1 rounded-full" style={{ backgroundColor: accent }} />
+            {item}
           </li>
         ))}
       </ul>

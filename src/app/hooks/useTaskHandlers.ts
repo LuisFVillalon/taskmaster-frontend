@@ -96,7 +96,7 @@ export const useTaskHandlers = ({
           tags: [],
           category: null,
           estimated_time: null,
-          complexity: null,
+          session_type: null,
           created_date: '',
         });
 
@@ -126,7 +126,6 @@ export const useTaskHandlers = ({
       tags: showEditTaskModal.task.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
       category: showEditTaskModal.task.category ?? null,
       completed_date: showEditTaskModal.task.completed_date,
-      complexity: showEditTaskModal.task.complexity ?? 0,
       estimated_time: showEditTaskModal.task.estimated_time ?? null,
       created_date: showEditTaskModal.task.created_date
     };

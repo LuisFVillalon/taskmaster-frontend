@@ -104,6 +104,8 @@ export async function createTask(task: {
   category?: string | null;
   created_date: string;
   completed_date?: string | null;
+  parent_task_id?: number | null;
+  estimated_time?: number | null;
 }) {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/create-task`, {
@@ -111,7 +113,14 @@ export async function createTask(task: {
     headers,
     body: JSON.stringify(task),
   });
-  if (!res.ok) throw new Error("Failed to create task");
+  if (!res.ok) {
+    let detail = `${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      detail = body?.detail ?? JSON.stringify(body);
+    } catch { /* body wasn't JSON */ }
+    throw new Error(`Failed to create task: ${detail}`);
+  }
   return res.json();
 }
 
@@ -537,6 +546,36 @@ export async function verifyHabitStreaks(): Promise<{ reset_count: number }> {
   return res.json();
 }
 
+// ── Profile ───────────────────────────────────────────────────────────────────
+
+export interface Profile {
+  user_id: string;
+  name: string;
+  created_at: string;
+  shutoff_time: string | null;
+}
+
+/** Fetches the authenticated user's profile. Returns null if none exists yet. */
+export async function fetchProfile(): Promise<Profile | null> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/get-profile`, { headers });
+  if (res.status === 404) return null;
+  await assertOk(res, "fetchProfile");
+  return res.json();
+}
+
+/** Creates or updates the authenticated user's profile. Returns the saved record. */
+export async function saveProfile(profile: { name: string; shutoff_time?: string | null }): Promise<Profile> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/save-profile`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(profile),
+  });
+  await assertOk(res, "saveProfile");
+  return res.json();
+}
+
 // ── AI Debrief ────────────────────────────────────────────────────────────────
 
 export interface AIDebrief {
@@ -564,12 +603,98 @@ export async function fetchAIDebrief(): Promise<AIDebrief> {
   return body.debrief as AIDebrief;
 }
 
+// ── Learning Resources ────────────────────────────────────────────────────────
+
+export interface LearningResource {
+  type: 'video' | 'article' | 'exercise';
+  title: string;
+  url: string;
+  why: string;
+  platform: string;
+  activity_label: string;
+}
+
+export interface LearningResourcesResponse {
+  topic: string;
+  resources: LearningResource[];
+}
+
+export async function fetchLearningResources(noteContent: string): Promise<LearningResourcesResponse> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Not authenticated — no active Supabase session.");
+  const res = await fetch(`${AI_BASE_URL}/learning-resources`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ note_content: noteContent }),
+  });
+  await assertOk(res, "fetchLearningResources");
+  return res.json();
+}
+
+// ── AI Smart Plan (subtask generation) ───────────────────────────────────────
+
+export interface AiSubtask {
+  parent_task_id: number;
+  title: string;
+  description: string;
+  category: string | null;
+  session_type: string | null;
+  due_date: string | null;
+  due_time: string | null;
+  estimated_time: number | null;
+  tags: { id: number; name: string; color: string }[];
+}
+
+export interface PlanTasksResult {
+  new_task: Task;
+  subtasks: AiSubtask[];
+  overload_warning: string | null;
+}
+
+/**
+ * Calls the AI /plan-tasks endpoint which:
+ *   1. Creates the parent task in the backend.
+ *   2. Generates AI subtasks (NOT yet persisted — caller decides which to save).
+ * Returns the created parent task, the generated subtask list, and an optional overload warning.
+ */
+export async function planTasks(task: {
+  title: string;
+  description?: string;
+  priority?: number | null;
+  due_date?: string | null;
+  due_time?: string | null;
+  tags: { id: number; name: string; color: string }[];
+  category?: string | null;
+  estimated_time?: number | null;
+  session_type?: string | null;
+  created_date: string;
+}): Promise<PlanTasksResult> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Not authenticated — no active Supabase session.");
+  const res = await fetch(`${AI_BASE_URL}/plan-tasks`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(task),
+  });
+  await assertOk(res, "planTasks");
+  return res.json();
+}
+
 // ── Task Debrief ──────────────────────────────────────────────────────────────
 
 export interface TaskDebrief {
-  today_action_plan: string;
-  future_horizon_warning: string;
-  workload_analysis: string;
+  overdue_tasks: string[] | string | null;
+  tasks_due_today: string[] | string | null;
+  task_recommendations: string[] | string | null;
+  remaining_habits: string[] | string | null;
+  future_horizon_warning: string[] | string | null;
+  workload_analysis: string[] | string | null;
 }
 
 /** Calls the AI service and returns an execution-order action plan, horizon warning, and workload analysis. */

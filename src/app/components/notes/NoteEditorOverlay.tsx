@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, ExternalLink } from 'lucide-react';
+import { X, FileSymlink } from 'lucide-react';
 import { Note } from '@/app/types/notes';
 import { Tag } from '@/app/types/task';
 import NoteEditor from './NoteEditor';
@@ -51,7 +51,7 @@ const NoteEditorOverlay: React.FC<NoteEditorOverlayProps> = ({
               aria-label="View in Notes"
               title="View in Notes"
             >
-              <ExternalLink className="w-4 h-4" />
+              <FileSymlink className="w-4 h-4" />
             </button>
             <button
               onClick={onClose}

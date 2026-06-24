@@ -85,7 +85,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
   return (
     <>
       {/* Main modal */}
-      <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-50">
+      <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[70]">
         <div className="modal-panel max-w-sm w-full">
           <div
             className="px-5 py-4 border-b border-border-subtle flex justify-between items-center rounded-t-[1.25rem]"
@@ -149,7 +149,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
 
       {/* Delete confirmation */}
       {deletingTag && (
-        <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[60]">
+        <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[80]">
           <div className="modal-panel max-w-sm w-full p-6 space-y-4">
             <p className="text-center text-text-primary">
               Are you sure you want to delete the tag{' '}
@@ -185,7 +185,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
 
       {/* Edit tag sub-modal */}
       {editingTag && (
-        <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[60]">
+        <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[80]">
           <div className="modal-panel max-w-sm w-full">
             <div
               className="px-5 py-4 border-b border-border-subtle flex justify-between items-center rounded-t-[1.25rem]"

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  ChevronDown, ChevronUp, PanelLeftClose, PanelLeftOpen, Save, Trash2, CheckSquare,
+  ChevronDown, ChevronUp, PanelLeftClose, PanelLeftOpen, Save, Trash2, CheckSquare, Rocket
 } from 'lucide-react';
 import { Task, Tag, EditTaskForm, TaskCategory } from '@/app/types/task';
 import { toLocalISOString } from '@/app/utils/dateUtils';
@@ -51,8 +51,8 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
   const [priority, setPriority]           = useState('');
   const [category, setCategory]           = useState<TaskCategory | ''>('');
   const [estimatedTime, setEstimatedTime] = useState<number | null>(null);
-  const [complexity, setComplexity]       = useState<number>(1);
   const [completed, setCompleted]         = useState(false);
+  const [sessionType, setSessionType]     = useState<'bite_size' | 'deep_work' | null>(null);
   const [tagsOpen, setTagsOpen]           = useState(false);
   const [advancedOpen, setAdvancedOpen]   = useState(false);
   const [activeTags, setActiveTags]       = useState<Tag[]>([]);
@@ -72,7 +72,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
     setPriority(task.priority !== null && task.priority !== undefined ? String(task.priority) : '');
     setCategory((task.category as TaskCategory | null | undefined) ?? '');
     setEstimatedTime(task.estimated_time ?? null);
-    setComplexity(task.complexity ?? 1);
+    setSessionType(task.session_type ?? null);
     setCompleted(task.completed);
     setActiveTags(task.tags ?? []);
     setSaveStatus('idle');
@@ -91,7 +91,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
   const scheduleAutoSave = (overrides: Partial<{
     title: string; description: string; dueDate: string; dueTime: string;
     priority: string; category: TaskCategory | ''; completed: boolean; activeTags: Tag[];
-    estimatedTime: number | null; complexity: number;
+    estimatedTime: number | null; sessionType: 'bite_size' | 'deep_work' | null;
   }> = {}) => {
     if (!task) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -105,7 +105,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
       const co = overrides.completed     ?? completed;
       const tg = overrides.activeTags    ?? activeTags;
       const et = overrides.estimatedTime !== undefined ? overrides.estimatedTime : estimatedTime;
-      const cx = overrides.complexity    ?? complexity;
+      const st = overrides.sessionType   !== undefined ? overrides.sessionType   : sessionType;
 
       const form: EditTaskForm = {
         id: task.id,
@@ -122,7 +122,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
         tags: tg,
         created_date: task.created_date,
         estimated_time: et,
-        complexity: cx,
+        session_type: st,
         parent_task_id: task.parent_task_id ?? null,
       };
       onUpdate(task.id, form);
@@ -150,7 +150,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
       tags: activeTags,
       created_date: task.created_date,
       estimated_time: estimatedTime,
-      complexity: complexity,
+      session_type: sessionType,
       parent_task_id: task.parent_task_id ?? null,
     };
 
@@ -412,6 +412,119 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
         {/* ── Detail fields ───────────────────────────────────────────────── */}
         <div className="px-6 sm:px-10 py-5 flex flex-col gap-5">
 
+          {/* Advanced Fields (collapsible) */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen(v => !v)}
+              aria-expanded={advancedOpen}
+              className="flex items-center gap-1.5 text-xs font-medium mb-2 transition-opacity hover:opacity-70"
+              style={{ color: 'var(--tm-text-muted)' }}
+            >
+              {advancedOpen
+                ? <ChevronUp className="w-3.5 h-3.5" />
+                : <ChevronDown className="w-3.5 h-3.5" />}
+              Advanced fields 
+              <Rocket className="w-3.5 h-3.5"/>
+            </button>
+
+            <div
+              className="overflow-hidden transition-all duration-200"
+              style={{ maxHeight: advancedOpen ? '800px' : '0px', opacity: advancedOpen ? 1 : 0 }}
+            >
+              <div className="flex flex-col gap-4 pt-1">
+
+                {/* Category — only shown for new tasks */}
+                {isNewTask && (
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1.5">
+                      Category
+                    </label>
+                    <select
+                      value={category}
+                      onChange={e => {
+                        const val = e.target.value as TaskCategory | '';
+                        setCategory(val);
+                        scheduleAutoSave({ category: val });
+                      }}
+                      className="w-full input-field text-sm"
+                    >
+                      <option value="">No category</option>
+                      <option value="homework">Homework</option>
+                      <option value="test">Test</option>
+                      <option value="project">Project</option>
+                      <option value="interview">Interview</option>
+                      <option value="skill">Skill</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Estimated Hours */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1.5">
+                      Estimated Hours
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={estimatedTime ?? ''}
+                      onChange={e => {
+                        const val = e.target.value === '' ? null : Number(e.target.value);
+                        setEstimatedTime(val);
+                        scheduleAutoSave({ estimatedTime: val });
+                      }}
+                      placeholder="e.g. 2.5"
+                      className="w-full input-field text-sm"
+                    />
+                    <p className="text-xs text-text-muted mt-1">Increments of 0.5 hours</p>
+                  </div>
+
+                  {/* Session Type */}
+                  {isNewTask && <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1.5">
+                      Session Type
+                    </label>
+                    <div className="flex flex-col gap-2">
+                      {([
+                        { value: 'bite_size' as const, label: 'Bite-sized steps', sub: '15–30 min per task' },
+                        { value: 'deep_work' as const, label: 'Deep work sessions', sub: '1–2 hours per task' },
+                      ] as const).map(opt => {
+                        const selected = (sessionType ?? null) === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              const next = selected ? null : opt.value;
+                              setSessionType(next);
+                              scheduleAutoSave({ sessionType: next });
+                            }}
+                            className="flex flex-col items-start gap-0.5 p-2.5 rounded-xl border text-left transition-all"
+                            style={{
+                              borderColor: selected ? 'var(--tm-accent)' : 'var(--tm-border)',
+                              backgroundColor: selected ? 'var(--tm-accent-subtle)' : 'var(--tm-surface-raised)',
+                            }}
+                          >
+                            <span
+                              className="text-xs font-semibold"
+                              style={{ color: selected ? 'var(--tm-accent)' : 'var(--tm-text-primary)' }}
+                            >
+                              {opt.label}
+                            </span>
+                            <span className="text-xs text-text-muted">{opt.sub}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>}
+                </div>
+
+              </div>
+            </div>
+          </div>
+
           {/* Priority */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1.5">
@@ -439,7 +552,9 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
                     ))}
                   </select>
                   <p className="text-xs text-text-muted mt-1">
-                    1 = highest priority. Available: {availablePriorities.join(', ')}.
+                    1 = highest priority. Available: {availablePriorities.length > 3
+                      ? `${availablePriorities[0]}, ..., ${availablePriorities[availablePriorities.length - 1]}`
+                      : availablePriorities.join(', ')}.
                   </p>
                 </>
               );
@@ -492,121 +607,6 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
                 }}
                 className="w-full input-field text-sm"
               />
-            </div>
-          </div>
-
-          {/* Advanced Fields (collapsible) */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen(v => !v)}
-              aria-expanded={advancedOpen}
-              className="flex items-center gap-1.5 text-xs font-medium mb-2 transition-opacity hover:opacity-70"
-              style={{ color: 'var(--tm-text-muted)' }}
-            >
-              {advancedOpen
-                ? <ChevronUp className="w-3.5 h-3.5" />
-                : <ChevronDown className="w-3.5 h-3.5" />}
-              Advanced fields
-            </button>
-
-            <div
-              className="overflow-hidden transition-all duration-200"
-              style={{ maxHeight: advancedOpen ? '600px' : '0px', opacity: advancedOpen ? 1 : 0 }}
-            >
-              <div className="flex flex-col gap-4 pt-1">
-
-                {/* Category — only shown for new tasks */}
-                {isNewTask && (
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1.5">
-                      Category
-                    </label>
-                    <select
-                      value={category}
-                      onChange={e => {
-                        const val = e.target.value as TaskCategory | '';
-                        setCategory(val);
-                        scheduleAutoSave({ category: val });
-                      }}
-                      className="w-full input-field text-sm"
-                    >
-                      <option value="">No category</option>
-                      <option value="homework">Homework</option>
-                      <option value="test">Test</option>
-                      <option value="project">Project</option>
-                      <option value="interview">Interview</option>
-                      <option value="skill">Skill</option>
-                    </select>
-                  </div>
-                )}
-
-                {/* Estimated Hours + Complexity */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1.5">
-                      Estimated Hours
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      value={estimatedTime ?? ''}
-                      onChange={e => {
-                        const val = e.target.value === '' ? null : Number(e.target.value);
-                        setEstimatedTime(val);
-                        scheduleAutoSave({ estimatedTime: val });
-                      }}
-                      placeholder="e.g. 2.5"
-                      className="w-full input-field text-sm"
-                    />
-                    <p className="text-xs text-text-muted mt-1">Increments of 0.5 hours</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1.5">
-                      Complexity
-                    </label>
-                    <div className="relative mt-3">
-                      <div className="h-2 rounded-full" style={{ backgroundColor: 'var(--tm-border)' }} />
-                      <div
-                        className="absolute top-0 left-0 h-2 rounded-full transition-all"
-                        style={{
-                          width: `${((complexity - 1) / 4) * 100}%`,
-                          backgroundColor: 'var(--tm-accent)',
-                        }}
-                      />
-                      <input
-                        type="range"
-                        min={1}
-                        max={5}
-                        step={1}
-                        value={complexity}
-                        onChange={e => {
-                          const val = parseInt(e.target.value);
-                          setComplexity(val);
-                          scheduleAutoSave({ complexity: val });
-                        }}
-                        className="absolute top-0 left-0 w-full h-2 appearance-none bg-transparent cursor-pointer"
-                        style={{ accentColor: 'var(--tm-accent)' }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-xs text-text-muted mt-2">
-                      <span>Very Easy</span>
-                      <span>Very Hard</span>
-                    </div>
-                    <div className="mt-2 flex justify-center">
-                      <span
-                        className="chip font-semibold text-sm px-3 py-1"
-                        style={{ backgroundColor: 'var(--tm-accent-subtle)', color: 'var(--tm-accent)' }}
-                      >
-                        Level {complexity}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
             </div>
           </div>
 

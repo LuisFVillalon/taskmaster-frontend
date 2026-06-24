@@ -3,11 +3,16 @@ import { Task } from '@/app/types/task';
 // ── Priority ───────────────────────────────────────────────────────────────────
 
 export const PRIORITY_COLORS: Record<number, { bg: string; text: string }> = {
-  1: { bg: '#dc2626', text: '#ffffff' },
-  2: { bg: '#ea580c', text: '#ffffff' },
-  3: { bg: '#f97316', text: '#ffffff' },
-  4: { bg: '#f59e0b', text: '#ffffff' },
-  5: { bg: '#eab308', text: '#ffffff' },
+  1:  { bg: '#dc2626', text: '#ffffff' }, // red
+  2:  { bg: '#ea580c', text: '#ffffff' }, // red-orange
+  3:  { bg: '#f97316', text: '#ffffff' }, // orange
+  4:  { bg: '#f59e0b', text: '#ffffff' }, // amber
+  5:  { bg: '#eab308', text: '#ffffff' }, // yellow
+  6:  { bg: '#84cc16', text: '#ffffff' }, // lime
+  7:  { bg: '#22c55e', text: '#ffffff' }, // green
+  8:  { bg: '#14b8a6', text: '#ffffff' }, // teal
+  9:  { bg: '#3b82f6', text: '#ffffff' }, // blue
+  10: { bg: '#e2e8f0', text: '#334155' }, // white/slate
 };
 
 const DEFAULT_PRIORITY_COLOR = { bg: '#2563eb', text: '#ffffff' };
@@ -16,6 +21,34 @@ const NULL_PRIORITY_COLOR = { bg: 'var(--tm-surface-raised)', text: 'var(--tm-te
 export function getPriorityStyle(priority: number | null) {
   if (priority === null) return NULL_PRIORITY_COLOR;
   return PRIORITY_COLORS[priority] ?? DEFAULT_PRIORITY_COLOR;
+}
+
+// ── Dynamic priority color ─────────────────────────────────────────────────────
+
+interface HslStop { h: number; s: number; l: number }
+
+const PRIORITY_SPECTRUM: HslStop[] = [
+  { h: 0,   s: 72, l: 50 }, // red
+  { h: 24,  s: 94, l: 53 }, // orange
+  { h: 45,  s: 93, l: 47 }, // yellow
+  { h: 142, s: 71, l: 45 }, // green
+  { h: 217, s: 91, l: 60 }, // blue
+  { h: 210, s: 30, l: 93 }, // near-white
+];
+
+function lerpHsl(a: HslStop, b: HslStop, t: number): HslStop {
+  return { h: a.h + (b.h - a.h) * t, s: a.s + (b.s - a.s) * t, l: a.l + (b.l - a.l) * t };
+}
+
+export function getPriorityColorByRank(rank: number, total: number): { bg: string; text: string } {
+  const t = total <= 1 ? 0 : rank / (total - 1);
+  const scaled = t * (PRIORITY_SPECTRUM.length - 1);
+  const i = Math.min(Math.floor(scaled), PRIORITY_SPECTRUM.length - 2);
+  const c = lerpHsl(PRIORITY_SPECTRUM[i], PRIORITY_SPECTRUM[i + 1], scaled - i);
+  return {
+    bg: `hsl(${c.h.toFixed(1)}, ${c.s.toFixed(1)}%, ${c.l.toFixed(1)}%)`,
+    text: c.l > 70 ? '#334155' : '#ffffff',
+  };
 }
 
 export function getDueDateColor(due: string | Date | null, completed: boolean): string {

@@ -7,7 +7,6 @@ export const useTaskManagerState = () => {
     active: 'asc',
     completed: 'asc',
     priority: 'asc',
-    complexity: 'asc',
     created: 'asc',
     duration: 'asc',
   });
@@ -47,7 +46,7 @@ export const useTaskManagerState = () => {
     tags: [],
     category: null,
     estimated_time: 0,
-    complexity: null,
+    session_type: null,
     created_date: '',
   });
   const [listView, setListView] = useState<'list' | 'calendar'>('list');

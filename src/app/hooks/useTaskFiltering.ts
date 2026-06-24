@@ -37,8 +37,6 @@ export const useTaskFiltering = (
             ? task.completed
             : filter === 'priority'
             ? !task.completed
-            : filter === 'complexity'
-            ? !task.completed
             : filter === 'created'
             ? true
             : filter === 'duration'
@@ -65,11 +63,6 @@ export const useTaskFiltering = (
           const pa = a.priority ?? Infinity;
           const pb = b.priority ?? Infinity;
           return (pa - pb) * dir;
-        }
-        if (filter === 'complexity') {
-          const ca = a.complexity ?? Infinity;
-          const cb = b.complexity ?? Infinity;
-          return (ca - cb) * dir;
         }
         if (filter === 'created') {
           const da = new Date(a.created_date).getTime();

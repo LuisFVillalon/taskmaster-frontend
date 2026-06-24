@@ -52,7 +52,7 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
 
   return (
     <>
-        <div className={`fixed inset-x-0 top-0 z-40 ${panelAnimationClass}`}>
+        <div className={`fixed inset-x-0 top-0 z-[60] ${panelAnimationClass}`}>
       <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 md:px-6 lg:px-8 py-4">
         <div className="card">
           <div className="flex flex-col gap-4 px-4 py-4 border-b border-border sm:flex-row sm:items-center sm:justify-between">
@@ -153,7 +153,7 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
               )}
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-              {(['all', 'active',  'priority', 'completed', 'complexity', 'duration',  'created'] as FilterType[]).map(f => (
+              {(['all', 'active',  'priority', 'completed', 'duration',  'created'] as FilterType[]).map(f => (
                 <button
                   key={f}
                   onClick={() => onFilterChange(f)}

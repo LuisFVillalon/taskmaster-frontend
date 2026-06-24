@@ -1,24 +1,36 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { useTasks, useTags } from '@/app/hooks/useTasksAndTags';
-import { Task, FilterType, Tag } from '@/app/types/task';
+import { Task, FilterType, Tag, BaseTaskForm } from '@/app/types/task';
 import { useTaskFiltering } from '@/app/hooks/useTaskFiltering';
 import { useResizableSplit } from '@/app/hooks/useResizableSplit';
 import TasksList from './TasksList';
 import TaskDetail from './TaskDetail';
 import PageSpinner from '@/app/components/common/PageSpinner';
 import DragHandle from '@/app/components/common/DragHandle';
+import NewTaskPanel from '@/app/components/task/NewTaskPanel';
+import AiSubtasksModal from '@/app/components/task/AiSubtasksModal';
+import { planTasks, PlanTasksResult, AiSubtask, createTask } from '@/app/lib/backend-api';
+
+const EMPTY_TASK_FORM: BaseTaskForm = {
+  id: 0, title: '', description: '', priority: null,
+  due_date: null, due_time: null, tags: [], category: null,
+  estimated_time: null, session_type: null, created_date: '',
+};
 
 const MIN_SIDE = 160;
 const MAX_SIDE = 560;
 const DEFAULT_SIDE = 288;
 
 const TasksView: React.FC = () => {
-  const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask } = useTasks();
+  const { tasks, isLoading, toggleComplete, addTask, setTasks, deleteTask, updateTask } = useTasks();
   const { tags } = useTags();
+  const searchParams = useSearchParams();
+  const initialSelectionApplied = useRef(false);
 
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [newTaskId, setNewTaskId]       = useState<number | null>(null);
@@ -27,13 +39,30 @@ const TasksView: React.FC = () => {
   const [searchTerm, setSearchTerm]     = useState('');
   const [filter, setFilter]             = useState<FilterType>('all');
   const [sortOrder, setSortOrder]       = useState<Record<FilterType, 'asc' | 'desc'>>({
-    all: 'asc', active: 'asc', completed: 'asc', priority: 'asc', complexity: 'asc', duration: 'asc', created: 'asc',
+    all: 'asc', active: 'asc', completed: 'asc', priority: 'asc', duration: 'asc', created: 'asc',
   });
   const [selectedTags, setSelectedTags]       = useState<Tag[]>([]);
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [leftWidth, setLeftWidth]             = useState(DEFAULT_SIDE);
   const [isResizingLeft, setIsResizingLeft]   = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // New task panel state
+  const [isCreatingNewTask, setIsCreatingNewTask] = useState(false);
+  const [newTaskForm, setNewTaskForm]             = useState<BaseTaskForm>(EMPTY_TASK_FORM);
+  const [aiPlanResult, setAiPlanResult]           = useState<PlanTasksResult | null>(null);
+
+  useEffect(() => {
+    if (initialSelectionApplied.current) return;
+    const idParam = searchParams.get('taskId');
+    if (!idParam || tasks.length === 0) return;
+    const id = parseInt(idParam, 10);
+    if (!isNaN(id) && tasks.some(t => t.id === id)) {
+      setActiveTaskId(id);
+      setMobileView('detail');
+      initialSelectionApplied.current = true;
+    }
+  }, [searchParams, tasks]);
 
   const { filteredTasks } = useTaskFiltering(tasks, filter, sortOrder, searchTerm, selectedTags);
 
@@ -65,15 +94,96 @@ const TasksView: React.FC = () => {
   const handleSelectTask = (task: Task) => {
     setActiveTaskId(task.id);
     setNewTaskId(null);
+    setIsCreatingNewTask(false);
     setMobileView('detail');
   };
 
-  const handleNewTask = async () => {
-    const created = await addTask({
-      id: 0, title: 'New Task*', description: '', priority: null,
-      due_date: null, due_time: null, tags: [], category: null, created_date: new Date(),
+  const handleNewTask = () => {
+    setNewTaskForm(EMPTY_TASK_FORM);
+    setActiveTaskId(null);
+    setIsCreatingNewTask(true);
+    setMobileView('detail');
+  };
+
+  const handleCancelNewTask = () => {
+    setIsCreatingNewTask(false);
+    setNewTaskForm(EMPTY_TASK_FORM);
+  };
+
+  // Toggle a tag on the new-task form.
+  const handleToggleModalTag = (tag: Tag) => {
+    setNewTaskForm(prev => {
+      const has = prev.tags.some(t => t.id === tag.id);
+      return { ...prev, tags: has ? prev.tags.filter(t => t.id !== tag.id) : [...prev.tags, tag] };
     });
-    if (created) { setActiveTaskId(created.id); setNewTaskId(created.id); setMobileView('detail'); }
+  };
+
+  // Regular (non-AI) task creation from the inline panel.
+  const handleSubmitNewTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const created = await addTask(newTaskForm);
+    if (created) {
+      setActiveTaskId(created.id);
+      setNewTaskId(created.id);
+      setIsCreatingNewTask(false);
+      setNewTaskForm(EMPTY_TASK_FORM);
+      setMobileView('detail');
+    }
+  };
+
+  // Smart Plan flow: call AI, persist parent task, then show subtask confirmation modal.
+  const handleSmartPlan = async (task: BaseTaskForm) => {
+    const result = await planTasks({
+      title: task.title,
+      description: task.description || undefined,
+      priority: task.priority,
+      due_date: task.due_date instanceof Date
+        ? task.due_date.toISOString().slice(0, 10)
+        : task.due_date || undefined,
+      due_time: task.due_time instanceof Date
+        ? task.due_time.toISOString().slice(11, 16)
+        : task.due_time || undefined,
+      tags: task.tags.map(t => ({ id: t.id, name: t.name, color: t.color })),
+      category: task.category ?? null,
+      estimated_time: task.estimated_time ?? null,
+      session_type: task.session_type ?? 'deep_work',
+      created_date: new Date().toISOString(),
+    });
+    // Parent task already persisted by the AI endpoint; add it to local state.
+    setTasks(prev => [result.new_task, ...prev]);
+    setAiPlanResult(result);
+    setActiveTaskId(result.new_task.id);
+    setIsCreatingNewTask(false);
+    setNewTaskForm(EMPTY_TASK_FORM);
+    setMobileView('detail');
+  };
+
+  // Save the confirmed subtasks from the AI modal.
+  const handleSaveSubtasks = async (subtasks: AiSubtask[]) => {
+    const created_date = new Date().toISOString();
+    try {
+      const saved = await Promise.all(
+        subtasks.map(s =>
+          createTask({
+            title: s.title,
+            description: s.description,
+            due_date: s.due_date ?? undefined,
+            due_time: s.due_time ?? undefined,
+            tags: s.tags.map(t => ({ name: t.name, color: t.color })),
+            category: s.category ?? null,
+            estimated_time: s.estimated_time ?? null,
+            parent_task_id: s.parent_task_id,
+            created_date,
+          }),
+        ),
+      );
+      setTasks(prev => [...saved, ...prev]);
+      setAiPlanResult(null);
+    } catch (err) {
+      console.error('Failed to save subtasks:', err);
+      alert('Failed to save subtasks. Please try again.');
+      throw err;
+    }
   };
 
   const handleDeleteTask = async (task: Task) => {
@@ -142,20 +252,48 @@ const TasksView: React.FC = () => {
               All Tasks
             </button>
 
-            <TaskDetail
-              task={activeTask}
-              allTags={tags}
-              onUpdate={updateTask}
-              onDelete={handleDeleteTask}
-              sidebarOpen={sidebarOpen}
-              onToggleSidebar={() => setSidebarOpen(v => !v)}
-              activeTaskCount={activeTaskCount}
-              usedPriorityLevels={usedPriorityLevels}
-              isNewTask={activeTaskId !== null && activeTaskId === newTaskId}
-            />
+            {isCreatingNewTask ? (
+              <NewTaskPanel
+                newTask={newTaskForm}
+                onTaskChange={setNewTaskForm}
+                tags={tags}
+                onToggleTag={handleToggleModalTag}
+                onSubmit={handleSubmitNewTask}
+                onSmartPlan={handleSmartPlan}
+                onCancel={handleCancelNewTask}
+                activeTaskCount={activeTaskCount}
+                usedPriorityLevels={usedPriorityLevels}
+                sidebarOpen={sidebarOpen}
+                onToggleSidebar={() => setSidebarOpen(v => !v)}
+              />
+            ) : (
+              <TaskDetail
+                task={activeTask}
+                allTags={tags}
+                onUpdate={updateTask}
+                onDelete={handleDeleteTask}
+                sidebarOpen={sidebarOpen}
+                onToggleSidebar={() => setSidebarOpen(v => !v)}
+                activeTaskCount={activeTaskCount}
+                usedPriorityLevels={usedPriorityLevels}
+                isNewTask={activeTaskId !== null && activeTaskId === newTaskId}
+              />
+            )}
           </div>
         </div>
       </div>
+
+      {/* AI Subtasks Confirmation Modal */}
+      {aiPlanResult && (
+        <AiSubtasksModal
+          isOpen={true}
+          parentTask={aiPlanResult.new_task}
+          subtasks={aiPlanResult.subtasks}
+          overloadWarning={aiPlanResult.overload_warning ?? null}
+          onSave={handleSaveSubtasks}
+          onDiscard={() => setAiPlanResult(null)}
+        />
+      )}
     </div>
   );
 };

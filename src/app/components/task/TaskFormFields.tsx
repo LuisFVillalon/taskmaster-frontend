@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, ChevronDown } from 'lucide-react';
+import { Calendar, Clock, ChevronDown, Rocket } from 'lucide-react';
 import { Tag, TaskCategory } from '@/app/types/task';
 
 export interface TaskFormData {
@@ -11,7 +11,7 @@ export interface TaskFormData {
   tags: Tag[];
   category?: string | null;
   estimated_time?: number | null;
-  complexity?: number | null;
+  session_type?: 'bite_size' | 'deep_work' | null;
 }
 
 interface TaskFormFieldsProps {
@@ -67,6 +67,126 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
 
   return (
     <>
+      {/* Title */}
+      <div>
+        <label className="block text-sm font-medium text-text-secondary mb-2">
+          Title <span style={{ color: 'var(--tm-danger)' }}>*</span>
+        </label>
+        <input
+          type="text"
+          required
+          value={values.title}
+          onChange={e => set({ title: e.target.value })}
+          placeholder="Enter task title"
+          className="input-field"
+        />
+      </div>      
+      
+      {/* Advanced Fields */}
+      <div className="my-[2%]">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(prev => !prev)}
+          className="flex items-center gap-1.5 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+        >
+          <ChevronDown
+            className="w-4 h-4 transition-transform duration-200"
+            style={{ transform: advancedOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          />
+          Advanced Fields
+          <Rocket className="w-4 h-4" />
+          {isAIMode && (
+            <span className="text-xs" style={{ color: 'var(--tm-accent)' }}>
+              (required for AI mode)
+            </span>
+          )}
+        </button>
+
+        {advancedOpen && (
+          <div className="mt-4 space-y-4">
+            {/* Category — only shown when parent opts in */}
+            {showCategory && (
+              <div>
+                <label className="block text-sm font-medium text-text-secondary">
+                  Select a category to enable{' '}
+                  <span style={{ color: 'var(--tm-accent)' }} className="font-semibold">Smart Plan Mode*</span>
+                </label>
+                <p className="text-xs text-text-muted mb-1">
+                  (requires estimated hours, session type, and due date & time)
+                </p>
+                <select
+                  value={values.category ?? ''}
+                  onChange={e => set({ category: e.target.value === '' ? null : e.target.value as TaskCategory })}
+                  className="input-field"
+                >
+                  <option value="">(none)</option>
+                  <option value="homework">Homework</option>
+                  <option value="test">Test</option>
+                  <option value="project">Project</option>
+                  <option value="interview">Interview</option>
+                  <option value="skill">Skill</option>
+                </select>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Estimated Hours */}
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-2">
+                  Estimated Hours<span style={{ color: isAIMode ? 'var(--tm-danger)' : '#3b82f6' }}>*</span>
+                </label>
+                <input
+                  type="number"
+                  required={isAIMode}
+                  min={isAIMode ? 0.5 : 0}
+                  step={0.5}
+                  value={values.estimated_time ?? 0}
+                  onChange={e => set({ estimated_time: Number(e.target.value) || 0 })}
+                  placeholder="e.g. 2.5"
+                  className="input-field"
+                />
+                <p className="text-xs text-text-muted mt-1">Increments of 0.5 hours</p>
+              </div>
+
+              {/* Session type */}
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-2">
+                  Session Type<span style={{ color: isAIMode ? 'var(--tm-danger)' : '#3b82f6' }}>*</span>
+                </label>
+                <div className="flex flex-col gap-2">
+                  {([
+                    { value: 'bite_size' as const, label: 'Bite-sized steps', sub: '15–30 min per task' },
+                    { value: 'deep_work' as const, label: 'Deep work sessions', sub: '1–2 hours per task' },
+                  ]).map(opt => {
+                    const selected = (values.session_type ?? 'deep_work') === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => set({ session_type: opt.value })}
+                        className="flex flex-col items-start gap-0.5 p-2.5 rounded-xl border text-left transition-all"
+                        style={{
+                          borderColor: selected ? 'var(--tm-accent)' : 'var(--tm-border)',
+                          backgroundColor: selected ? 'var(--tm-accent-subtle)' : 'var(--tm-surface-raised)',
+                        }}
+                      >
+                        <span
+                          className="text-sm font-semibold"
+                          style={{ color: selected ? 'var(--tm-accent)' : 'var(--tm-text-primary)' }}
+                        >
+                          {opt.label}
+                        </span>
+                        <span className="text-xs text-text-muted">{opt.sub}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Priority */}
       <div>
         <label className="block text-sm font-medium text-text-secondary mb-2">Priority</label>
@@ -82,24 +202,10 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
         </select>
         <p className="text-xs text-text-muted mt-1">
           1 = highest priority. Leave blank for no priority.
-          {availablePriorities.length > 0 && ` Available: ${availablePriorities.join(', ')}.`}
+          {availablePriorities.length > 0 && ` Available: ${availablePriorities.length > 3 ? `${availablePriorities[0]}, ..., ${availablePriorities[availablePriorities.length - 1]}` : availablePriorities.join(', ')}.`}
         </p>
       </div>
 
-      {/* Title */}
-      <div>
-        <label className="block text-sm font-medium text-text-secondary mb-2">
-          Title <span style={{ color: 'var(--tm-danger)' }}>*</span>
-        </label>
-        <input
-          type="text"
-          required
-          value={values.title}
-          onChange={e => set({ title: e.target.value })}
-          placeholder="Enter task title"
-          className="input-field"
-        />
-      </div>
 
       {/* Description */}
       <div>
@@ -117,7 +223,7 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-2">
-            Due Date{isAIMode && <span style={{ color: 'var(--tm-danger)' }}>*</span>}
+            Due Date{advancedOpen && <span style={{ color: isAIMode ? 'var(--tm-danger)' : '#3b82f6' }}>*</span>}
           </label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted pointer-events-none" />
@@ -190,117 +296,6 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
         )}
       </div>
 
-      {/* Advanced Fields */}
-      <div className="my-[2%]">
-        <button
-          type="button"
-          onClick={() => setShowAdvanced(prev => !prev)}
-          className="flex items-center gap-1.5 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
-        >
-          <ChevronDown
-            className="w-4 h-4 transition-transform duration-200"
-            style={{ transform: advancedOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-          />
-          Advanced Fields
-          {isAIMode && (
-            <span className="text-xs" style={{ color: 'var(--tm-accent)' }}>
-              (required for AI mode)
-            </span>
-          )}
-        </button>
-
-        {advancedOpen && (
-          <div className="mt-4 space-y-4">
-            {/* Category — only shown when parent opts in */}
-            {showCategory && (
-              <div>
-                <label className="block text-sm font-medium text-text-secondary">
-                  Select a category to enable{' '}
-                  <span style={{ color: 'var(--tm-accent)' }} className="font-semibold">AI Plan Mode</span>
-                </label>
-                <p className="text-xs text-text-muted mb-1">
-                  (requires estimated hours, complexity, and due date)
-                </p>
-                {values.category && (
-                  <p className="text-xs mb-1" style={{ color: 'var(--tm-warning)' }}>
-                    The task&apos;s category cannot be changed once the AI smart plan is created.
-                  </p>
-                )}
-                <select
-                  value={values.category ?? ''}
-                  onChange={e => set({ category: e.target.value === '' ? null : e.target.value as TaskCategory })}
-                  className="input-field"
-                >
-                  <option value="">(none)</option>
-                  <option value="homework">Homework Assignment</option>
-                  <option value="test">Test</option>
-                  <option value="project">Project</option>
-                  <option value="interview">Interview</option>
-                  <option value="skill">Skill</option>
-                </select>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              {/* Estimated Hours */}
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">
-                  Estimated Hours{isAIMode && <span style={{ color: 'var(--tm-danger)' }}>*</span>}
-                </label>
-                <input
-                  type="number"
-                  required={isAIMode}
-                  min={0}
-                  step={0.5}
-                  value={values.estimated_time ?? 0}
-                  onChange={e => set({ estimated_time: Number(e.target.value) || 0 })}
-                  placeholder="e.g. 2.5"
-                  className="input-field"
-                />
-                <p className="text-xs text-text-muted mt-1">Increments of 0.5 hours</p>
-              </div>
-
-              {/* Complexity slider */}
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-3">
-                  Complexity{isAIMode && <span style={{ color: 'var(--tm-danger)' }}>*</span>}
-                </label>
-                <div className="relative">
-                  <div className="h-2 rounded-full" style={{ backgroundColor: 'var(--tm-border)' }} />
-                  <div
-                    className="absolute top-0 left-0 h-2 rounded-full transition-all"
-                    style={{
-                      width: `${(((values.complexity ?? 1) - 1) / 4) * 100}%`,
-                      backgroundColor: 'var(--tm-accent)',
-                    }}
-                  />
-                  <input
-                    type="range"
-                    min={1} max={5} step={1}
-                    required={isAIMode}
-                    value={values.complexity ?? 1}
-                    onChange={e => set({ complexity: parseInt(e.target.value) })}
-                    className="absolute top-0 left-0 w-full h-2 appearance-none bg-transparent cursor-pointer"
-                    style={{ accentColor: 'var(--tm-accent)' }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-text-muted mt-2">
-                  <span>Very Easy</span>
-                  <span>Very Hard</span>
-                </div>
-                <div className="mt-3 flex justify-center">
-                  <span
-                    className="chip font-semibold text-sm px-3 py-1"
-                    style={{ backgroundColor: 'var(--tm-accent-subtle)', color: 'var(--tm-accent)' }}
-                  >
-                    Level {values.complexity ?? 1}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
     </>
   );
 };

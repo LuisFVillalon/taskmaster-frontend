@@ -5,7 +5,7 @@ import { useResizableSplit } from '@/app/hooks/useResizableSplit';
 import DragHandle from '@/app/components/common/DragHandle';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
-import { claimOrphanedData, createHabit, deleteHabit, updateHabit } from '@/app/lib/backend-api';
+import { claimOrphanedData, createHabit, deleteHabit, updateHabit, fetchProfile, planTasks, PlanTasksResult, AiSubtask, createTask } from '@/app/lib/backend-api';
 import { Tag, FilterType } from '@/app/types/task';
 import { useTasks, useTags } from '@/app/hooks/useTasksAndTags';
 import { useTaskManagerState } from '@/app/hooks/useTaskManagerState';
@@ -15,7 +15,7 @@ import StatsCard from '@/app/components/StatsCard';
 import TaskItem from '@/app/components/task/TaskItem';
 import { TaskControls } from '@/app/components/TaskControls';
 import NewTaskModal from '@/app/components/task/NewTaskModal';
-import EditTaskModal from '@/app/components/task/EditTaskModal';
+import AiSubtasksModal from '@/app/components/task/AiSubtasksModal';
 import CreateTagModal from '@/app/components/tag/CreateTagModal';
 import EditTagModal from '@/app/components/tag/EditTagListModal';
 import CreateHabitModal from '@/app/components/habit/CreateHabitModal';
@@ -65,6 +65,27 @@ const TaskManager: React.FC = () => {
     });
   }, [user]);
 
+  const [profileName, setProfileName] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('tm_profile_name');
+  });
+  useEffect(() => {
+    if (!user) return;
+    fetchProfile()
+      .then(p => {
+        if (p) {
+          setProfileName(p.name);
+          localStorage.setItem('tm_profile_name', p.name);
+        } else if (!profileName) {
+          setProfileName(user.email?.split('@')[0] ?? null);
+        }
+      })
+      .catch(() => {
+        if (!profileName) setProfileName(user.email?.split('@')[0] ?? null);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   const handleLogout = async () => {
     // 1. Destroy the Supabase session (clears the JWT from storage).
     await signOut();
@@ -80,10 +101,35 @@ const TaskManager: React.FC = () => {
   };
   const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks } = useTasks();
 
+  const updatePriority = async (taskId: number, priority: number | null) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    await updateTask(taskId, {
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      due_date: task.due_date ?? null,
+      due_time: task.due_time ?? null,
+      priority,
+      category: task.category ?? null,
+      completed: task.completed,
+      completed_date: task.completed_date ?? null,
+      tags: task.tags ?? [],
+      created_date: task.created_date,
+      estimated_time: task.estimated_time ?? null,
+      parent_task_id: task.parent_task_id ?? null,
+    });
+  };
+
   const occupiedPriorityLevels = useMemo(
     () => tasks
       .filter(task => !task.completed && task.priority != null)
       .map(task => task.priority as number),
+    [tasks]
+  );
+
+  const activeTaskCount = useMemo(
+    () => tasks.filter(t => !t.completed).length,
     [tasks]
   );
 
@@ -93,7 +139,10 @@ const TaskManager: React.FC = () => {
   const [showManageHabitsModal, setShowManageHabitsModal] = useState(false);
   const [createHabitFromManage, setCreateHabitFromManage] = useState(false);
   const [historyHabitId, setHistoryHabitId] = useState<number | null>(null);
-  const [taskSidebarOpen, setTaskSidebarOpen] = useState(true);
+  const [taskSidebarOpen, setTaskSidebarOpen] = useState(false);
+
+  // AI Smart Plan result — set after /plan-tasks returns, cleared on save/discard
+  const [aiPlanResult, setAiPlanResult] = useState<PlanTasksResult | null>(null);
 
   // Mobile-specific state
   const [showStats, setShowStats] = useState(false);
@@ -173,22 +222,14 @@ const TaskManager: React.FC = () => {
   }, [allNotes]);
 
   const filteredNotes = useMemo(() => {
-    let result = allNotes;
-    if (state.selectedTags.length > 0) {
-      result = result.filter(note =>
-        state.selectedTags.some(st => note.tags.some(nt => nt.id === st.id)),
-      );
-    }
-    if (state.searchTerm.trim()) {
-      const lower = state.searchTerm.toLowerCase();
-      result = result.filter(
-        note =>
-          note.title.toLowerCase().includes(lower) ||
-          note.content.replace(/<[^>]+>/g, '').toLowerCase().includes(lower),
-      );
-    }
-    return result;
-  }, [allNotes, state.selectedTags, state.searchTerm]);
+    if (!state.searchTerm.trim()) return allNotes;
+    const lower = state.searchTerm.toLowerCase();
+    return allNotes.filter(
+      note =>
+        note.title.toLowerCase().includes(lower) ||
+        note.content.replace(/<[^>]+>/g, '').toLowerCase().includes(lower),
+    );
+  }, [allNotes, state.searchTerm]);
 
   const handleDeleteHabit = async (id: number) => {
     try {
@@ -231,6 +272,62 @@ const TaskManager: React.FC = () => {
     }
   };
 
+  const handleSmartPlan = async (task: typeof state.newTask) => {
+    const result = await planTasks({
+      title: task.title,
+      description: task.description || undefined,
+      priority: task.priority,
+      due_date: task.due_date instanceof Date
+        ? task.due_date.toISOString().slice(0, 10)
+        : task.due_date || undefined,
+      due_time: task.due_time instanceof Date
+        ? task.due_time.toISOString().slice(11, 16)
+        : task.due_time || undefined,
+      tags: task.tags.map(t => ({ id: t.id, name: t.name, color: t.color })),
+      category: task.category ?? null,
+      estimated_time: task.estimated_time ?? null,
+      session_type: task.session_type ?? 'deep_work',
+      created_date: new Date().toISOString(),
+    });
+
+    // Parent task is already persisted by the AI endpoint; add it to local state.
+    setTasks(prev => [result.new_task, ...prev]);
+    setAiPlanResult(result);
+    state.setShowNewTaskModal(false);
+    state.setNewTask({
+      id: 0, title: '', description: '', priority: null,
+      due_date: '', due_time: '', tags: [], category: null,
+      estimated_time: null, session_type: null, created_date: '',
+    });
+  };
+
+  const handleSaveSubtasks = async (subtasks: AiSubtask[]) => {
+    const created_date = new Date().toISOString();
+    try {
+      const saved = await Promise.all(
+        subtasks.map(s =>
+          createTask({
+            title: s.title,
+            description: s.description,
+            due_date: s.due_date ?? undefined,
+            due_time: s.due_time ?? undefined,
+            tags: s.tags.map(t => ({ name: t.name, color: t.color })),
+            category: s.category ?? null,
+            estimated_time: s.estimated_time ?? null,
+            parent_task_id: s.parent_task_id,
+            created_date,
+          }),
+        ),
+      );
+      setTasks(prev => [...saved, ...prev]);
+      setAiPlanResult(null);
+    } catch (err) {
+      console.error('Failed to save subtasks:', err);
+      alert('Failed to save subtasks. Please try again.');
+      throw err;
+    }
+  };
+
   if (isLoading || tagsLoading) return <PageSpinner size="lg" />;
 
   return (
@@ -268,6 +365,9 @@ const TaskManager: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <span className="hidden sm:block text-xs sm:text-sm text-text-secondary whitespace-nowrap">
+                Welcome back, {profileName}
+              </span>
               <button
                 onClick={() => setShowSettings(true)}
                 className="btn px-3 py-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium w-full sm:w-auto flex items-center gap-1.5"
@@ -351,6 +451,63 @@ const TaskManager: React.FC = () => {
               <div className="split-tasks flex flex-col space-y-2 sm:space-y-3">
                 {/* Inline filter row + create button */}
                 <div className="flex items-center gap-1.5 flex-wrap">
+                  {/* Tags filter button + dropdown */}
+                  <div className="relative flex-shrink-0">
+                    <button
+                      onClick={() => state.setShowTagDropdown(prev => !prev)}
+                      className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex items-center gap-1.5 ${state.selectedTags.length > 0 ? 'btn-primary' : 'btn-secondary'}`}
+                      style={state.selectedTags.length > 0 ? { backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' } : {}}
+                    >
+                      <Filter className="w-4 h-4" />
+                      Tags
+                      {state.selectedTags.length > 0 && (
+                        <span className="text-xs rounded-full px-1.5 py-0.5 font-semibold opacity-90">
+                          {state.selectedTags.length}
+                        </span>
+                      )}
+                    </button>
+
+                    {state.showTagDropdown && (
+                      <div
+                        className="absolute z-50 top-full mt-1 left-0 w-52 rounded-xl shadow-[var(--tm-shadow-lg)] border border-border overflow-hidden"
+                        style={{ backgroundColor: 'var(--tm-surface)' }}
+                      >
+                        <button
+                          onClick={() => {
+                            state.selectedTags.forEach(tag => handlers.toggleSelectedTag(tag));
+                            state.setShowTagDropdown(false);
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-raised transition-colors"
+                        >
+                          Clear tags
+                        </button>
+                        <div className="max-h-60 overflow-y-auto">
+                          {tags.map(tag => {
+                            const checked = state.selectedTags.some(t => t.id === tag.id);
+                            return (
+                              <label
+                                key={tag.id}
+                                className="flex items-center gap-3 px-4 py-2 text-sm cursor-pointer hover:bg-surface-raised transition-colors text-text-primary"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => handlers.toggleSelectedTag(tag)}
+                                  className="accent-accent rounded"
+                                />
+                                <span
+                                  className="w-3 h-3 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: tag.color }}
+                                />
+                                <span>{tag.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
                     {(['all', 'active', 'priority'] as FilterType[]).map(f => (
                       <button
@@ -397,9 +554,9 @@ const TaskManager: React.FC = () => {
                         onToggleComplete={toggleComplete}
                         tags={tags}
                         onDeleteTask={deleteTask}
-                        onEditTaskClick={() =>
-                          state.setShowEditTaskModal({ status: true, task })
-                        }
+                        onUpdatePriority={updatePriority}
+                        activeTaskCount={activeTaskCount}
+                        occupiedPriorities={occupiedPriorityLevels}
                         compact={tasksWidthPct < 40}
                       />
                     ))}
@@ -485,21 +642,23 @@ const TaskManager: React.FC = () => {
         tags={tags}
         onToggleTag={handlers.toggleTag}
         onSubmit={handlers.handleCreateTask}
+        onSmartPlan={handleSmartPlan}
         activeTaskCount={tasks.filter(task => !task.completed).length}
         usedPriorityLevels={occupiedPriorityLevels}
       />
 
-      <EditTaskModal
-        isOpen={state.showEditTaskModal.status}
-        onClose={() => state.setShowEditTaskModal({status:false, task: null})}
-        onTaskChange={(updatedTask) => state.setShowEditTaskModal(prev => ({...prev, task: updatedTask}))}
-        tags={tags}
-        onToggleTag={handlers.toggleEditTag}
-        onSubmit={handlers.handleEditTask}
-        values={state.showEditTaskModal}
-        activeTaskCount={tasks.filter(task => !task.completed).length}
-        usedPriorityLevels={occupiedPriorityLevels}
-      />
+      {aiPlanResult && (
+        <AiSubtasksModal
+          isOpen={!!aiPlanResult}
+          parentTask={aiPlanResult.new_task}
+          subtasks={aiPlanResult.subtasks}
+          overloadWarning={aiPlanResult.overload_warning}
+          onSave={handleSaveSubtasks}
+          onDiscard={() => setAiPlanResult(null)}
+        />
+      )}
+
+
 
       <CreateTagModal
         isOpen={state.showCreateTagModal}

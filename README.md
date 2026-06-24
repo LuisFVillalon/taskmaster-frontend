@@ -35,7 +35,6 @@ src/
         EditTagListModal.tsx
         EditTagModal.tsx
       task/
-        EditTaskModal.tsx
         NewTaskModal.tsx
     hooks/
       useTaskFiltering.ts

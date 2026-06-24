@@ -92,7 +92,7 @@ const TasksList: React.FC<TasksListProps> = ({
                 </span>
               )}
             </button>
-            {(['all', 'active', 'priority', 'completed', 'complexity', 'duration', 'created'] as FilterType[]).map(f => (
+            {(['all', 'active', 'priority', 'completed', 'duration', 'created'] as FilterType[]).map(f => (
               <button
                 key={f}
                 onClick={() => onFilterChange(f)}

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ExternalLink, X } from 'lucide-react';
+import { ArrowLeft, FileSymlink, X } from 'lucide-react';
 import { Note } from '@/app/types/notes';
 import { Tag } from '@/app/types/task';
 import NoteFileIcon from './NoteFileIcon';
@@ -90,7 +90,7 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
                 aria-label="View in Notes"
                 title="View in Notes"
               >
-                <ExternalLink className="w-4 h-4" />
+                <FileSymlink className="w-4 h-4" />
               </button>
             )}
             <button
