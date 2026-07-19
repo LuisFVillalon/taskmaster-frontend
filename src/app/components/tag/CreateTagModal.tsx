@@ -15,6 +15,7 @@ These variables manage the modal state and form data for tag creation.
 import React from 'react';
 import { X } from 'lucide-react';
 import { NewTag } from '@/app/types/task';
+import { TAG_COLORS } from '@/app/lib/tagColors';
 
 interface CreateTagModalProps {
   isOpen: boolean;
@@ -23,18 +24,6 @@ interface CreateTagModalProps {
   onTagChange: (tag: NewTag) => void;
   onSubmit: (e: React.FormEvent) => void;
 }
-
-const TAG_COLORS = [
-  { label: 'Blue',   value: '#2563EB' },
-  { label: 'Green',  value: '#16A34A' },
-  { label: 'Orange', value: '#EA580C' },
-  { label: 'Red',    value: '#DC2626' },
-  { label: 'Purple', value: '#7C3AED' },
-  { label: 'Pink',   value: '#DB2777' },
-  { label: 'Yellow', value: '#D4B84A' },
-  { label: 'Black',  value: '#000000' },
-  { label: 'Gray',   value: '#374151' },
-];
 
 const CreateTagModal: React.FC<CreateTagModalProps> = ({
   isOpen,
@@ -50,7 +39,7 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
       <div className="modal-panel max-w-sm w-full">
         {/* Header */}
         <div
-          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center rounded-t-[1.25rem]"
+          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center "
           style={{ backgroundColor: 'var(--tm-surface)' }}
         >
           <h3 className="text-lg font-semibold text-text-primary">Create a Tag</h3>

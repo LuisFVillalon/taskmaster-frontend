@@ -171,7 +171,7 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
                         key={opt.value}
                         type="button"
                         onClick={() => set({ session_type: opt.value })}
-                        className="flex flex-col items-start gap-0.5 p-2.5 rounded-xl border text-left transition-all"
+                        className="flex flex-col items-start gap-0.5 p-2.5  border text-left transition-all"
                         style={{
                           borderColor: selected ? 'var(--tm-accent)' : 'var(--tm-border)',
                           backgroundColor: selected ? 'var(--tm-accent-subtle)' : 'var(--tm-surface-raised)',
@@ -264,7 +264,7 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
       <div>
         <label className="block text-sm font-medium text-text-secondary mb-2">Tags</label>
         <div
-          className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 rounded-xl border border-border max-h-48 overflow-y-auto scrollbar-custom"
+          className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4  border border-border max-h-48 overflow-y-auto scrollbar-custom"
           style={{ backgroundColor: 'var(--tm-surface-raised)' }}
         >
           {tags.map(tag => {
@@ -280,7 +280,7 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
                   border: `1px solid ${selected ? tag.color : 'var(--tm-border)'}`,
                   transform: selected ? 'scale(1)' : 'scale(0.97)',
                 }}
-                className="px-3 py-2 rounded-lg text-sm font-medium transition-all hover:scale-100 active:scale-95"
+                className="px-3 py-2  text-sm font-medium transition-all hover:scale-100 active:scale-95"
               >
                 {tag.name}
               </button>
@@ -293,7 +293,7 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
             {values.tags.map(tag => (
               <span
                 key={tag.id}
-                className="chip px-2 rounded"
+                className="chip px-2 "
                 style={{ backgroundColor: tags.find(t => t.id === tag.id)?.color ?? 'var(--tm-accent)', color: 'white' }}
               >
                 {tag.name}

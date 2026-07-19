@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
@@ -39,19 +39,17 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
   const [leftWidth, setLeftWidth]         = useState(DEFAULT_SIDE);
   const [isResizingLeft, setIsResizingLeft]   = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const initialSelectionApplied = useRef(false);
+  const [appliedUrlNoteId, setAppliedUrlNoteId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (initialSelectionApplied.current) return;
-    const idParam = searchParams.get('id');
-    if (!idParam || notes.length === 0) return;
-    const id = parseInt(idParam, 10);
-    if (!isNaN(id) && notes.some(n => n.id === id)) {
+  const urlNoteIdParam = searchParams.get('id');
+  if (urlNoteIdParam && notes.length > 0 && appliedUrlNoteId !== urlNoteIdParam) {
+    setAppliedUrlNoteId(urlNoteIdParam);
+    const id = parseInt(urlNoteIdParam, 10);
+    if (!isNaN(id) && notes.some(n => n.id === id) && activeNoteId !== id) {
       setActiveNoteId(id);
       setMobileView('editor');
-      initialSelectionApplied.current = true;
     }
-  }, [notes, searchParams]);
+  }
 
   const activeNote: Note | null = notes.find(n => n.id === activeNoteId) ?? null;
 
@@ -133,7 +131,7 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
   if (embedded) return <div className="w-full">{panel}</div>;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--tm-bg)' }}>
+    <div className="min-h-screen flex flex-col">
       <div className="max-w-7xl mx-auto w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-5 flex items-center gap-3">
         <Link href="/" className="flex items-center gap-1 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors">
           <ChevronLeft className="w-4 h-4" />

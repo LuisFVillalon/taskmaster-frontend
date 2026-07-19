@@ -80,6 +80,16 @@ const TaskItem: React.FC<TaskItemProps> = ({
   const normalizedDueTime: string | null =
     task.due_time instanceof Date ? toLocalTimeStr(task.due_time) : (task.due_time ?? null);
 
+  // Recolor the semantic status classes from taskUtils into the notebook's
+  // ink palette instead of raw tailwind red/green/yellow, which clash with
+  // the kraft/cream theme.
+  const toInkTone = (classes: string) => {
+    if (classes.includes('red')) return 'text-[var(--tm-accent-2)]';
+    if (classes.includes('yellow')) return 'text-[var(--tm-accent)]';
+    if (classes.includes('green')) return 'text-[var(--tm-success)]';
+    return 'text-text-muted';
+  };
+
   if (compact) {
     return (
       <div
@@ -90,7 +100,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
           <button
             onClick={() => onToggleComplete?.(task.id)}
             aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
-            className={`flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 ${
+            className={`flex-shrink-0 w-4 h-4  border-2 flex items-center justify-center transition-all active:scale-90 ${
               task.completed
                 ? 'border-[var(--tm-success)] bg-[var(--tm-success)]'
                 : 'border-border hover:border-accent'
@@ -148,7 +158,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
         <button
           onClick={() => onToggleComplete?.(task.id)}
           aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
-          className={`mt-0.5 sm:mt-1 flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 ${
+          className={`mt-0.5 sm:mt-1 flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6  border-2 flex items-center justify-center transition-all active:scale-90 ${
             task.completed
               ? 'border-[var(--tm-success)] bg-[var(--tm-success)]'
               : 'border-border hover:border-accent'
@@ -209,100 +219,66 @@ const TaskItem: React.FC<TaskItemProps> = ({
           </div>
 
           {task.description && (
-            <div
-              className="mb-3 rounded-lg px-3 py-2"
-              style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-            >
-              <div className="relative">
-                <p
-                  ref={descriptionRef}
-                  className={`text-xs sm:text-sm leading-relaxed ${
-                    !isDescriptionExpanded ? 'line-clamp-2 pr-20' : ''
-                  } ${
-                    task.completed ? 'line-through text-text-muted' : 'text-text-secondary'
-                  }`}
+            <div className="relative mb-3 pl-3 border-l-2 border-border-subtle">
+              <p
+                ref={descriptionRef}
+                className={`text-xs sm:text-sm leading-relaxed ${
+                  !isDescriptionExpanded ? 'line-clamp-2 pr-20' : ''
+                } ${
+                  task.completed ? 'line-through text-text-muted' : 'text-text-secondary'
+                }`}
+              >
+                {task.description}
+              </p>
+
+              {descriptionOverflows && !isDescriptionExpanded && (
+                <button
+                  type="button"
+                  onClick={() => setIsDescriptionExpanded(true)}
+                  className="absolute bottom-0 right-0 pl-2 text-[11px] font-semibold text-text-muted hover:text-text-primary transition-colors bg-surface"
+                  aria-label="Expand task description"
                 >
-                  {task.description}
-                </p>
+                  See more
+                </button>
+              )}
 
-                {descriptionOverflows && !isDescriptionExpanded && (
-                  <button
-                    type="button"
-                    onClick={() => setIsDescriptionExpanded(true)}
-                    className="absolute bottom-0 right-0 pl-2 text-[11px] font-semibold text-text-muted hover:text-text-primary transition-colors"
-                    style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-                    aria-label="Expand task description"
-                  >
-                    See more
-                  </button>
-                )}
-
-                {descriptionOverflows && isDescriptionExpanded && (
-                  <button
-                    type="button"
-                    onClick={() => setIsDescriptionExpanded(false)}
-                    className="mt-1 text-[11px] font-semibold text-text-muted hover:text-text-primary transition-colors"
-                    aria-label="Collapse task description"
-                  >
-                    See less
-                  </button>
-                )}
-              </div>
+              {descriptionOverflows && isDescriptionExpanded && (
+                <button
+                  type="button"
+                  onClick={() => setIsDescriptionExpanded(false)}
+                  className="mt-1 text-[11px] font-semibold text-text-muted hover:text-text-primary transition-colors"
+                  aria-label="Collapse task description"
+                >
+                  See less
+                </button>
+              )}
             </div>
           )}
 
           <TaskTags tags={task.tags} allTags={tags} className="mb-3" />
 
-          <div className="pt-3 border-t border-border-subtle">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs sm:text-sm">
-              <div>
-                <p className="text-text-muted font-semibold uppercase tracking-wide text-[10px] mb-1">
-                  Due
-                </p>
-                <div className={`flex flex-col gap-1 px-3 py-2 rounded-lg ${getDueColor(task.due_date)}`}>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    <span>{formatDueDate(normalizedDueDate, normalizedDueTime ?? undefined)}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    <span>{formatTime12Hour(typeof task.due_time === 'string' ? task.due_time : null)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-text-muted font-semibold uppercase tracking-wide text-[10px] mb-1">
-                  Est. Duration
-                </p>
-                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${getDurationColor(Number(task.estimated_time))}`}>
-                  <Clock className="w-4 h-4" />
-                  <span>{task.estimated_time != null ? `${task.estimated_time} hrs` : '--'}</span>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-text-muted font-semibold uppercase tracking-wide text-[10px] mb-1">
-                  Created
-                </p>
-                <div
-                  className="flex flex-col gap-1 px-3 py-2 rounded-lg text-text-secondary"
-                  style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-                >
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {new Date(task.created_date).toLocaleDateString()}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {new Date(task.created_date).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
-                </div>
-              </div>
+          <div className="pt-3 border-t border-border-subtle flex items-center gap-5 text-xs sm:text-sm">
+            <div className="flex items-center gap-1.5">
+              <Calendar className={`w-3.5 h-3.5 ${toInkTone(getDueColor(task.due_date))}`} />
+              <span className={toInkTone(getDueColor(task.due_date))}>
+                {formatDueDate(normalizedDueDate, normalizedDueTime ?? undefined)}
+                {normalizedDueTime && (
+                  <span className="text-text-muted">
+                    {' · '}
+                    {formatTime12Hour(typeof task.due_time === 'string' ? task.due_time : null)}
+                  </span>
+                )}
+              </span>
             </div>
+
+            {task.estimated_time != null && (
+              <div className="flex items-center gap-1.5">
+                <Clock className={`w-3.5 h-3.5 ${toInkTone(getDurationColor(Number(task.estimated_time)))}`} />
+                <span className={toInkTone(getDurationColor(Number(task.estimated_time)))}>
+                  {task.estimated_time} hrs
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

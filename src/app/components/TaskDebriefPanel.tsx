@@ -58,7 +58,7 @@ const TaskDebriefPanel: React.FC = () => {
             <button
               onClick={run}
               title="Refresh debrief"
-              className="p-1.5 rounded-md transition-colors hover:bg-[var(--tm-surface-raised)] disabled:opacity-60"
+              className="p-1.5  transition-colors hover:bg-[var(--tm-surface-raised)] disabled:opacity-60"
               style={{ color: 'var(--tm-accent)' }}
             >
               <RefreshCw className="w-4 h-4" />
@@ -158,13 +158,13 @@ const TaskDebriefPanel: React.FC = () => {
 function SkeletonCard() {
   return (
     <div
-      className="rounded-lg p-3 space-y-2 animate-pulse"
+      className=" p-3 space-y-2 animate-pulse"
       style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
     >
-      <div className="h-3.5 rounded w-1/2" style={{ backgroundColor: 'var(--tm-border)' }} />
-      <div className="h-2.5 rounded" style={{ backgroundColor: 'var(--tm-border)' }} />
-      <div className="h-2.5 rounded w-5/6" style={{ backgroundColor: 'var(--tm-border)' }} />
-      <div className="h-2.5 rounded w-4/6" style={{ backgroundColor: 'var(--tm-border)' }} />
+      <div className="h-3.5  w-1/2" style={{ backgroundColor: 'var(--tm-border)' }} />
+      <div className="h-2.5 " style={{ backgroundColor: 'var(--tm-border)' }} />
+      <div className="h-2.5  w-5/6" style={{ backgroundColor: 'var(--tm-border)' }} />
+      <div className="h-2.5  w-4/6" style={{ backgroundColor: 'var(--tm-border)' }} />
     </div>
   );
 }
@@ -177,7 +177,7 @@ function DebriefSection({ icon, title, items, accentColor }: { icon: React.React
 
   return (
     <div
-      className="rounded-lg p-3"
+      className=" p-3"
       style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
     >
       <div className="flex items-center gap-1.5 mb-2" style={{ color: accent }}>
@@ -187,7 +187,7 @@ function DebriefSection({ icon, title, items, accentColor }: { icon: React.React
       <ul className="space-y-1">
         {safeItems.map((item, i) => (
           <li key={i} className="flex gap-1.5 text-xs leading-relaxed text-text-secondary">
-            <span className="mt-1.5 flex-shrink-0 w-1 h-1 rounded-full" style={{ backgroundColor: accent }} />
+            <span className="mt-1.5 flex-shrink-0 w-1 h-1 " style={{ backgroundColor: accent }} />
             {item}
           </li>
         ))}

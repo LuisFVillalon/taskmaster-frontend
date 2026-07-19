@@ -12,7 +12,7 @@ const DragHandle: React.FC<DragHandleProps> = ({ onMouseDown, alwaysVisible = fa
     className={`${alwaysVisible ? 'flex' : 'hidden sm:flex'} w-2 shrink-0 items-stretch cursor-col-resize group`}
   >
     <div
-      className="mx-auto w-px rounded-full transition-colors duration-150"
+      className="mx-auto w-px  transition-colors duration-150"
       style={{ backgroundColor: 'var(--tm-border)' }}
       onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--tm-accent)')}
       onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--tm-border)')}

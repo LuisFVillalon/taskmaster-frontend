@@ -35,7 +35,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({
       <div className="flex justify-end gap-2">
         <button
           onClick={async () => { const note = await onAddNote(); onEditorChange(note); }}
-          className="px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 btn-primary"
+          className="px-3 py-1.5  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 btn-primary"
           style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
         >
           <FileText className="w-4 h-4" />
@@ -46,7 +46,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({
       {notes.length === 0 ? (
         <div className="card p-6 sm:p-8 text-center mt-2">
           <div
-            className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+            className="w-12 h-12  flex items-center justify-center mx-auto mb-3"
             style={{ backgroundColor: 'var(--tm-surface-raised)' }}
           >
             <FileText className="w-6 h-6 text-text-muted" />

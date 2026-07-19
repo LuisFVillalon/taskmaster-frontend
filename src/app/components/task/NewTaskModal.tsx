@@ -53,7 +53,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
     <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-50">
       <div className="modal-panel max-w-lg w-full max-h-[90vh] overflow-y-auto scrollbar-custom">
         <div
-          className="sticky top-0 px-6 py-4 flex items-center justify-between rounded-t-[1.25rem] border-b border-border-subtle"
+          className="sticky top-0 px-6 py-4 flex items-center justify-between  border-b border-border-subtle"
           style={{ backgroundColor: 'var(--tm-surface)' }}
         >
           <h2 className="text-xl font-bold text-text-primary">Create New Task</h2>
@@ -75,7 +75,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
           />
 
           {error && (
-            <p className="text-sm rounded-lg px-3 py-2" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--tm-danger)' }}>
+            <p className="text-sm  px-3 py-2" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--tm-danger)' }}>
               {error}
             </p>
           )}

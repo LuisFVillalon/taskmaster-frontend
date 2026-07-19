@@ -192,7 +192,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
             type="button"
             onClick={onToggleSidebar}
             title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            className="flex px-2 py-1.5 rounded-lg text-sm transition-colors"
+            className="flex px-2 py-1.5  text-sm transition-colors"
             style={{ color: 'var(--tm-text-secondary)' }}
             onMouseEnter={e => {
               (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
@@ -209,7 +209,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+              className="w-16 h-16  flex items-center justify-center mx-auto mb-4"
               style={{ backgroundColor: 'var(--tm-surface-raised)' }}
             >
               <CheckSquare className="w-8 h-8 text-text-muted" />
@@ -237,7 +237,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
           type="button"
           onClick={onToggleSidebar}
           title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-          className="hidden sm:flex px-2 py-1.5 rounded-lg text-sm transition-colors"
+          className="hidden sm:flex px-2 py-1.5  text-sm transition-colors"
           style={{ color: 'var(--tm-text-secondary)' }}
           onMouseEnter={e => {
             (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
@@ -257,7 +257,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
         <button
           type="button"
           onClick={() => handleCompletedChange(!completed)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5  text-sm font-medium transition-colors"
           style={completed ? {
             backgroundColor: 'var(--tm-success-subtle)',
             color: 'var(--tm-success)',
@@ -282,7 +282,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
             type="button"
             onClick={() => onDelete(task)}
             title="Delete task"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5  text-sm font-medium transition-colors"
             style={{ color: 'var(--tm-text-secondary)' }}
             onMouseEnter={e => {
               (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-danger-subtle)';
@@ -300,7 +300,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
           {/* Save */}
           <button
             onClick={handleSave}
-            className="btn flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg"
+            className="btn flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium "
             style={saveStatus === 'saved' ? {
               backgroundColor: 'var(--tm-success-subtle)',
               color: 'var(--tm-success)',
@@ -360,7 +360,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
                       {activeTags.slice(0, 5).map(t => (
                         <span
                           key={t.id}
-                          className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                          className="inline-block w-2 h-2  flex-shrink-0"
                           style={{ backgroundColor: t.color }}
                           title={t.name}
                         />
@@ -380,7 +380,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
               style={{ maxHeight: tagsOpen ? '160px' : '0px', opacity: tagsOpen ? 1 : 0 }}
             >
               <div
-                className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 rounded-xl border border-border max-h-36 overflow-y-auto scrollbar-custom"
+                className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4  border border-border max-h-36 overflow-y-auto scrollbar-custom"
                 style={{ backgroundColor: 'var(--tm-surface-raised)' }}
               >
                 {allTags.map(tag => {
@@ -396,7 +396,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
                         border: `1px solid ${selected ? tag.color : 'var(--tm-border)'}`,
                         transform: selected ? 'scale(1)' : 'scale(0.97)',
                       }}
-                      className="px-3 py-2 rounded-lg text-sm font-medium transition-all hover:scale-100 active:scale-95"
+                      className="px-3 py-2  text-sm font-medium transition-all hover:scale-100 active:scale-95"
                     >
                       {tag.name}
                     </button>
@@ -501,7 +501,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
                               setSessionType(next);
                               scheduleAutoSave({ sessionType: next });
                             }}
-                            className="flex flex-col items-start gap-0.5 p-2.5 rounded-xl border text-left transition-all"
+                            className="flex flex-col items-start gap-0.5 p-2.5  border text-left transition-all"
                             style={{
                               borderColor: selected ? 'var(--tm-accent)' : 'var(--tm-border)',
                               backgroundColor: selected ? 'var(--tm-accent-subtle)' : 'var(--tm-surface-raised)',

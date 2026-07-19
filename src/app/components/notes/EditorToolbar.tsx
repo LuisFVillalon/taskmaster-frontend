@@ -94,7 +94,7 @@ export const ToolbarBtn: React.FC<ToolbarBtnProps> = ({ onClick, active, title, 
       onClick();
     }}
     title={title}
-    className="px-2 py-1.5 rounded-lg text-sm transition-colors"
+    className="px-2 py-1.5  text-sm transition-colors"
     style={active ? {
       backgroundColor: 'var(--tm-accent-subtle)',
       color: 'var(--tm-accent)',
@@ -145,7 +145,7 @@ const HighlightPicker: React.FC<{ editor: Editor | null }> = ({ editor }) => {
 
       {open && (
         <div
-          className="absolute top-full left-0 mt-1.5 p-2 rounded-xl shadow-lg z-50 flex items-center gap-1.5"
+          className="absolute top-full left-0 mt-1.5 p-2  shadow-lg z-50 flex items-center gap-1.5"
           style={{
             backgroundColor: 'var(--tm-surface-raised)',
             border: '1px solid var(--tm-border)',
@@ -167,7 +167,7 @@ const HighlightPicker: React.FC<{ editor: Editor | null }> = ({ editor }) => {
                   setOpen(false);
                 }}
                 title={label}
-                className="w-6 h-6 rounded-md transition-transform hover:scale-110 active:scale-95"
+                className="w-6 h-6  transition-transform hover:scale-110 active:scale-95"
                 style={{
                   backgroundColor: color,
                   outline: isActive ? '2px solid var(--tm-accent)' : '2px solid transparent',
@@ -187,7 +187,7 @@ const HighlightPicker: React.FC<{ editor: Editor | null }> = ({ editor }) => {
               setOpen(false);
             }}
             title="Remove highlight"
-            className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold transition-colors"
+            className="w-6 h-6  flex items-center justify-center text-xs font-bold transition-colors"
             style={{
               color: 'var(--tm-text-muted)',
               border: '1px solid var(--tm-border)',
@@ -233,7 +233,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           type="button"
           onClick={onToggleSidebar}
           title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-          className="hidden sm:flex px-2 py-1.5 rounded-lg text-sm transition-colors"
+          className="hidden sm:flex px-2 py-1.5  text-sm transition-colors"
           style={{ color: 'var(--tm-text-secondary)' }}
           onMouseEnter={e => {
             (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';

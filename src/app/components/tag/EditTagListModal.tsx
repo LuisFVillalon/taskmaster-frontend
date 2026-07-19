@@ -19,6 +19,7 @@ These variables handle the state for editing and deleting tags within the modal.
 import React, { useState } from 'react';
 import { X, Trash2, Pencil, FolderPlus } from 'lucide-react';
 import { Tag } from '@/app/types/task';
+import { TAG_COLORS } from '@/app/lib/tagColors';
 
 interface EditTagModalProps {
   isOpen: boolean;
@@ -28,18 +29,6 @@ interface EditTagModalProps {
   onEditTag?: (tag: Tag) => void;
   onCreateTag?: () => void;
 }
-
-const TAG_COLORS = [
-  { label: 'Blue',   value: '#2563EB' },
-  { label: 'Green',  value: '#16A34A' },
-  { label: 'Orange', value: '#EA580C' },
-  { label: 'Red',    value: '#DC2626' },
-  { label: 'Purple', value: '#7C3AED' },
-  { label: 'Pink',   value: '#DB2777' },
-  { label: 'Yellow', value: '#D4B84A' },
-  { label: 'Black',  value: '#000000' },
-  { label: 'Gray',   value: '#374151' },
-];
 
 const EditTagModal: React.FC<EditTagModalProps> = ({
   isOpen,
@@ -88,7 +77,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
       <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[70]">
         <div className="modal-panel max-w-sm w-full">
           <div
-            className="px-5 py-4 border-b border-border-subtle flex justify-between items-center rounded-t-[1.25rem]"
+            className="px-5 py-4 border-b border-border-subtle flex justify-between items-center "
             style={{ backgroundColor: 'var(--tm-surface)' }}
           >
             <h3 className="text-lg font-semibold text-text-primary">Manage Tags</h3>
@@ -96,7 +85,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
               {onCreateTag && (
                 <button
                   onClick={onCreateTag}
-                  className="px-3 py-1.5 rounded-xl font-medium text-sm flex items-center gap-1.5 btn-primary"
+                  className="px-3 py-1.5  font-medium text-sm flex items-center gap-1.5 btn-primary"
                   style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
                 >
                   <FolderPlus className="w-4 h-4" />
@@ -114,7 +103,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                 <div key={t.id} className="relative group">
                   <div
                     style={{ backgroundColor: t.color }}
-                    className="px-4 py-3 rounded-xl shadow-sm text-white font-medium text-sm text-center transition-all group-hover:shadow-md"
+                    className="px-4 py-3  shadow-sm text-white font-medium text-sm text-center transition-all group-hover:shadow-md"
                   >
                     {t.name}
                   </div>
@@ -122,7 +111,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                   <button
                     type="button"
                     onClick={(e) => handleEditClick(t, e)}
-                    className="absolute -top-2 -left-2 p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:scale-110 shadow-lg"
+                    className="absolute -top-2 -left-2 p-1.5  text-white opacity-0 group-hover:opacity-100 transition-all hover:scale-110 shadow-lg"
                     style={{ backgroundColor: 'var(--tm-accent)' }}
                     title="Edit tag"
                     aria-label={`Edit ${t.name}`}
@@ -133,7 +122,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                   <button
                     type="button"
                     onClick={(e) => handleDeleteClick(t, e)}
-                    className="absolute -top-2 -right-2 p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:scale-110 shadow-lg"
+                    className="absolute -top-2 -right-2 p-1.5  text-white opacity-0 group-hover:opacity-100 transition-all hover:scale-110 shadow-lg"
                     style={{ backgroundColor: 'var(--tm-danger)' }}
                     title="Delete tag"
                     aria-label={`Delete ${t.name}`}
@@ -188,7 +177,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
         <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[80]">
           <div className="modal-panel max-w-sm w-full">
             <div
-              className="px-5 py-4 border-b border-border-subtle flex justify-between items-center rounded-t-[1.25rem]"
+              className="px-5 py-4 border-b border-border-subtle flex justify-between items-center "
               style={{ backgroundColor: 'var(--tm-surface)' }}
             >
               <h3 className="text-lg font-semibold text-text-primary">Edit Tag</h3>
@@ -221,7 +210,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                   </select>
                   <div
                     style={{ backgroundColor: editedColor }}
-                    className="w-10 h-10 rounded-lg border border-border flex-shrink-0"
+                    className="w-10 h-10  border border-border flex-shrink-0"
                   />
                 </div>
               </div>

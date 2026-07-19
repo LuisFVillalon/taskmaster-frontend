@@ -48,11 +48,11 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
 
   return (
     <div
-      className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm rounded-[inherit]"
+      className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm "
       onClick={isEditorView ? undefined : onClose}
     >
       <div
-        className={`relative rounded-xl shadow-2xl bg-[var(--tm-surface)] border border-[var(--tm-border)] flex flex-col overflow-hidden
+        className={`relative  shadow-2xl bg-[var(--tm-surface)] border border-[var(--tm-border)] flex flex-col overflow-hidden
           ${isEditorView ? 'w-[95%] h-[90%]' : 'w-[90%]'}`}
         onClick={e => e.stopPropagation()}
       >
@@ -62,14 +62,14 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
             {isEditorView ? (
               <button
                 onClick={() => setSelectedNote(null)}
-                className="btn btn-ghost p-1 rounded-md"
+                className="btn btn-ghost p-1 "
                 aria-label="Back to folder"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
             ) : (
               <span
-                className="inline-block w-3 h-3 rounded-full"
+                className="inline-block w-3 h-3 "
                 style={{ backgroundColor: tag.color }}
               />
             )}
@@ -86,7 +86,7 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
             {isEditorView && (
               <button
                 onClick={() => { router.push(`/notes?id=${selectedNote!.id}`); onClose(); }}
-                className="btn btn-ghost p-1 rounded-md"
+                className="btn btn-ghost p-1 "
                 aria-label="View in Notes"
                 title="View in Notes"
               >
@@ -95,7 +95,7 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
             )}
             <button
               onClick={onClose}
-              className="btn btn-ghost p-1 rounded-md"
+              className="btn btn-ghost p-1 "
               aria-label="Close"
             >
               <X className="w-4 h-4" />

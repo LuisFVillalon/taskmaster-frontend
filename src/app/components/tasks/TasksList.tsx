@@ -79,13 +79,13 @@ const TasksList: React.FC<TasksListProps> = ({
           <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
             <button
               onClick={onTagDropdownToggle}
-              className="px-2.5 py-1 rounded-lg text-sm font-medium whitespace-nowrap flex-shrink-0 flex items-center gap-1 btn-secondary"
+              className="px-2.5 py-1  text-sm font-medium whitespace-nowrap flex-shrink-0 flex items-center gap-1 btn-secondary"
             >
               <Filter className="w-3 h-3" />
               Tags
               {selectedTags.length > 0 && (
                 <span
-                  className="ml-0.5 text-xs rounded-full px-1.5 font-semibold"
+                  className="ml-0.5 text-xs  px-1.5 font-semibold"
                   style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
                 >
                   {selectedTags.length}
@@ -96,7 +96,7 @@ const TasksList: React.FC<TasksListProps> = ({
               <button
                 key={f}
                 onClick={() => onFilterChange(f)}
-                className={`px-2.5 py-1 rounded-lg text-sm font-medium whitespace-nowrap flex-shrink-0 flex items-center gap-1 ${
+                className={`px-2.5 py-1  text-sm font-medium whitespace-nowrap flex-shrink-0 flex items-center gap-1 ${
                   filter === f ? 'btn-primary' : 'btn-secondary'
                 }`}
                 style={filter === f ? { backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' } : {}}
@@ -109,7 +109,7 @@ const TasksList: React.FC<TasksListProps> = ({
 
           {showTagDropdown && (
             <div
-              className="absolute z-50 left-0 top-full mt-1 w-52 rounded-xl shadow-lg border border-border overflow-hidden"
+              className="absolute z-50 left-0 top-full mt-1 w-52  shadow-lg border border-border overflow-hidden"
               style={{ backgroundColor: 'var(--tm-surface)' }}
             >
               <button
@@ -133,10 +133,10 @@ const TasksList: React.FC<TasksListProps> = ({
                         type="checkbox"
                         checked={checked}
                         onChange={() => onTagToggle(tag)}
-                        className="accent-accent rounded"
+                        className="accent-accent "
                       />
                       <span
-                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        className="w-3 h-3  flex-shrink-0"
                         style={{ backgroundColor: tag.color }}
                       />
                       <span>{tag.name}</span>
@@ -176,7 +176,7 @@ const TasksList: React.FC<TasksListProps> = ({
         {tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <div
-              className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
+              className="w-12 h-12  flex items-center justify-center mb-3"
               style={{ backgroundColor: 'var(--tm-surface-raised)' }}
             >
               <CheckSquare className="w-6 h-6 text-text-muted" />

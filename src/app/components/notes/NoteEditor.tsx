@@ -497,7 +497,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               type="button"
               onClick={onToggleSidebar}
               title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-              className="flex px-2 py-1.5 rounded-lg text-sm transition-colors"
+              className="flex px-2 py-1.5  text-sm transition-colors"
               style={{ color: 'var(--tm-text-secondary)' }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
@@ -515,7 +515,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+              className="w-16 h-16  flex items-center justify-center mx-auto mb-4"
               style={{ backgroundColor: 'var(--tm-surface-raised)' }}
             >
               <FileText className="w-8 h-8 text-text-muted" />
@@ -544,7 +544,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               type="button"
               onClick={handleGetResources}
               title={resourcesOpen ? 'Close resources panel' : 'Get AI learning resources'}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5  text-sm font-medium transition-colors"
               style={{
                 color: resourcesOpen ? 'var(--tm-accent)' : 'var(--tm-text-secondary)',
                 backgroundColor: resourcesOpen ? 'var(--tm-accent-subtle)' : undefined,
@@ -568,7 +568,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               onClick={handleDownloadPDF}
               disabled={pdfLoading}
               title="Download as PDF"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5  text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ color: 'var(--tm-text-secondary)' }}
               onMouseEnter={e => {
                 if (!pdfLoading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
@@ -645,7 +645,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                         {note.tags.slice(0, 5).map(t => (
                           <span
                             key={t.id}
-                            className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                            className="inline-block w-2 h-2  flex-shrink-0"
                             style={{ backgroundColor: t.color }}
                             title={t.name}
                           />
@@ -665,7 +665,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                 style={{ maxHeight: tagsOpen ? '160px' : '0px', opacity: tagsOpen ? 1 : 0 }}
               >
                 <div
-                  className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 rounded-xl border border-border max-h-36 overflow-y-auto scrollbar-custom"
+                  className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4  border border-border max-h-36 overflow-y-auto scrollbar-custom"
                   style={{ backgroundColor: 'var(--tm-surface-raised)' }}
                 >
                   {allTags.map(tag => {
@@ -681,7 +681,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                           border: `1px solid ${selected ? tag.color : 'var(--tm-border)'}`,
                           transform: selected ? 'scale(1)' : 'scale(0.97)',
                         }}
-                        className="px-3 py-2 rounded-lg text-sm font-medium transition-all hover:scale-100 active:scale-95"
+                        className="px-3 py-2  text-sm font-medium transition-all hover:scale-100 active:scale-95"
                       >
                         {tag.name}
                       </button>
@@ -720,7 +720,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                   <span className="text-sm font-semibold" style={{ color: 'var(--tm-text-primary)' }}>Learning Resources</span>
                 </div>
                 {resourcesData?.topic && (
-                  <div className="flex justify-start items-center gap-1 pr-2 py-0.5 rounded-full w-fit" style={{ backgroundColor: 'var(--tm-accent-subtle)' }}>
+                  <div className="flex justify-start items-center gap-1 pr-2 py-0.5  w-fit" style={{ backgroundColor: 'var(--tm-accent-subtle)' }}>
                     <p className='text-xs'>Context caught: </p>
                     <span className="text-sm font-medium" style={{ color: 'var(--tm-accent)' }}>{resourcesData.topic}</span>
                   </div>
@@ -729,7 +729,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               <button
                 type="button"
                 onClick={() => setResourcesOpen(false)}
-                className="p-1 rounded-lg transition-colors"
+                className="p-1  transition-colors"
                 style={{ color: 'var(--tm-text-secondary)' }}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--tm-surface)')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = '')}
@@ -753,7 +753,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                   <button
                     type="button"
                     onClick={handleGetResources}
-                    className="text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
+                    className="text-sm font-medium px-3 py-1.5  transition-colors"
                     style={{ color: 'var(--tm-accent)', backgroundColor: 'var(--tm-accent-subtle)' }}
                   >
                     Retry
@@ -769,13 +769,13 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                       href={r.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex flex-col gap-1.5 p-3 rounded-xl border transition-all hover:shadow-sm"
+                      className="flex flex-col gap-1.5 p-3  border transition-all hover:shadow-sm"
                       style={{ border: '1px solid var(--tm-border)', backgroundColor: 'var(--tm-surface)' }}
                       onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--tm-accent)')}
                       onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--tm-border)')}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: 'var(--tm-accent-subtle)', color: 'var(--tm-accent)' }}>
+                        <span className="text-xs font-medium px-2 py-0.5  shrink-0" style={{ backgroundColor: 'var(--tm-accent-subtle)', color: 'var(--tm-accent)' }}>
                           {r.activity_label} · {r.platform}
                         </span>
                         <Link2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--tm-text-muted)' }} />
@@ -794,7 +794,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       {/* ── Toasts ───────────────────────────────────────────────────────── */}
       {emptyToast && (
         <div
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl text-sm font-medium shadow-lg pointer-events-none"
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2  text-sm font-medium shadow-lg pointer-events-none"
           style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
         >
           Note is empty — add some content first.
@@ -802,7 +802,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       )}
       {pdfError && (
         <div
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl text-sm font-medium shadow-lg pointer-events-none"
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2  text-sm font-medium shadow-lg pointer-events-none"
           style={{ backgroundColor: 'var(--tm-danger-subtle)', color: 'var(--tm-danger)', border: '1px solid var(--tm-danger)' }}
         >
           PDF export failed — please try again.

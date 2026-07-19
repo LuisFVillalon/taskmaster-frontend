@@ -56,15 +56,15 @@ const PasswordAuth: React.FC<PasswordAuthProps> = ({ onAuthenticated }) => {
     }
 
     // Store authentication in localStorage
-    localStorage.setItem('taskmaster_authenticated', 'true');
-    localStorage.setItem('taskmaster_demo', isDemo ? 'true' : 'false');
+    localStorage.setItem('onetab_authenticated', 'true');
+    localStorage.setItem('onetab_demo', isDemo ? 'true' : 'false');
     onAuthenticated(isDemo);
 
     setIsLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="max-w-md w-full animate-slide-up">
         <div className="card p-8">
           <div className="text-center mb-8">
@@ -76,7 +76,7 @@ const PasswordAuth: React.FC<PasswordAuthProps> = ({ onAuthenticated }) => {
                 height={120}
               />
             </div>
-            <h1 className="text-2xl font-bold text-text-primary mb-2">TaskMaster</h1>
+            <h1 className="text-2xl font-bold text-text-primary mb-2">OneTab</h1>
             <p className="text-text-secondary text-sm">Type &quot;recruiter&quot; to try the demo</p>
           </div>
 
@@ -112,7 +112,7 @@ const PasswordAuth: React.FC<PasswordAuthProps> = ({ onAuthenticated }) => {
             </div>
 
             {error && (
-              <div className="text-sm text-center px-3 py-2.5 rounded-xl"
+              <div className="text-sm text-center px-3 py-2.5 "
                 style={{ color: 'var(--tm-danger)', backgroundColor: 'var(--tm-danger-subtle)' }}>
                 {error}
               </div>

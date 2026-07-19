@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
@@ -30,7 +30,6 @@ const TasksView: React.FC = () => {
   const { tasks, isLoading, toggleComplete, addTask, setTasks, deleteTask, updateTask } = useTasks();
   const { tags } = useTags();
   const searchParams = useSearchParams();
-  const initialSelectionApplied = useRef(false);
 
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [newTaskId, setNewTaskId]       = useState<number | null>(null);
@@ -51,18 +50,17 @@ const TasksView: React.FC = () => {
   const [isCreatingNewTask, setIsCreatingNewTask] = useState(false);
   const [newTaskForm, setNewTaskForm]             = useState<BaseTaskForm>(EMPTY_TASK_FORM);
   const [aiPlanResult, setAiPlanResult]           = useState<PlanTasksResult | null>(null);
+  const [appliedUrlTaskId, setAppliedUrlTaskId]   = useState<string | null>(null);
 
-  useEffect(() => {
-    if (initialSelectionApplied.current) return;
-    const idParam = searchParams.get('taskId');
-    if (!idParam || tasks.length === 0) return;
-    const id = parseInt(idParam, 10);
-    if (!isNaN(id) && tasks.some(t => t.id === id)) {
+  const urlTaskIdParam = searchParams.get('taskId');
+  if (urlTaskIdParam && tasks.length > 0 && appliedUrlTaskId !== urlTaskIdParam) {
+    setAppliedUrlTaskId(urlTaskIdParam);
+    const id = parseInt(urlTaskIdParam, 10);
+    if (!isNaN(id) && tasks.some(t => t.id === id) && activeTaskId !== id) {
       setActiveTaskId(id);
       setMobileView('detail');
-      initialSelectionApplied.current = true;
     }
-  }, [searchParams, tasks]);
+  }
 
   const { filteredTasks } = useTaskFiltering(tasks, filter, sortOrder, searchTerm, selectedTags);
 
@@ -198,7 +196,7 @@ const TasksView: React.FC = () => {
   if (isLoading) return <PageSpinner />;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--tm-bg)' }}>
+    <div className="min-h-screen flex flex-col">
       <div className="max-w-7xl mx-auto w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-5 flex items-center gap-3">
         <Link href="/" className="flex items-center gap-1 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors">
           <ChevronLeft className="w-4 h-4" />

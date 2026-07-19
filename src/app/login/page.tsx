@@ -44,7 +44,7 @@ export default function LoginPage() {
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-bold text-text-primary">Welcome back</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--tm-text-muted)' }}>
-          Sign in to your Task Master account
+          Sign in to your OneTab account
         </p>
       </div>
 
@@ -66,14 +66,14 @@ export default function LoginPage() {
         />
 
         {error && (
-          <p className="text-sm rounded-xl px-3 py-2" style={{ color: 'var(--tm-danger)', backgroundColor: 'var(--tm-danger-subtle, #fee2e2)' }}>
+          <p className="text-sm  px-3 py-2" style={{ color: 'var(--tm-danger)', backgroundColor: 'var(--tm-danger-subtle, #fee2e2)' }}>
             {error}
           </p>
         )}
 
         <button
           type="submit" disabled={loading}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-2 py-2.5  text-sm font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}

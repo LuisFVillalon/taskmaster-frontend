@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Archivo, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const archivo = Archivo({
+  variable: "--font-heading",
+  weight: ["400", "500", "700"],
   subsets: ["latin"],
 });
 
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Task Master",
-  description: "Manage your work, stay productive",
+  title: "OneTab",
+  description: "One notebook. One tab.",
 };
 
 export default function RootLayout({
@@ -30,7 +31,7 @@ export default function RootLayout({
      * mismatch between server-rendered HTML and the client DOM.
      */
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${archivo.variable} ${geistMono.variable} antialiased`}>
         {/*
          * Anti-flash script — runs synchronously before the first paint.
          * Reads the stored theme preference (or OS default) and sets .dark on
@@ -39,7 +40,29 @@ export default function RootLayout({
          */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=localStorage.getItem('taskmaster_theme');var d=s==='dark'||(!s&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark')}catch(e){}})()`,
+            __html: `(function(){try{var s=localStorage.getItem('onetab_theme');var d=s==='dark'||(!s&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark')}catch(e){}})()`,
+          }}
+        />
+        {/*
+         * Same anti-flash approach, but for the user's chosen accent color
+         * (Settings → Appearance). Mirrors the luminance check in
+         * src/app/lib/theme.ts so the correct --tm-accent-text is set before
+         * first paint.
+         */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var c=localStorage.getItem('tm_theme_accent');if(!c)return;var s=document.documentElement.style;s.setProperty('--tm-accent',c);s.setProperty('--tm-accent-hover','color-mix(in srgb, '+c+' 72%, black)');s.setProperty('--tm-accent-subtle','color-mix(in srgb, '+c+' 16%, var(--tm-surface))');var r=parseInt(c.slice(1,3),16)/255,g=parseInt(c.slice(3,5),16)/255,b=parseInt(c.slice(5,7),16)/255;var lin=function(v){return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)};var lum=0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b);s.setProperty('--tm-accent-text',lum>0.45?'#2B2620':'#FBF8EE')}catch(e){}})()`,
+          }}
+        />
+        {/*
+         * Same anti-flash approach, but for the user's chosen notebook page
+         * ruling (Settings → Appearance). Stamps data-page-style on <html>
+         * before first paint so the correct background pattern is active
+         * from the start — see the [data-page-style] selectors in globals.css.
+         */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var p=localStorage.getItem('tm_page_style');if(p)document.documentElement.setAttribute('data-page-style',p)}catch(e){}})()`,
           }}
         />
         <AuthProvider>{children}</AuthProvider>

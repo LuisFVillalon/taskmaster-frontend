@@ -61,7 +61,7 @@ const NewTaskPanel: React.FC<NewTaskPanelProps> = ({
           type="button"
           onClick={onToggleSidebar}
           title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-          className="hidden sm:flex px-2 py-1.5 rounded-lg text-sm transition-colors"
+          className="hidden sm:flex px-2 py-1.5  text-sm transition-colors"
           style={{ color: 'var(--tm-text-secondary)' }}
           onMouseEnter={e => {
             (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
@@ -84,7 +84,7 @@ const NewTaskPanel: React.FC<NewTaskPanelProps> = ({
             type="button"
             onClick={onCancel}
             disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5  text-sm font-medium transition-colors"
             style={{ color: 'var(--tm-text-secondary)' }}
             onMouseEnter={e => {
               (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
@@ -100,7 +100,7 @@ const NewTaskPanel: React.FC<NewTaskPanelProps> = ({
             type="submit"
             form="new-task-panel-form"
             disabled={isLoading}
-            className="btn btn-primary flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg"
+            className="btn btn-primary flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium "
           >
             {isLoading ? (
               <>
@@ -135,7 +135,7 @@ const NewTaskPanel: React.FC<NewTaskPanelProps> = ({
 
           {error && (
             <p
-              className="text-sm rounded-lg px-3 py-2"
+              className="text-sm  px-3 py-2"
               style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--tm-danger)' }}
             >
               {error}

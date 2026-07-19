@@ -31,7 +31,7 @@ const formatDate = (date: Date): string =>
 /** Single pulsing placeholder block. All skeleton shapes are built from this. */
 const Bone: React.FC<{ className?: string }> = ({ className = '' }) => (
   <div
-    className={`animate-pulse rounded-lg ${className}`}
+    className={`animate-pulse  ${className}`}
     style={{ backgroundColor: 'var(--tm-border-subtle)' }}
   />
 );
@@ -53,7 +53,7 @@ const BigPictureCalendarSkeleton: React.FC = () => (
 
     {/* Current Date box */}
     <div
-      className="mb-5 p-4 rounded-xl border border-border-subtle"
+      className="mb-5 p-4  border border-border-subtle"
       style={{ backgroundColor: 'var(--tm-surface-raised)' }}
     >
       <Bone className="h-3 w-20 mb-2" />
@@ -72,7 +72,7 @@ const BigPictureCalendarSkeleton: React.FC = () => (
 
     {/* Progress card */}
     <div
-      className="p-5 rounded-xl border-2 border-border"
+      className="p-5  border-2 border-border"
       style={{ backgroundColor: 'var(--tm-surface-raised)' }}
     >
       <div className="flex justify-between items-start mb-4">
@@ -90,7 +90,7 @@ const BigPictureCalendarSkeleton: React.FC = () => (
         {[0, 1].map(i => (
           <div
             key={i}
-            className="p-3 rounded-lg"
+            className="p-3 "
             style={{ backgroundColor: 'var(--tm-surface)' }}
           >
             <Bone className="h-3 w-28 mb-2.5" />
@@ -100,7 +100,7 @@ const BigPictureCalendarSkeleton: React.FC = () => (
       </div>
 
       {/* Progress bar */}
-      <Bone className="h-3 w-full rounded-full mb-1.5" />
+      <Bone className="h-3 w-full  mb-1.5" />
       <Bone className="h-3 w-16 mx-auto" />
     </div>
   </div>
@@ -286,16 +286,16 @@ const BigPictureCalendar: React.FC = () => {
         )}
       </div>
 
-      {/* ── Current Date ───────────────────────────────────────────────── */}
+      {/* ── Current Date ───────────────────────────────────────────── */}
       <div
-        className="mb-5 p-4 rounded-xl border border-border-subtle"
+        className="mb-5 p-4  border border-border-subtle"
         style={{ backgroundColor: 'var(--tm-surface-raised)' }}
       >
         <p className="text-sm text-text-muted">Current Date</p>
         <p className="text-xl font-semibold text-text-primary">{formatDate(currentDate)}</p>
       </div>
 
-      {/* ── Date Range Inputs ──────────────────────────────────────────── */}
+      {/* ── Date Range Inputs ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         <div>
           <label className="block text-xs text-text-muted mb-1">Start Date</label>
@@ -317,10 +317,10 @@ const BigPictureCalendar: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Progress Card ─────────────────────────────────────────────── */}
+      {/* ── Progress Card ────────────────────────────────────────── */}
       {progress ? (
         <div
-          className="p-5 rounded-xl border-2"
+          className="p-5  border-2"
           style={{
             backgroundColor: 'var(--tm-accent-subtle)',
             borderColor: 'var(--tm-accent)',
@@ -343,14 +343,14 @@ const BigPictureCalendar: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div
-              className="p-3 rounded-lg"
+              className="p-3 "
               style={{ backgroundColor: 'var(--tm-surface)' }}
             >
               <p className="text-xs text-text-muted font-medium">Days Into Period</p>
               <p className="text-2xl font-bold text-text-primary">{progress.daysInto}</p>
             </div>
             <div
-              className="p-3 rounded-lg"
+              className="p-3 "
               style={{ backgroundColor: 'var(--tm-surface)' }}
             >
               <p className="text-xs text-text-muted font-medium">Days Remaining</p>
@@ -360,11 +360,11 @@ const BigPictureCalendar: React.FC = () => {
 
           {/* Progress Bar */}
           <div
-            className="w-full rounded-full h-3"
+            className="w-full  h-3"
             style={{ backgroundColor: 'var(--tm-surface)' }}
           >
             <div
-              className="h-3 rounded-full transition-all duration-500"
+              className="h-3  transition-all duration-500"
               style={{
                 width: `${progress.pct}%`,
                 backgroundColor: 'var(--tm-accent)',
@@ -377,7 +377,7 @@ const BigPictureCalendar: React.FC = () => {
         </div>
       ) : (
         <div
-          className="p-5 rounded-xl border-2 border-border"
+          className="p-5  border-2 border-border"
           style={{ backgroundColor: 'var(--tm-surface-raised)' }}
         >
           <div className="flex items-center gap-2 mb-1">

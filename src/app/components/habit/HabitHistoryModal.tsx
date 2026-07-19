@@ -86,7 +86,7 @@ const HabitHistoryModal: React.FC<HabitHistoryModalProps> = ({ habit, onClose, o
       <div className="modal-panel max-w-sm w-full">
         {/* Header */}
         <div
-          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center rounded-t-[1.25rem]"
+          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center "
           style={{ backgroundColor: 'var(--tm-surface)' }}
         >
           <div>
@@ -147,7 +147,7 @@ const HabitHistoryModal: React.FC<HabitHistoryModalProps> = ({ habit, onClose, o
                       title={dateStr}
                       aria-label={`${dateStr}${isLogged ? ' (logged)' : ''}`}
                       aria-pressed={isLogged}
-                      className="relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all hover:opacity-80 active:scale-95"
+                      className="relative aspect-square  flex flex-col items-center justify-center transition-all hover:opacity-80 active:scale-95"
                       style={{
                         backgroundColor: isLogged
                           ? 'var(--tm-accent)'

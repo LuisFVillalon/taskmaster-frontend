@@ -7,7 +7,7 @@ export const useClaimOrphanedData = (user: User | null): void => {
 
   useEffect(() => {
     if (!user || claimRan.current) return;
-    const flagKey = `taskmaster_claimed_${user.id}`;
+    const flagKey = `onetab_claimed_${user.id}`;
     if (localStorage.getItem(flagKey)) return;
     claimRan.current = true;
 

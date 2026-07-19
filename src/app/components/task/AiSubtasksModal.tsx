@@ -64,7 +64,7 @@ const AiSubtasksModal: React.FC<AiSubtasksModalProps> = ({
       <div className="modal-panel max-w-xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div
-          className="sticky top-0 px-6 py-4 flex items-center justify-between rounded-t-[1.25rem] border-b border-border-subtle flex-shrink-0"
+          className="sticky top-0 px-6 py-4 flex items-center justify-between  border-b border-border-subtle flex-shrink-0"
           style={{ backgroundColor: 'var(--tm-surface)' }}
         >
           <div className="flex items-center gap-2">
@@ -84,7 +84,7 @@ const AiSubtasksModal: React.FC<AiSubtasksModalProps> = ({
           {/* Overload warning */}
           {overloadWarning && (
             <div
-              className="flex items-start gap-3 px-4 py-3 rounded-xl text-sm"
+              className="flex items-start gap-3 px-4 py-3  text-sm"
               style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)' }}
             >
               <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#f59e0b' }} />
@@ -104,12 +104,12 @@ const AiSubtasksModal: React.FC<AiSubtasksModalProps> = ({
             {subtasks.map((subtask, index) => (
               <div
                 key={index}
-                className="group flex gap-3 p-4 rounded-xl border"
+                className="group flex gap-3 p-4  border"
                 style={{ backgroundColor: 'var(--tm-surface-raised)', borderColor: 'var(--tm-border)' }}
               >
                 {/* Step number */}
                 <div
-                  className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                  className="flex-shrink-0 w-6 h-6  flex items-center justify-center text-xs font-bold"
                   style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
                 >
                   {index + 1}
@@ -143,7 +143,7 @@ const AiSubtasksModal: React.FC<AiSubtasksModalProps> = ({
                       {subtask.tags.map(tag => (
                         <span
                           key={tag.id}
-                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                          className="inline-flex items-center px-2 py-0.5  text-xs font-medium"
                           style={{ backgroundColor: tag.color + '22', color: tag.color, border: `1px solid ${tag.color}44` }}
                         >
                           {tag.name}
@@ -157,7 +157,7 @@ const AiSubtasksModal: React.FC<AiSubtasksModalProps> = ({
                 <button
                   type="button"
                   onClick={() => handleDelete(index)}
-                  className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-red-100"
+                  className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5  hover:bg-red-100"
                   style={{ color: 'var(--tm-danger)' }}
                   aria-label="Remove subtask"
                 >
@@ -170,7 +170,7 @@ const AiSubtasksModal: React.FC<AiSubtasksModalProps> = ({
 
         {/* Footer */}
         <div
-          className="flex gap-3 px-6 py-4 border-t border-border-subtle flex-shrink-0 rounded-b-[1.25rem]"
+          className="flex gap-3 px-6 py-4 border-t border-border-subtle flex-shrink-0 "
           style={{ backgroundColor: 'var(--tm-surface)' }}
         >
           <button

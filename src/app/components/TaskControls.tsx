@@ -65,7 +65,7 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
           </div>
           <button
             onClick={onToggleMenu}
-            className="rounded-xl p-2 text-sm font-medium transition-colors"
+            className=" p-2 text-sm font-medium transition-colors"
             style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-primary)' }}
             aria-expanded={!menuCollapsed}
             aria-label="Collapse task menu"
@@ -97,13 +97,13 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
             <div className="relative">
               <button
                 onClick={onTagDropdownToggle}
-                className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-secondary cursor-default"
+                className="px-3 sm:px-4 py-2  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-secondary cursor-default"
               >
                 <Filter className="w-4 h-4" />
                 Tags
                 {selectedTags.length > 0 && (
                   <span
-                    className="ml-1 text-xs rounded-full px-1.5 py-0.5 font-semibold"
+                    className="ml-1 text-xs  px-1.5 py-0.5 font-semibold"
                     style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
                   >
                     {selectedTags.length}
@@ -113,7 +113,7 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
 
               {showTagDropdown && (
                 <div
-                  className="absolute z-50 left-full ml-2 top-0 w-56 rounded-xl shadow-[var(--tm-shadow-lg)] border border-border overflow-hidden animate-slide-up"
+                  className="absolute z-50 left-full ml-2 top-0 w-56  shadow-[var(--tm-shadow-lg)] border border-border overflow-hidden animate-slide-up"
                   style={{ backgroundColor: 'var(--tm-surface)' }}
                   onMouseLeave={() => onTagDropdownToggle()}
                 >
@@ -138,10 +138,10 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
                             type="checkbox"
                             checked={checked}
                             onChange={() => onTagToggle(tag)}
-                            className="accent-accent rounded"
+                            className="accent-accent "
                           />
                           <span
-                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            className="w-3 h-3  flex-shrink-0"
                             style={{ backgroundColor: tag.color }}
                           />
                           <span>{tag.name}</span>
@@ -157,7 +157,7 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
                 <button
                   key={f}
                   onClick={() => onFilterChange(f)}
-                  className={`px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 ${
+                  className={`px-3 sm:px-4 py-2  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 ${
                     filter === f
                       ? 'btn-primary'
                       : 'btn-secondary'
@@ -181,7 +181,7 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
             {onEditTag && (
               <button
                 onClick={onEditTag}
-                className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+                className="px-3 sm:px-4 py-2  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
                 style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
               >
                 <FolderPen className="w-4 h-4" />
@@ -191,7 +191,7 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
             {onEditHabit && (
               <button
                 onClick={onEditHabit}
-                className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+                className="px-3 sm:px-4 py-2  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
                 style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
               >
                 <Blocks className="w-4 h-4" />
@@ -201,7 +201,7 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
             {onNewTask && (
               <button
                 onClick={onNewTask}
-                className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+                className="px-3 sm:px-4 py-2  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
                 style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
               >
                 <ListTodo className="w-4 h-4" />
@@ -211,7 +211,7 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
             {onViewNotes && (
               <button
                 onClick={onViewNotes}
-                className="px-3 sm:px-4 py-2 rounded-xl font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
+                className="px-3 sm:px-4 py-2  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
                 style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
               >
                 <Files className="w-4 h-4" />

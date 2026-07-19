@@ -17,19 +17,26 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Loader2, Eye, EyeOff, AlertTriangle, ExternalLink, ShieldCheck, User } from 'lucide-react';
+import { X, Loader2, Eye, EyeOff, AlertTriangle, ExternalLink, ShieldCheck, User, Check, Palette } from 'lucide-react';
 import { supabase } from '@/app/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
 import { updatePassword, deleteAccount, fetchProfile, saveProfile } from '@/app/lib/backend-api';
 import { validatePassword, MIN_LENGTH } from '@/app/lib/passwordValidation';
 import PasswordStrengthMeter from '@/app/components/PasswordStrengthMeter';
+import { TAG_COLORS } from '@/app/lib/tagColors';
+import { DEFAULT_ACCENT, getStoredThemeColor, setStoredThemeColor, resetThemeColor } from '@/app/lib/theme';
+import { PAGE_STYLES, DEFAULT_PAGE_STYLE, getStoredPageStyle, setStoredPageStyle, resetPageStyle } from '@/app/lib/pageStyle';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onAccountDeleted: () => void;
 }
 
-type Section = 'profile' | 'password' | 'email' | 'delete';
+type Section = 'profile' | 'appearance' | 'password' | 'email' | 'delete';
+
+// Same swatches offered for tag categories, plus the notebook's default
+// kraft-brown accent as a "reset" option — keeps the two color pickers in sync.
+const THEME_COLORS = [{ label: 'Kraft (Default)', value: DEFAULT_ACCENT }, ...TAG_COLORS];
 
 // Providers that use a federated identity — they have no local password.
 const OAUTH_PROVIDERS = new Set(['google', 'github', 'facebook', 'twitter', 'apple']);
@@ -70,6 +77,61 @@ export default function SettingsModal({
       }
     }).catch(() => {/* no-op: fall back to localStorage defaults */});
   }, [isOpen]);
+
+  // ── Appearance (theme accent color) ─────────────────────────────────────
+  const [themeColor, setThemeColor] = useState<string>(DEFAULT_ACCENT);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setThemeColor(getStoredThemeColor() ?? DEFAULT_ACCENT);
+  }, [isOpen]);
+
+  const handlePickThemeColor = (hex: string) => {
+    if (hex === DEFAULT_ACCENT) resetThemeColor();
+    else setStoredThemeColor(hex);
+    setThemeColor(hex);
+  };
+
+  // ── Appearance (notebook page style) ────────────────────────────────────
+  const [pageStyle, setPageStyle] = useState<string>(DEFAULT_PAGE_STYLE);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setPageStyle(getStoredPageStyle() ?? DEFAULT_PAGE_STYLE);
+  }, [isOpen]);
+
+  const handlePickPageStyle = (key: string) => {
+    if (key === DEFAULT_PAGE_STYLE) resetPageStyle();
+    else setStoredPageStyle(key);
+    setPageStyle(key);
+  };
+
+  // Small inline preview of each ruling, scaled down to fit a swatch button.
+  const pagePreviewStyle = (key: string): React.CSSProperties => {
+    const ink = 'color-mix(in srgb, var(--tm-text-primary) 22%, transparent)';
+    switch (key) {
+      case 'dot':
+        return { backgroundImage: `radial-gradient(${ink} 1px, transparent 1.4px)`, backgroundSize: '8px 8px' };
+      case 'college':
+        return { backgroundImage: `linear-gradient(${ink} 1px, transparent 1px)`, backgroundSize: '100% 7px' };
+      case 'wide':
+        return { backgroundImage: `linear-gradient(${ink} 1px, transparent 1px)`, backgroundSize: '100% 11px' };
+      case 'isometric':
+        return {
+          backgroundImage: `radial-gradient(${ink} 1px, transparent 1.4px), radial-gradient(${ink} 1px, transparent 1.4px)`,
+          backgroundSize: '9px 9px',
+          backgroundPosition: '0 0, 4.5px 4.5px',
+        };
+      case 'blank':
+        return {};
+      case 'graph':
+      default:
+        return {
+          backgroundImage: `linear-gradient(${ink} 1px, transparent 1px), linear-gradient(90deg, ${ink} 1px, transparent 1px)`,
+          backgroundSize: '8px 8px',
+        };
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,7 +232,7 @@ export default function SettingsModal({
   };
 
   const tabClass = (s: Section) =>
-    `px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+    `px-4 py-2 text-sm font-semibold  transition-all ${
       section === s
         ? 'text-white'
         : s === 'password' && isOAuth
@@ -181,7 +243,7 @@ export default function SettingsModal({
   return (
     <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="modal-panel w-full max-w-lg rounded-2xl shadow-xl flex flex-col max-h-[90vh]"
+        className="modal-panel w-full max-w-lg  shadow-xl flex flex-col max-h-[90vh]"
         style={{ backgroundColor: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}
       >
         {/* ── Header ───────────────────────────────────────────────────────── */}
@@ -196,7 +258,7 @@ export default function SettingsModal({
                 {user.email}, aka {profileName}
                 {isOAuth && (
                   <span
-                    className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide"
+                    className="ml-2 px-1.5 py-0.5  text-[10px] font-semibold uppercase tracking-wide"
                     style={{ backgroundColor: 'var(--tm-accent-subtle)', color: 'var(--tm-accent)' }}
                   >
                     {providerLabel}
@@ -221,6 +283,13 @@ export default function SettingsModal({
             style={tabStyle('profile')}
           >
             Profile
+          </button>
+          <button
+            onClick={() => setSection('appearance')}
+            className={tabClass('appearance')}
+            style={tabStyle('appearance')}
+          >
+            Appearance
           </button>
           <button
             onClick={() => !isOAuth && setSection('password')}
@@ -253,7 +322,7 @@ export default function SettingsModal({
             <form onSubmit={handleSaveProfile} className="space-y-5">
               <div className="flex items-center gap-2 mb-1" style={{ color: 'var(--tm-text-secondary)' }}>
                 <User className="w-4 h-4" />
-                <p className="text-sm">Customize how Task Master knows you.</p>
+                <p className="text-sm">Customize how OneTab knows you.</p>
               </div>
 
               <div>
@@ -290,7 +359,7 @@ export default function SettingsModal({
               <button
                 type="submit"
                 disabled={profileSaving}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
+                className="w-full flex items-center justify-center gap-2 py-2.5  text-sm font-semibold text-white disabled:opacity-60"
                 style={{ backgroundColor: 'var(--tm-accent)' }}
               >
                 {profileSaving && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -299,13 +368,100 @@ export default function SettingsModal({
             </form>
           )}
 
+          {/* ── Appearance Tab ───────────────────────────────────────────── */}
+          {section === 'appearance' && (
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 mb-1" style={{ color: 'var(--tm-text-secondary)' }}>
+                <Palette className="w-4 h-4" />
+                <p className="text-sm">
+                  Pick an accent color — the same palette used for tag categories.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-5 gap-3">
+                {THEME_COLORS.map(c => {
+                  const selected = themeColor.toLowerCase() === c.value.toLowerCase();
+                  return (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => handlePickThemeColor(c.value)}
+                      title={c.label}
+                      aria-label={c.label}
+                      aria-pressed={selected}
+                      className="aspect-square w-full flex items-center justify-center transition-transform hover:scale-105"
+                      style={{
+                        backgroundColor: c.value,
+                        border: selected ? '2px solid var(--tm-text-primary)' : '1px solid var(--tm-border)',
+                      }}
+                    >
+                      {selected && (
+                        <Check
+                          className="w-4 h-4"
+                          style={{ color: c.value === '#000000' || c.value === DEFAULT_ACCENT || c.value === '#374151' ? '#FBF8EE' : '#2B2620' }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="text-xs" style={{ color: 'var(--tm-text-muted)' }}>
+                Applies instantly and only on this device. Surfaces, ink, and the coil binding
+                stay the same — just the accent changes.
+              </p>
+
+              <div className="pt-1 border-t" style={{ borderColor: 'var(--tm-border)' }}>
+                <p className="text-sm mt-4 mb-3" style={{ color: 'var(--tm-text-secondary)' }}>
+                  Pick a page ruling for the background.
+                </p>
+
+                <div className="grid grid-cols-3 gap-3">
+                  {PAGE_STYLES.map(p => {
+                    const selected = pageStyle === p.key;
+                    return (
+                      <button
+                        key={p.key}
+                        type="button"
+                        onClick={() => handlePickPageStyle(p.key)}
+                        title={p.description}
+                        aria-label={p.label}
+                        aria-pressed={selected}
+                        className="flex flex-col items-stretch transition-transform hover:scale-105"
+                      >
+                        <div
+                          className="h-12 w-full flex items-start justify-end p-1"
+                          style={{
+                            backgroundColor: 'var(--tm-bg)',
+                            border: selected ? '2px solid var(--tm-text-primary)' : '1px solid var(--tm-border)',
+                            ...pagePreviewStyle(p.key),
+                          }}
+                        >
+                          {selected && (
+                            <Check className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--tm-accent)' }} />
+                          )}
+                        </div>
+                        <span
+                          className="text-xs mt-1 font-medium"
+                          style={{ color: selected ? 'var(--tm-text-primary)' : 'var(--tm-text-secondary)' }}
+                        >
+                          {p.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── Password Tab ─────────────────────────────────────────────── */}
           {section === 'password' && (
             isOAuth ? (
               /* OAuth users: password is managed externally */
               <div className="space-y-4">
                 <div
-                  className="flex gap-3 p-4 rounded-xl"
+                  className="flex gap-3 p-4 "
                   style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
                 >
                   <ShieldCheck className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--tm-accent)' }} />
@@ -315,7 +471,7 @@ export default function SettingsModal({
                     </p>
                     <p className="text-sm" style={{ color: 'var(--tm-text-secondary)' }}>
                       Your account uses {providerLabel} for authentication. You don&apos;t have a
-                      separate Task Master password — {providerLabel} handles your security.
+                      separate OneTab password — {providerLabel} handles your security.
                     </p>
                   </div>
                 </div>
@@ -323,7 +479,7 @@ export default function SettingsModal({
                   href="https://myaccount.google.com/security"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
+                  className="w-full flex items-center justify-center gap-2 py-2.5  text-sm font-semibold transition-all hover:opacity-90"
                   style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-primary)', border: '1px solid var(--tm-border)' }}
                 >
                   <ExternalLink className="w-4 h-4" />
@@ -380,7 +536,7 @@ export default function SettingsModal({
                 <button
                   type="submit"
                   disabled={pwStatus === 'saving' || !pwCheck?.ok}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
+                  className="w-full flex items-center justify-center gap-2 py-2.5  text-sm font-semibold text-white disabled:opacity-60"
                   style={{ backgroundColor: 'var(--tm-accent)' }}
                 >
                   {pwStatus === 'saving' && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -396,12 +552,12 @@ export default function SettingsModal({
               {isOAuth ? (
                 /* OAuth users: explain what changing email actually does */
                 <div
-                  className="flex gap-3 p-3 rounded-xl text-sm"
+                  className="flex gap-3 p-3  text-sm"
                   style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
                 >
                   <ShieldCheck className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--tm-accent)' }} />
                   <p style={{ color: 'var(--tm-text-secondary)' }}>
-                    This changes your <strong>contact/notification email</strong> in Task Master.
+                    This changes your <strong>contact/notification email</strong> in OneTab.
                     Your <strong>{providerLabel} login is not affected</strong> — you&apos;ll still sign
                     in with {providerLabel}, and all your data stays linked to your account.
                   </p>
@@ -439,7 +595,7 @@ export default function SettingsModal({
               <button
                 type="submit"
                 disabled={emailStatus === 'saving'}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
+                className="w-full flex items-center justify-center gap-2 py-2.5  text-sm font-semibold text-white disabled:opacity-60"
                 style={{ backgroundColor: 'var(--tm-accent)' }}
               >
                 {emailStatus === 'saving' && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -452,7 +608,7 @@ export default function SettingsModal({
           {section === 'delete' && (
             <div className="space-y-4">
               <div
-                className="flex gap-3 p-3 rounded-xl"
+                className="flex gap-3 p-3 "
                 style={{ backgroundColor: 'var(--tm-danger-subtle, #fef2f2)', border: '1px solid var(--tm-danger)' }}
               >
                 <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--tm-danger)' }} />
@@ -481,7 +637,7 @@ export default function SettingsModal({
               <button
                 onClick={handleDeleteAccount}
                 disabled={deleteConfirmText !== DELETE_PHRASE || deleteStatus === 'deleting'}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 py-2.5  text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ backgroundColor: 'var(--tm-danger)' }}
               >
                 {deleteStatus === 'deleting' && <Loader2 className="w-4 h-4 animate-spin" />}

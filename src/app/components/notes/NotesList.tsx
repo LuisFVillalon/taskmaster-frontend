@@ -61,7 +61,7 @@ const NotesList: React.FC<NotesListProps> = ({
         {notes.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <div
-              className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
+              className="w-12 h-12  flex items-center justify-center mb-3"
               style={{ backgroundColor: 'var(--tm-surface-raised)' }}
             >
               <FileText className="w-6 h-6 text-text-muted" />

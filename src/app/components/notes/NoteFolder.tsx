@@ -26,7 +26,7 @@ const NoteFolder: React.FC<NoteFolderProps> = ({ tag, noteCount, isOpen, onToggl
           stroke="none"
         />
         <span
-          className="absolute -top-1 -right-1.5 text-[9px] font-bold text-white rounded-full min-w-[1rem] h-3.5 flex items-center justify-center px-0.5"
+          className="absolute -top-1 -right-1.5 text-[9px] font-bold text-white  min-w-[1rem] h-3.5 flex items-center justify-center px-0.5"
           style={{ backgroundColor: tag.color }}
         >
           {noteCount > 9 ? '9+' : noteCount}

@@ -37,7 +37,7 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, isActive, onClick, onDelete }
   return (
     <div
       onClick={onClick}
-      className="group relative rounded-xl p-3 border cursor-pointer transition-all"
+      className="group relative  p-3 border cursor-pointer transition-all"
       style={{
         backgroundColor: isActive ? 'var(--tm-accent-subtle)' : 'var(--tm-surface)',
         borderColor: isActive ? 'var(--tm-accent)' : 'var(--tm-border-subtle)',
@@ -89,7 +89,7 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, isActive, onClick, onDelete }
           {note.tags.map(tag => (
             <span
               key={tag.id}
-              className="chip text-white px-2 rounded"
+              className="chip text-white px-2 "
               style={{ backgroundColor: tag.color }}
             >
               {tag.name}

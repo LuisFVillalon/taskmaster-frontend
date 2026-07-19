@@ -42,18 +42,20 @@ interface CardShellProps {
   headerAction?: React.ReactNode;
 }
 
-const CardShell: React.FC<CardShellProps> = ({ icon, header, children, headerAction }) => (
-  <div className="card p-3 sm:p-4 lg:p-5 flex flex-col gap-3">
-    <div className="flex items-center gap-1.5">
-      {icon}
-      <span className="text-[10px] xs:text-xs sm:text-sm text-text-muted font-medium uppercase tracking-wide">
-        {header}
-      </span>
-      {headerAction && <div className="ml-auto">{headerAction}</div>}
+const CardShell: React.FC<CardShellProps> = ({ icon, header, children, headerAction }) => {
+  return (
+    <div className="card p-3 sm:p-4 lg:p-5 flex flex-col gap-3">
+      <div className="flex items-center gap-1.5">
+        {icon}
+        <span className="text-[10px] xs:text-xs sm:text-sm text-text-muted font-medium uppercase tracking-wide">
+          {header}
+        </span>
+        {headerAction && <div className="ml-auto">{headerAction}</div>}
+      </div>
+      {children}
     </div>
-    {children}
-  </div>
-);
+  );
+};
 
 interface StatPillProps {
   label: string;
@@ -63,7 +65,7 @@ interface StatPillProps {
 
 const StatPill: React.FC<StatPillProps> = ({ label, value, color }) => (
   <div
-    className="flex flex-col items-start px-3 py-2 rounded-lg"
+    className="flex flex-col items-start px-3 py-2 "
     style={{ backgroundColor: 'var(--tm-surface-raised)' }}
   >
     <span className="text-[10px] text-text-muted font-medium leading-none mb-1">{label}</span>
@@ -88,7 +90,7 @@ const TagChips: React.FC<TagChipsProps> = ({ tags, icon }) => {
         <span
           key={tag.name}
           style={{ backgroundColor: tag.color ?? 'var(--tm-accent)', color: 'white' }}
-          className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-md text-[10px] xs:text-xs font-medium whitespace-nowrap shadow-sm hover:shadow transition-shadow"
+          className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1  text-[10px] xs:text-xs font-medium whitespace-nowrap shadow-sm hover:shadow transition-shadow"
         >
           {icon}
           {tag.name} ({tag.count})
@@ -140,7 +142,7 @@ const HabitRow: React.FC<HabitRowProps> = ({ habit, onToggle }) => {
       <div className="flex items-center gap-2">
         <button
           onClick={handleCheckboxClick}
-          className="flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors"
+          className="flex-shrink-0 w-4 h-4  border-2 flex items-center justify-center transition-colors"
           style={{
             borderColor: 'var(--tm-accent)',
             backgroundColor: habit.logged_today ? 'var(--tm-accent)' : 'transparent',
@@ -161,7 +163,7 @@ const HabitRow: React.FC<HabitRowProps> = ({ habit, onToggle }) => {
               {habit.tags.map(tag => (
                 <span
                   key={tag.id}
-                  className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                  className="inline-block w-2 h-2  flex-shrink-0"
                   style={{ backgroundColor: tag.color ?? 'var(--tm-accent)' }}
                   title={tag.name}
                 />
@@ -224,14 +226,14 @@ const StatsCard: React.FC<StatsCardProps> = (props) => {
         {/* 2×2 status grid */}
         <div className="grid grid-cols-3 gap-2">
           <StatPill label="Total"       value={total}       color="var(--tm-accent)" />
-          <StatPill label="In Progress" value={active}      color="#3B82F6" />
-          <StatPill label="Completed"   value={completed}   color="#85BB65" />
+          <StatPill label="In Progress" value={active}      color="var(--tm-accent-hover)" />
+          <StatPill label="Completed"   value={completed}   color="var(--tm-success)" />
         </div>
 
         {/* Per-status tag breakdowns */}
         <div className="grid grid-cols-2 gap-2">
-          <TagSection label="In Progress" color="#3B82F6" tags={activeTags} />
-          <TagSection label="Completed"   color="#85BB65" tags={completedTags} />
+          <TagSection label="In Progress" color="var(--tm-accent-hover)" tags={activeTags} />
+          <TagSection label="Completed"   color="var(--tm-success)" tags={completedTags} />
         </div>
       </CardShell>
     );
@@ -247,7 +249,7 @@ const StatsCard: React.FC<StatsCardProps> = (props) => {
         {/* 1×2 count row */}
         <div className="grid grid-cols-2 gap-2">
           <StatPill label="Total"  value={noteCount}   color="var(--tm-accent)" />
-          <StatPill label="Tagged" value={taggedCount} color="#A855F7" />
+          <StatPill label="Tagged" value={taggedCount} color="var(--tm-accent-2)" />
         </div>
 
         {/* Per-tag breakdown */}
@@ -279,7 +281,7 @@ const StatsCard: React.FC<StatsCardProps> = (props) => {
       headerAction={onCreate && (
         <button
           onClick={onCreate}
-          className="px-2 py-1 rounded-lg font-medium text-xs flex items-center gap-1 btn-primary"
+          className="px-2 py-1  font-medium text-xs flex items-center gap-1 btn-primary"
           style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
         >
           <LayersPlus className="w-3 h-3" />

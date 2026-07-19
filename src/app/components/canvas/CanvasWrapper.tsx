@@ -109,7 +109,7 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                         onClick={() => handleViewChange('modules')}
                         disabled={itemsIsLoading}
                         className={`flex justify-center items-center gap-1
-                            px-6 py-3 border border-gray-200 rounded-lg 
+                            px-6 py-3 border border-gray-200  
                             transition-all duration-200 shadow-sm 
                             hover:shadow-md font-medium ${
                             activeView === 'modules' 
@@ -145,7 +145,7 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                         onClick={() => handleViewChange('assignments')}
                         disabled={itemsIsLoading}
                         className={`flex justify-center items-center gap-1
-                            px-6 py-3 border border-gray-200 rounded-lg 
+                            px-6 py-3 border border-gray-200  
                             transition-all duration-200 shadow-sm 
                             hover:shadow-md font-medium ${
                             activeView === 'assignments' 
@@ -181,7 +181,7 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                         onClick={() => handleViewChange('quizzes')}
                         disabled={itemsIsLoading}
                         className={`flex justify-center items-center gap-1
-                            px-6 py-3 border border-gray-200 rounded-lg 
+                            px-6 py-3 border border-gray-200  
                             transition-all duration-200 shadow-sm 
                             hover:shadow-md font-medium ${
                             activeView === 'quizzes' 
@@ -219,7 +219,7 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                         currentCourseDisplay.map((obj, index) => (
                             <div 
                                 key={index}
-                                className='flex flex-col gap-2 p-4 mt-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200'
+                                className='flex flex-col gap-2 p-4 mt-3 bg-white border border-gray-200  shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200'
                             >
                                 {('name' in obj && activeView === 'modules') && (
                                     <>

@@ -24,7 +24,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onSelect, onToggleC
     <button
       type="button"
       onClick={onSelect}
-      className="w-full text-left px-4 py-3 rounded-xl transition-colors flex items-start gap-3 group"
+      className="w-full text-left px-4 py-3  transition-colors flex items-start gap-3 group"
       style={{ backgroundColor: isActive ? 'var(--tm-accent-subtle)' : 'transparent' }}
       onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)'; }}
       onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'; }}
@@ -38,7 +38,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onSelect, onToggleC
         onKeyDown={e => {
           if (e.key === ' ' || e.key === 'Enter') { e.stopPropagation(); e.preventDefault(); onToggleComplete(task.id); }
         }}
-        className="mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-colors"
+        className="mt-0.5 flex-shrink-0 w-5 h-5  border-2 flex items-center justify-center cursor-pointer transition-colors"
         style={{
           borderColor: task.completed ? 'var(--tm-success)' : 'var(--tm-border)',
           backgroundColor: task.completed ? 'var(--tm-success)' : 'transparent',
@@ -64,7 +64,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onSelect, onToggleC
           </p>
           {priorityStyle && (
             <span
-              className="flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-md leading-tight flex items-center gap-1"
+              className="flex-shrink-0 text-xs font-bold px-2 py-0.5  leading-tight flex items-center gap-1"
               style={{ backgroundColor: priorityStyle.bg, color: priorityStyle.text }}
             >
               <Siren className="w-3 h-3" />
@@ -78,7 +78,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onSelect, onToggleC
             {task.tags.map((tag, i) => (
               <span
                 key={i}
-                className="text-xs font-medium px-2 py-0.5 rounded-md"
+                className="text-xs font-medium px-2 py-0.5 "
                 style={{ backgroundColor: tag.color, color: '#ffffff' }}
               >
                 {tag.name}

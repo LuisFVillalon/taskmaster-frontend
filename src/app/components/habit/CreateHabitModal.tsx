@@ -37,7 +37,7 @@ const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
       <div className="modal-panel max-w-sm w-full">
         {/* Header */}
         <div
-          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center rounded-t-[1.25rem]"
+          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center "
           style={{ backgroundColor: 'var(--tm-surface)' }}
         >
           <h3 className="text-lg font-semibold text-text-primary">Create a Habit</h3>
@@ -65,7 +65,7 @@ const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-2">Tags</label>
               <div
-                className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 rounded-xl border border-border max-h-36 overflow-y-auto scrollbar-custom"
+                className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3  border border-border max-h-36 overflow-y-auto scrollbar-custom"
                 style={{ backgroundColor: 'var(--tm-surface-raised)' }}
               >
                 {availableTags.map(tag => {
@@ -81,7 +81,7 @@ const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                         border: `1px solid ${selected ? tag.color : 'var(--tm-border)'}`,
                         transform: selected ? 'scale(1)' : 'scale(0.97)',
                       }}
-                      className="px-3 py-2 rounded-lg text-sm font-medium transition-all hover:scale-100 active:scale-95"
+                      className="px-3 py-2  text-sm font-medium transition-all hover:scale-100 active:scale-95"
                     >
                       {tag.name}
                     </button>
@@ -94,7 +94,7 @@ const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                   {newHabit.tags.map(tag => (
                     <span
                       key={tag.id}
-                      className="chip px-2 rounded"
+                      className="chip px-2 "
                       style={{ backgroundColor: tag.color, color: 'white' }}
                     >
                       {tag.name}

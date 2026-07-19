@@ -81,7 +81,7 @@ const CourseSelection: React.FC<CourseSelectionProps> = ({
                         {totalPages > 1 && (
                             <button
                                 onClick={goToPrev}
-                                className="flex-shrink-0 p-2 rounded-full bg-white border border-gray-300 hover:bg-gray-50 shadow-md transition-all hover:scale-110"
+                                className="flex-shrink-0 p-2  bg-white border border-gray-300 hover:bg-gray-50 shadow-md transition-all hover:scale-110"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -101,7 +101,7 @@ const CourseSelection: React.FC<CourseSelectionProps> = ({
                                     <button
                                         key={course.id}
                                         onClick={() => updateCurrentCourse(course)}
-                                        className={`cursor-pointer w-full px-4 py-3 text-left rounded-lg
+                                        className={`cursor-pointer w-full px-4 py-3 text-left 
                                             transition-all duration-200 shadow-sm hover:shadow-md
                                             ${
                                                 activeCourseId === course.id
@@ -120,7 +120,7 @@ const CourseSelection: React.FC<CourseSelectionProps> = ({
                         {totalPages > 1 && (
                             <button
                                 onClick={goToNext}
-                                className="flex-shrink-0 p-2 rounded-full bg-white border border-gray-300 hover:bg-gray-50 shadow-md transition-all hover:scale-110"
+                                className="flex-shrink-0 p-2  bg-white border border-gray-300 hover:bg-gray-50 shadow-md transition-all hover:scale-110"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -139,7 +139,7 @@ const CourseSelection: React.FC<CourseSelectionProps> = ({
                                         setDirection(index > currentIndex ? 'right' : 'left');
                                         setCurrentIndex(index);
                                     }}
-                                    className={`h-2 rounded-full transition-all duration-300 ${
+                                    className={`h-2  transition-all duration-300 ${
                                         index === currentIndex 
                                             ? 'w-8 bg-blue-600' 
                                             : 'w-2 bg-gray-300 hover:bg-gray-400'

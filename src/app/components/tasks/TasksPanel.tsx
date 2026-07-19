@@ -52,13 +52,13 @@ const TasksPanel: React.FC<TasksPanelProps> = ({
         <div className="relative flex-shrink-0">
           <button
             onClick={onTagDropdownToggle}
-            className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex items-center gap-1.5 ${selectedTags.length > 0 ? 'btn-primary' : 'btn-secondary'}`}
+            className={`px-3 py-1.5  font-medium whitespace-nowrap text-sm flex items-center gap-1.5 ${selectedTags.length > 0 ? 'btn-primary' : 'btn-secondary'}`}
             style={selectedTags.length > 0 ? { backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' } : {}}
           >
             <Filter className="w-4 h-4" />
             Tags
             {selectedTags.length > 0 && (
-              <span className="text-xs rounded-full px-1.5 py-0.5 font-semibold opacity-90">
+              <span className="text-xs  px-1.5 py-0.5 font-semibold opacity-90">
                 {selectedTags.length}
               </span>
             )}
@@ -66,7 +66,7 @@ const TasksPanel: React.FC<TasksPanelProps> = ({
 
           {showTagDropdown && (
             <div
-              className="absolute z-50 top-full mt-1 left-0 w-52 rounded-xl shadow-[var(--tm-shadow-lg)] border border-border overflow-hidden"
+              className="absolute z-50 top-full mt-1 left-0 w-52  shadow-[var(--tm-shadow-lg)] border border-border overflow-hidden"
               style={{ backgroundColor: 'var(--tm-surface)' }}
             >
               <button
@@ -87,10 +87,10 @@ const TasksPanel: React.FC<TasksPanelProps> = ({
                         type="checkbox"
                         checked={checked}
                         onChange={() => onTagToggle(tag)}
-                        className="accent-accent rounded"
+                        className="accent-accent "
                       />
                       <span
-                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        className="w-3 h-3  flex-shrink-0"
                         style={{ backgroundColor: tag.color }}
                       />
                       <span>{tag.name}</span>
@@ -107,7 +107,7 @@ const TasksPanel: React.FC<TasksPanelProps> = ({
             <button
               key={f}
               onClick={() => onFilterChange(f)}
-              className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 ${filter === f ? 'btn-primary' : 'btn-secondary'}`}
+              className={`px-3 py-1.5  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 ${filter === f ? 'btn-primary' : 'btn-secondary'}`}
               style={filter === f ? { backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' } : {}}
             >
               {f === 'active' ? 'Due date' : f.charAt(0).toUpperCase() + f.slice(1)}
@@ -118,7 +118,7 @@ const TasksPanel: React.FC<TasksPanelProps> = ({
 
         <button
           onClick={onCreateTask}
-          className="ml-auto px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 btn-primary"
+          className="ml-auto px-3 py-1.5  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 btn-primary"
           style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
         >
           <CheckSquare className="w-4 h-4" />
@@ -129,7 +129,7 @@ const TasksPanel: React.FC<TasksPanelProps> = ({
       {filteredTasks.length === 0 ? (
         <div className="card p-6 sm:p-8 text-center mt-2">
           <div
-            className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+            className="w-12 h-12  flex items-center justify-center mx-auto mb-3"
             style={{ backgroundColor: 'var(--tm-surface-raised)' }}
           >
             <Filter className="w-6 h-6 text-text-muted" />

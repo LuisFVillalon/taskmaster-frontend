@@ -32,11 +32,11 @@ const NoteEditorOverlay: React.FC<NoteEditorOverlayProps> = ({
 
   return (
     <div
-      className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm rounded-[inherit]"
+      className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm "
       onClick={onClose}
     >
       <div
-        className="relative rounded-xl shadow-2xl bg-[var(--tm-surface)] border border-[var(--tm-border)] flex flex-col overflow-hidden w-[95%] h-[90%]"
+        className="relative  shadow-2xl bg-[var(--tm-surface)] border border-[var(--tm-border)] flex flex-col overflow-hidden w-[95%] h-[90%]"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -47,7 +47,7 @@ const NoteEditorOverlay: React.FC<NoteEditorOverlayProps> = ({
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => { router.push(`/notes?id=${note.id}`); onClose(); }}
-              className="btn btn-ghost p-1 rounded-md"
+              className="btn btn-ghost p-1 "
               aria-label="View in Notes"
               title="View in Notes"
             >
@@ -55,7 +55,7 @@ const NoteEditorOverlay: React.FC<NoteEditorOverlayProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="btn btn-ghost p-1 rounded-md"
+              className="btn btn-ghost p-1 "
               aria-label="Close"
             >
               <X className="w-4 h-4" />

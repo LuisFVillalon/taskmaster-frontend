@@ -8,6 +8,7 @@ import { Tag } from '@/app/types/task';
 import { useTasks, useTags } from '@/app/hooks/useTasksAndTags';
 import { useTaskManagerState } from '@/app/hooks/useTaskManagerState';
 import { useTaskManagerUIState } from '@/app/hooks/useTaskManagerUIState';
+import { useSplitPanel } from '@/app/hooks/useSplitPanel';
 import { useTaskHandlers } from '@/app/hooks/useTaskHandlers';
 import { useTaskFiltering } from '@/app/hooks/useTaskFiltering';
 import { useClaimOrphanedData } from '@/app/hooks/useClaimOrphanedData';
@@ -23,11 +24,12 @@ import CalendarAndStats from '@/app/components/CalendarAndStats';
 import TaskManagerModals from '@/app/components/TaskManagerModals';
 import TaskDebriefPanel from '@/app/components/TaskDebriefPanel';
 import PageSpinner from '@/app/components/common/PageSpinner';
-import { Settings, Menu, X } from 'lucide-react';
+import { Settings, Menu, X, Maximize2, Minimize2 } from 'lucide-react';
 
 const TaskManager: React.FC = () => {
   const router = useRouter();
   const { signOut, user } = useAuth();
+  const [focusMode, setFocusMode] = useState(false);
 
   useClaimOrphanedData(user);
   const profileName = useProfileName(user);
@@ -35,7 +37,7 @@ const TaskManager: React.FC = () => {
   const handleLogout = async () => {
     await signOut();
     Object.keys(localStorage)
-      .filter(k => k.startsWith('taskmaster_'))
+      .filter(k => k.startsWith('onetab_'))
       .forEach(k => localStorage.removeItem(k));
     router.replace('/login');
   };
@@ -71,6 +73,7 @@ const TaskManager: React.FC = () => {
 
   const state = useTaskManagerState();
   const ui = useTaskManagerUIState();
+  const { tasksWidthPct, splitContainerRef, handleSplitterMouseDown } = useSplitPanel();
 
   const handlers = useTaskHandlers({
     setShowNewTaskModal: state.setShowNewTaskModal,
@@ -225,7 +228,8 @@ const TaskManager: React.FC = () => {
   if (isLoading || tagsLoading) return <PageSpinner size="lg" />;
 
   return (
-    <div className="relative min-h-screen bg-bg">
+    <div className="relative min-h-screen">
+      <div className="coil" />
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
 
         <TaskControls
@@ -251,9 +255,20 @@ const TaskManager: React.FC = () => {
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:mb-4 sm:gap-0">
-          <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-5xl font-bold text-text-primary">Task Master</h1>
-            <p className="text-xs sm:text-sm lg:text-base text-text-secondary">Less planning, more doing.</p>
+          <div className="flex items-end gap-3">
+            <div>
+              <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-text-primary">OneTab</h1>
+              <p className="text-xs sm:text-sm lg:text-base text-text-secondary"></p>
+            </div>
+            <button
+              onClick={() => setFocusMode(prev => !prev)}
+              className="btn px-2 py-1 text-[0.65rem] sm:text-xs font-medium flex items-center gap-1"
+              style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
+              title={focusMode ? 'Show debrief & calendar' : 'Hide debrief & calendar'}
+            >
+              {focusMode ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+              <span>{focusMode ? 'Exit Focus Mode' : 'Focus Mode'}</span>
+            </button>
           </div>
           <div className="flex items-center gap-2">
             <span className="hidden sm:block text-xs sm:text-sm text-text-secondary whitespace-nowrap">
@@ -261,7 +276,7 @@ const TaskManager: React.FC = () => {
             </span>
             <button
               onClick={() => ui.setShowSettings(true)}
-              className="btn px-3 py-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium w-full sm:w-auto flex items-center gap-1.5"
+              className="btn px-3 py-2 sm:px-4  text-xs sm:text-sm font-medium w-full sm:w-auto flex items-center gap-1.5"
               style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
               title="Account Settings"
             >
@@ -270,14 +285,14 @@ const TaskManager: React.FC = () => {
             </button>
             <button
               onClick={handleLogout}
-              className="btn px-3 py-2 sm:px-4 text-white rounded-lg text-xs sm:text-sm font-medium w-full sm:w-auto"
+              className="btn px-3 py-2 sm:px-4 text-white  text-xs sm:text-sm font-medium w-full sm:w-auto"
               style={{ backgroundColor: 'var(--tm-danger)' }}
             >
               Logout
             </button>
             <button
               onClick={() => ui.setTaskSidebarOpen(prev => !prev)}
-              className="fixed z-50 btn px-3 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 shadow-md"
+              className="fixed z-50 btn px-3 py-2  text-xs sm:text-sm font-medium flex items-center gap-1.5 shadow-md"
               style={{ top: '1rem', right: '0.75rem', backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
               aria-label={ui.taskSidebarOpen ? 'Close task menu' : 'Open task menu'}
             >
@@ -286,26 +301,28 @@ const TaskManager: React.FC = () => {
           </div>
         </div>
 
-        <TaskDebriefPanel />
+        {!focusMode && (
+          <>
+            <TaskDebriefPanel />
 
-        <CalendarAndStats
-          habits={habits}
-          onToggleHabit={toggleHabit}
-          onCreateHabit={() => state.setShowCreateHabitModal(true)}
-          onViewHabitHistory={id => ui.setHistoryHabitId(id)}
-          showStats={ui.showStats}
-          onToggleStats={() => ui.setShowStats(prev => !prev)}
-          stats={stats}
-          allNotes={allNotes}
-          noteTags={noteTags}
-        />
+            <CalendarAndStats
+              habits={habits}
+              onToggleHabit={toggleHabit}
+              onCreateHabit={() => state.setShowCreateHabitModal(true)}
+              onViewHabitHistory={id => ui.setHistoryHabitId(id)}
+              stats={stats}
+              allNotes={allNotes}
+              noteTags={noteTags}
+            />
+          </>
+        )}
 
         {/* Tasks & Notes — split layout */}
         <div className="space-y-4">
           <div
-            ref={ui.splitContainerRef}
+            ref={splitContainerRef}
             className="flex flex-col md:flex-row"
-            style={{ ['--tasks-w' as string]: `${ui.tasksWidthPct}%` }}
+            style={{ ['--tasks-w' as string]: `${tasksWidthPct}%` }}
           >
             <TasksPanel
               filter={state.filter}
@@ -327,10 +344,10 @@ const TaskManager: React.FC = () => {
               onUpdatePriority={updatePriority}
               activeTaskCount={activeTaskCount}
               occupiedPriorities={occupiedPriorityLevels}
-              compact={ui.tasksWidthPct < 40}
+              compact={tasksWidthPct < 40}
             />
 
-            <DragHandle onMouseDown={ui.handleSplitterMouseDown} />
+            <DragHandle onMouseDown={handleSplitterMouseDown} />
 
             <NotesPanel
               notes={filteredNotes}
