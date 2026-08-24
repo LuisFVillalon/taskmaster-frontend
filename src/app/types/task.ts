@@ -47,7 +47,6 @@ export interface Task {
   created_date: string | Date;
   completed_date: string | Date | null;
   estimated_time?: number | null;
-  session_type?: 'bite_size' | 'deep_work' | null;
   parent_task_id?: number | null;
   /** Supabase Auth UUID — set server-side, never supplied by the client. */
   user_id?: string | null;
@@ -65,7 +64,6 @@ export interface BaseTaskForm {
   // optional value coming from TaskCategory union
   category?: TaskCategory | null;
   estimated_time?: number | null;
-  session_type?: 'bite_size' | 'deep_work' | null;
   parent_task_id?: number | null;
   created_date: string | Date;
 }

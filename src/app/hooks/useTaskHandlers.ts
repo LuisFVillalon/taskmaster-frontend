@@ -84,7 +84,6 @@ export const useTaskHandlers = ({
         tags: [],
         category: null,
         estimated_time: null,
-        session_type: null,
         created_date: '',
       });
     }

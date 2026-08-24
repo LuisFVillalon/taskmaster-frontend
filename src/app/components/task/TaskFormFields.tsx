@@ -11,7 +11,6 @@ export interface TaskFormData {
   tags: Tag[];
   category?: string | null;
   estimated_time?: number | null;
-  session_type?: 'bite_size' | 'deep_work' | null;
 }
 
 interface TaskFormFieldsProps {
