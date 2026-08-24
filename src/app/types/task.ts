@@ -68,7 +68,6 @@ export interface BaseTaskForm {
   session_type?: 'bite_size' | 'deep_work' | null;
   parent_task_id?: number | null;
   created_date: string | Date;
-  // user_id: number;
 }
 
 
@@ -100,15 +99,4 @@ export interface StatsData {
   active: TaskStats;
   completed: TaskStats;
   prioritized: TaskStats;
-}
-
-export interface WorkBlock {
-  id: number;
-  task_id: number;
-  user_id: string;
-  start_time: string;  // ISO 8601
-  end_time: string;    // ISO 8601
-  status: 'suggested' | 'confirmed' | 'dismissed';
-  ai_reasoning: string;
-  confidence: number;
 }

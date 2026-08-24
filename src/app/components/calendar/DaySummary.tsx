@@ -6,6 +6,8 @@ import type { DayData } from '@/app/hooks/useYearCalendarData';
 import type { Task } from '@/app/types/task';
 import { toLocalDateStr, toLocalTimeStr } from '@/app/utils/dateUtils';
 import { formatTime12Hour } from '@/app/utils/taskUtils';
+import { bucketByTag } from '@/app/utils/tagBucketing';
+import TagChipList from '@/app/components/common/TagChipList';
 import { CategoryDonutChart, CategoryBarsChart, WeekTrendLineChart, type ChartCategory, type DayPoint } from './DayCharts';
 
 interface DaySummaryProps {
@@ -22,23 +24,7 @@ const fmtHours = (hours: number): string => (Number.isInteger(hours) ? `${hours}
 const normalizedTime = (t: Task): string | null =>
   typeof t.due_time === 'string' ? t.due_time : t.due_time instanceof Date ? toLocalTimeStr(t.due_time) : null;
 
-function hoursByTag(tasks: Task[]): ChartCategory[] {
-  const map = new Map<string, { color: string; hours: number }>();
-  let untagged = 0;
-  for (const task of tasks) {
-    const hours = task.estimated_time ?? 0;
-    if (hours <= 0) continue;
-    if (task.tags.length === 0) { untagged += hours; continue; }
-    for (const tag of task.tags) {
-      const existing = map.get(tag.name);
-      if (existing) existing.hours += hours;
-      else map.set(tag.name, { color: tag.color ?? 'var(--tm-accent)', hours });
-    }
-  }
-  const rows: ChartCategory[] = Array.from(map.entries()).map(([label, { color, hours }]) => ({ label, value: hours, color }));
-  if (untagged > 0) rows.push({ label: 'Untagged', value: untagged, color: 'var(--tm-border)' });
-  return rows.sort((a, b) => b.value - a.value);
-}
+const hoursByTag = (tasks: Task[]): ChartCategory[] => bucketByTag(tasks, t => t.estimated_time ?? 0);
 
 const DESCRIPTION_TRUNCATE_LENGTH = 80;
 // Widget card is narrow, so a "long" description is capped much sooner —
@@ -90,7 +76,7 @@ function TaskDueItem({ task, compact = false }: { task: Task; compact?: boolean 
         </p>
       )}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <TagChips tags={task.tags} />
+        <TagChipList tags={task.tags} size="xs" />
         {normalizedTime(task) && (
           <span className="inline-flex items-center gap-1 text-[11px] text-text-muted flex-shrink-0">
             <Clock className="w-3 h-3" />
@@ -108,23 +94,6 @@ function TaskDueItem({ task, compact = false }: { task: Task; compact?: boolean 
 const ScrollBox: React.FC<{ maxHeight: number; children: React.ReactNode }> = ({ maxHeight, children }) => (
   <div className="overflow-y-auto scrollbar-custom pr-1" style={{ maxHeight }}>{children}</div>
 );
-
-function TagChips({ tags }: { tags: { id: number; name: string; color?: string | null }[] }) {
-  if (!tags?.length) return null;
-  return (
-    <div className="flex flex-wrap gap-1">
-      {tags.map(tag => (
-        <span
-          key={tag.id}
-          className="chip px-1.5 py-0.5"
-          style={{ backgroundColor: tag.color ?? 'var(--tm-accent)', color: 'white', fontSize: '10px', fontWeight: 'bold' }}
-        >
-          {tag.name}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 const SummaryTile: React.FC<{ icon: React.ReactNode; label: string; value: string; color: string; bg: string }> = ({
   icon, label, value, color, bg,
@@ -178,7 +147,7 @@ const DaySummary: React.FC<DaySummaryProps> = ({ date, data, totalHabits, dayDat
             {habitsCompleted.map(h => (
               <div key={h.id} className="flex items-center justify-between gap-2 p-2 rounded-md border border-border-subtle">
                 <span className="text-sm font-medium text-text-primary truncate">{h.title}</span>
-                <TagChips tags={h.tags} />
+                <TagChipList tags={h.tags} size="xs" />
               </div>
             ))}
           </div>,
@@ -210,7 +179,7 @@ const DaySummary: React.FC<DaySummaryProps> = ({ date, data, totalHabits, dayDat
               <div key={n.id} className="flex items-center justify-between gap-2 p-2 rounded-md border border-border-subtle">
                 <span className="text-sm font-medium text-text-primary truncate">{n.title || 'Untitled Note'}</span>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <TagChips tags={n.tags} />
+                  <TagChipList tags={n.tags} size="xs" />
                   <span className="text-[11px] text-text-muted">
                     {new Date(n.updated_date).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                   </span>

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import ProtectedPage from './components/common/ProtectedPage';
+import ProtectedPage from './components/auth/ProtectedPage';
 import TaskManager from './TaskManager';
 
 export default function Page() {

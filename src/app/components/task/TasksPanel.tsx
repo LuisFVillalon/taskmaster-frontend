@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Filter } from 'lucide-react';
-import TaskItem from '@/app/components/task/TaskItem';
+import TaskItem from './TaskItem';
 import { Tag, Task } from '@/app/types/task';
 
 interface TasksPanelProps {

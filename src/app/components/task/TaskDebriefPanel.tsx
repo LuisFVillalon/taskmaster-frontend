@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Newspaper, RefreshCw, AlertTriangle, CalendarCheck, Zap, Repeat2, SkipForward, ChartArea, ChevronDown, ChevronUp, Sunrise } from 'lucide-react';
-import { fetchTaskDebrief, TaskDebrief } from '@/app/lib/backend-api';
+import { fetchTaskDebrief } from '@/app/lib/backend-api';
+import { TaskDebrief } from '@/app/types/debrief';
 
 type Status = 'idle' | 'loading' | 'done' | 'error';
 

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useTasks } from './useTasksAndTags';
-import { useHabits } from './useHabits';
-import { useNotes } from './useNotes';
-import { fetchHabitHistory, Habit } from '@/app/lib/backend-api';
+import { useTasksContext } from '@/app/context/TasksContext';
+import { useHabitsContext } from '@/app/context/HabitsContext';
+import { useNotesContext } from '@/app/context/NotesContext';
+import { fetchHabitHistory } from '@/app/lib/backend-api';
+import { Habit } from '@/app/types/habit';
 import { Task } from '@/app/types/task';
 import { Note } from '@/app/types/notes';
 import { toLocalDateStr } from '@/app/utils/dateUtils';
@@ -25,9 +26,9 @@ export interface DayData {
  */
 export function useYearCalendarData() {
   const year = new Date().getFullYear();
-  const { tasks, isLoading: tasksLoading } = useTasks();
-  const { habits, habitsLoading } = useHabits();
-  const { notes, isLoading: notesLoading } = useNotes();
+  const { tasks, isLoading: tasksLoading } = useTasksContext();
+  const { habits, habitsLoading } = useHabitsContext();
+  const { notes, isLoading: notesLoading } = useNotesContext();
 
   const [habitLogged, setHabitLogged] = useState<Map<number, Set<string>>>(new Map());
   const [habitHistoryLoading, setHabitHistoryLoading] = useState(true);

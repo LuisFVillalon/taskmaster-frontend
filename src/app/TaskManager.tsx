@@ -6,29 +6,29 @@ import { useAuth } from '@/app/context/AuthContext';
 import { createHabit, deleteHabit, updateHabit } from '@/app/lib/backend-api';
 import { Tag, Task } from '@/app/types/task';
 import type { TaskFormData } from '@/app/components/task/TaskFormFields';
-import { useTasks, useTags } from '@/app/hooks/useTasksAndTags';
+import { useTasksContext } from '@/app/context/TasksContext';
+import { useTagsContext } from '@/app/context/TagsContext';
+import { useHabitsContext } from '@/app/context/HabitsContext';
+import { useNotesContext } from '@/app/context/NotesContext';
 import { useTaskManagerState } from '@/app/hooks/useTaskManagerState';
-import { useTaskManagerUIState } from '@/app/hooks/useTaskManagerUIState';
 import { useSplitPanel } from '@/app/hooks/useSplitPanel';
 import { useTaskHandlers } from '@/app/hooks/useTaskHandlers';
 import { useTaskFiltering } from '@/app/hooks/useTaskFiltering';
 import { useClaimOrphanedData } from '@/app/hooks/useClaimOrphanedData';
-import { useProfileName } from '@/app/hooks/useProfileName';
-import { useNotes } from '@/app/hooks/useNotes';
-import { useHabits } from '@/app/hooks/useHabits';
+import { useProfile } from '@/app/hooks/useProfile';
 import { Note } from '@/app/types/notes';
-import { getStoredProfileAvatar } from '@/app/lib/avatar';
+import { taskToEditForm } from '@/app/utils/taskUtils';
 import DragHandle from '@/app/components/common/DragHandle';
 import ProfileAvatar from '@/app/components/common/ProfileAvatar';
-import { TaskControls } from '@/app/components/TaskControls';
-import TasksPanel from '@/app/components/tasks/TasksPanel';
+import { TaskControls } from '@/app/components/task/TaskControls';
+import TasksPanel from '@/app/components/task/TasksPanel';
 import NotesPanel from '@/app/components/notes/NotesPanel';
-import CalendarAndStats from '@/app/components/CalendarAndStats';
-import TaskManagerModals from '@/app/components/TaskManagerModals';
-import TaskDebriefPanel from '@/app/components/TaskDebriefPanel';
+import CalendarAndStats from '@/app/components/layout/CalendarAndStats';
+import TaskManagerModals from '@/app/components/layout/TaskManagerModals';
+import TaskDebriefPanel from '@/app/components/task/TaskDebriefPanel';
 import PageSpinner from '@/app/components/common/PageSpinner';
-import DoodleCanvas, { DoodleCanvasHandle } from '@/app/components/DoodleCanvas';
-import DoodleToolbar from '@/app/components/common/DoodleToolbar';
+import DoodleCanvas, { DoodleCanvasHandle } from '@/app/components/doodle/DoodleCanvas';
+import DoodleToolbar from '@/app/components/doodle/DoodleToolbar';
 import ModeSwitcher, { AppMode } from '@/app/components/common/ModeSwitcher';
 import { DEFAULT_ACCENT, getStoredThemeColor } from '@/app/lib/theme';
 
@@ -43,38 +43,27 @@ const TaskManager: React.FC = () => {
   const [doodleErasing, setDoodleErasing] = useState(false);
 
   useClaimOrphanedData(user);
-  const [profileName, setProfileName] = useProfileName(user);
-  const [profileAvatar, setProfileAvatar] = useState<string | null>(() => getStoredProfileAvatar());
+  const { profile, loading: profileLoading, saveProfile } = useProfile(user);
 
   const handleLogout = async () => {
     await signOut();
+    // Every tm_*/komorebi_* key is a per-device cache of this account's data
+    // (profile fields, theme, doodle, the one-time orphaned-data-claim flag)
+    // — clear all of it so a different account signing in on this browser
+    // doesn't inherit the previous user's name/avatar/rest-days/doodle.
     Object.keys(localStorage)
-      .filter(k => k.startsWith('komorebi_'))
+      .filter(k => k.startsWith('komorebi_') || k.startsWith('tm_') || k.startsWith('tm-'))
       .forEach(k => localStorage.removeItem(k));
     router.replace('/login');
   };
 
-  const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks, pendingTaskIds } = useTasks();
-  const { tags, tagsLoading, addTag, delTag, updateTag } = useTags();
+  const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks, pendingTaskIds } = useTasksContext();
+  const { tags, tagsLoading, addTag, delTag, updateTag } = useTagsContext();
 
   const updatePriority = async (taskId: number, priority: number | null) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    await updateTask(taskId, {
-      id: task.id,
-      title: task.title,
-      description: task.description,
-      due_date: task.due_date ?? null,
-      due_time: task.due_time ?? null,
-      priority,
-      category: task.category ?? null,
-      completed: task.completed,
-      completed_date: task.completed_date ?? null,
-      tags: task.tags ?? [],
-      created_date: task.created_date,
-      estimated_time: task.estimated_time ?? null,
-      parent_task_id: task.parent_task_id ?? null,
-    });
+    await updateTask(taskId, taskToEditForm(task, { priority }));
   };
 
   const occupiedPriorityLevels = useMemo(
@@ -88,7 +77,6 @@ const TaskManager: React.FC = () => {
   );
 
   const state = useTaskManagerState();
-  const ui = useTaskManagerUIState();
   const {
     tasksWidthPct,
     panelHeightPx,
@@ -132,10 +120,10 @@ const TaskManager: React.FC = () => {
     tasks, state.filter, state.sortOrder, state.searchTerm, state.selectedTags,
   );
 
-  const { habits, habitsLoading, toggle: toggleHabit, toggleDate: toggleHabitDate, pendingHabitIds, refetch: refetchHabits } = useHabits();
-  const historyHabit = habits.find(h => h.id === ui.historyHabitId) ?? null;
+  const { habits, habitsLoading, toggle: toggleHabit, toggleDate: toggleHabitDate, pendingHabitIds, refetch: refetchHabits } = useHabitsContext();
+  const historyHabit = habits.find(h => h.id === state.historyHabitId) ?? null;
 
-  const { notes: allNotes, isLoading: notesLoading, addNote, deleteNote, updateNote, discardDraft, pendingNoteIds } = useNotes();
+  const { notes: allNotes, isLoading: notesLoading, addNote, deleteNote, updateNote, discardDraft, pendingNoteIds } = useNotesContext();
   // Only the id is held in state; the note itself is derived live from
   // allNotes on every render so edits (title/content debounce, tag toggles)
   // always flow straight through — no separate copy to fall out of sync or
@@ -222,9 +210,9 @@ const TaskManager: React.FC = () => {
       await createHabit({ title: state.newHabit.title.trim(), tags: state.newHabit.tags });
       state.setNewHabit({ title: '', tags: [] });
       state.setShowCreateHabitModal(false);
-      if (ui.createHabitFromManage) {
-        ui.setCreateHabitFromManage(false);
-        ui.setShowManageHabitsModal(true);
+      if (state.createHabitFromManage) {
+        state.setCreateHabitFromManage(false);
+        state.setShowManageHabitsModal(true);
       }
       refetchHabits();
     } catch (err) {
@@ -269,17 +257,17 @@ const TaskManager: React.FC = () => {
         onViewNotes={() => router.push('/notes')}
         onViewCalendar={() => router.push('/calendar')}
         onEditTag={() => handlers.openEditTagModal(tags[0])}
-        onEditHabit={() => ui.setShowManageHabitsModal(true)}
-        menuCollapsed={!ui.taskSidebarOpen}
-        onToggleMenu={() => ui.setTaskSidebarOpen(prev => !prev)}
-        profileName={profileName}
-        profileAvatar={profileAvatar}
-        onSettings={() => ui.setShowSettings(true)}
+        onEditHabit={() => state.setShowManageHabitsModal(true)}
+        menuCollapsed={!state.taskSidebarOpen}
+        onToggleMenu={() => state.setTaskSidebarOpen(prev => !prev)}
+        profileName={profile.name}
+        profileAvatar={profile.avatar}
+        onSettings={() => state.setShowSettings(true)}
         onLogout={handleLogout}
       />
       </div>
 
-      <div className={`transition-[margin] duration-200 ease-out ${ui.taskSidebarOpen ? 'md:ml-72' : 'md:ml-16'}`}>
+      <div className={`transition-[margin] duration-200 ease-out ${state.taskSidebarOpen ? 'md:ml-72' : 'md:ml-16'}`}>
         <div className="max-w-[1600px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 pt-0 pb-4 sm:pb-6 lg:pb-10">
 
           {/*
@@ -296,8 +284,8 @@ const TaskManager: React.FC = () => {
               {todayLabel}
             </p>
             <h1 className="flex items-center gap-2 sm:gap-3 text-xl sm:text-2xl lg:text-3xl font-bold text-text-primary">
-              <ProfileAvatar avatar={profileAvatar} name={profileName} size={32} />
-              Welcome back{profileName ? `, ${profileName}` : ''}
+              <ProfileAvatar avatar={profile.avatar} name={profile.name} size={32} />
+              Welcome back{profile.name ? `, ${profile.name}` : ''}
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -323,12 +311,13 @@ const TaskManager: React.FC = () => {
                 <CalendarAndStats
                   habits={habits}
                   onToggleHabit={toggleHabit}
-                  onCreateHabit={() => ui.setShowManageHabitsModal(true)}
+                  onCreateHabit={() => state.setShowManageHabitsModal(true)}
                   pendingHabitIds={pendingHabitIds}
                   habitsLoading={habitsLoading}
                   stats={stats}
                   allNotes={allNotes}
                   noteTags={noteTags}
+                  profile={profile}
                 />
               </>
             )}
@@ -414,43 +403,44 @@ const TaskManager: React.FC = () => {
         onCloseCreateHabitModal={() => {
           state.setShowCreateHabitModal(false);
           state.setNewHabit({ title: '', tags: [] });
-          if (ui.createHabitFromManage) {
-            ui.setCreateHabitFromManage(false);
-            ui.setShowManageHabitsModal(true);
+          if (state.createHabitFromManage) {
+            state.setCreateHabitFromManage(false);
+            state.setShowManageHabitsModal(true);
           }
         }}
         newHabit={state.newHabit}
         onHabitChange={state.setNewHabit}
         onSubmitHabit={handleCreateHabit}
         // Manage habits
-        showManageHabitsModal={ui.showManageHabitsModal}
-        onCloseManageHabitsModal={() => ui.setShowManageHabitsModal(false)}
+        showManageHabitsModal={state.showManageHabitsModal}
+        onCloseManageHabitsModal={() => state.setShowManageHabitsModal(false)}
         habits={habits}
         onCreateHabitFromManage={() => {
-          ui.setShowManageHabitsModal(false);
-          ui.setCreateHabitFromManage(true);
+          state.setShowManageHabitsModal(false);
+          state.setCreateHabitFromManage(true);
           state.setShowCreateHabitModal(true);
         }}
         onDeleteHabit={handleDeleteHabit}
         onUpdateHabit={handleUpdateHabit}
-        onViewHabitHistory={id => { ui.setShowManageHabitsModal(false); ui.setHistoryFromManageHabits(true); ui.setHistoryHabitId(id); }}
+        onViewHabitHistory={id => { state.setShowManageHabitsModal(false); state.setHistoryFromManageHabits(true); state.setHistoryHabitId(id); }}
         // Habit history
         historyHabit={historyHabit}
-        historyShowBackButton={ui.historyFromManageHabits}
+        historyShowBackButton={state.historyFromManageHabits}
         onCloseHabitHistory={() => {
-          ui.setHistoryHabitId(null);
-          if (ui.historyFromManageHabits) {
-            ui.setHistoryFromManageHabits(false);
-            ui.setShowManageHabitsModal(true);
+          state.setHistoryHabitId(null);
+          if (state.historyFromManageHabits) {
+            state.setHistoryFromManageHabits(false);
+            state.setShowManageHabitsModal(true);
           }
         }}
         onToggleHabitDate={toggleHabitDate}
         // Settings
-        showSettings={ui.showSettings}
-        onCloseSettings={() => ui.setShowSettings(false)}
+        showSettings={state.showSettings}
+        onCloseSettings={() => state.setShowSettings(false)}
         onAccountDeleted={handleLogout}
-        onProfileNameChange={setProfileName}
-        onProfileAvatarChange={setProfileAvatar}
+        profile={profile}
+        profileLoading={profileLoading}
+        onSaveProfile={saveProfile}
       />
     </>
   );

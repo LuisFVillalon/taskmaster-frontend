@@ -1,6 +1,6 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
-import GoogleLogo from '@/app/components/GoogleLogo';
+import GoogleLogo from '@/app/components/auth/GoogleLogo';
 
 interface GoogleAuthButtonProps {
   label: string;

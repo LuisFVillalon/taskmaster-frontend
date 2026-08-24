@@ -7,11 +7,11 @@ import { CheckCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { claimOrphanedData } from '@/app/lib/backend-api';
 import { validatePassword, MIN_LENGTH } from '@/app/lib/passwordValidation';
-import PasswordStrengthMeter from '@/app/components/PasswordStrengthMeter';
-import AuthPageCard from '@/app/components/common/AuthPageCard';
-import AuthDivider from '@/app/components/common/AuthDivider';
-import AuthInput from '@/app/components/common/AuthInput';
-import GoogleAuthButton from '@/app/components/common/GoogleAuthButton';
+import PasswordStrengthMeter from '@/app/components/auth/PasswordStrengthMeter';
+import AuthPageCard from '@/app/components/auth/AuthPageCard';
+import AuthDivider from '@/app/components/auth/AuthDivider';
+import AuthInput from '@/app/components/auth/AuthInput';
+import GoogleAuthButton from '@/app/components/auth/GoogleAuthButton';
 
 export default function SignupPage() {
   const { signUpWithEmail, signInWithGoogle, getAccessToken } = useAuth();

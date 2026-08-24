@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { FilterType, Tag } from '@/app/types/task';
 import ProfileAvatar from '@/app/components/common/ProfileAvatar';
+import Modal from '@/app/components/common/Modal';
 
 interface TaskControlsProps {
   searchTerm: string;
@@ -438,31 +439,29 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
 
       {/* Logout confirmation */}
       {confirmingLogout && (
-        <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[80]">
-          <div className="modal-panel max-w-sm w-full p-6 space-y-4">
-            <p className="text-center text-text-primary">Are you sure you want to log out?</p>
-            <div className="flex gap-3 pt-1">
-              <button
-                type="button"
-                onClick={() => setConfirmingLogout(false)}
-                disabled={loggingOut}
-                className="btn btn-secondary flex-1 py-2"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleLogoutConfirm}
-                disabled={loggingOut}
-                className="btn flex-1 py-2 text-white flex items-center justify-center gap-1.5 disabled:cursor-wait"
-                style={{ backgroundColor: 'var(--tm-danger)' }}
-              >
-                {loggingOut && <Loader2 className="w-4 h-4 animate-spin" />}
-                {loggingOut ? 'Logging out…' : 'Logout'}
-              </button>
-            </div>
+        <Modal onClose={() => setConfirmingLogout(false)} layer="top" panelClassName="modal-panel max-w-sm w-full p-6 space-y-4">
+          <p className="text-center text-text-primary">Are you sure you want to log out?</p>
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => setConfirmingLogout(false)}
+              disabled={loggingOut}
+              className="btn btn-secondary flex-1 py-2"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleLogoutConfirm}
+              disabled={loggingOut}
+              className="btn flex-1 py-2 text-white flex items-center justify-center gap-1.5 disabled:cursor-wait"
+              style={{ backgroundColor: 'var(--tm-danger)' }}
+            >
+              {loggingOut && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loggingOut ? 'Logging out…' : 'Logout'}
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );

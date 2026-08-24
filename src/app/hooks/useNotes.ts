@@ -7,7 +7,12 @@ import {
   deleteNote as apiDeleteNote,
 } from '@/app/lib/backend-api';
 
-export const useNotes = () => {
+/**
+ * @param enabled - Set false to skip the initial fetch (e.g. no signed-in
+ * user yet) — called from NotesProvider (context/NotesContext.tsx), which
+ * gates this on auth so pages outside the signed-in app never fire it.
+ */
+export const useNotes = (enabled: boolean) => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,11 +42,12 @@ export const useNotes = () => {
   const draftCreating = useRef<Map<number, Promise<Note>>>(new Map());
 
   useEffect(() => {
+    if (!enabled) return;
     fetchNotes()
       .then(data => setNotes(data))
       .catch(() => setError('Failed to load notes'))
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [enabled]);
 
   const addNote = useCallback((title = 'Untitled Note'): Note => {
     const tempId = nextTempId.current--;

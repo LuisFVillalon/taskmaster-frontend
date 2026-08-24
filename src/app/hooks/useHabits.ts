@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchHabits, toggleHabitDate, verifyHabitStreaks, Habit } from '@/app/lib/backend-api';
+import { fetchHabits, toggleHabitDate, verifyHabitStreaks } from '@/app/lib/backend-api';
+import { Habit } from '@/app/types/habit';
+import { toLocalDateStr } from '@/app/utils/dateUtils';
 
-function toLocalDateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-export function useHabits() {
+/**
+ * @param enabled - Set false to skip the initial fetch (e.g. no signed-in
+ * user yet) — called from HabitsProvider (context/HabitsContext.tsx), which
+ * gates this on auth so pages outside the signed-in app never fire it.
+ */
+export function useHabits(enabled: boolean) {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [habitsLoading, setHabitsLoading] = useState(true);
   // Toggles read-modify-write the streak server-side, so overlapping requests
@@ -28,7 +31,7 @@ export function useHabits() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (enabled) load(); }, [enabled, load]);
 
   const toggleDate = useCallback(async (id: number, date: string) => {
     if (pendingRef.current.has(id)) return;

@@ -3,7 +3,7 @@
 import React, { Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
-import PageSpinner from './PageSpinner';
+import PageSpinner from '@/app/components/common/PageSpinner';
 
 interface ProtectedPageProps {
   children: React.ReactNode;

@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { claimOrphanedData } from '@/app/lib/backend-api';
-import AuthPageCard from '@/app/components/common/AuthPageCard';
-import AuthDivider from '@/app/components/common/AuthDivider';
-import AuthInput from '@/app/components/common/AuthInput';
-import GoogleAuthButton from '@/app/components/common/GoogleAuthButton';
+import AuthPageCard from '@/app/components/auth/AuthPageCard';
+import AuthDivider from '@/app/components/auth/AuthDivider';
+import AuthInput from '@/app/components/auth/AuthInput';
+import GoogleAuthButton from '@/app/components/auth/GoogleAuthButton';
 
 export default function LoginPage() {
   const { signInWithEmail, signInWithGoogle } = useAuth();

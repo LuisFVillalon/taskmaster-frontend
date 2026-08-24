@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { FilterType, Tag, EditTaskModalState, NewTag, BaseTaskForm, NewHabit } from '@/app/types/task';
 import { DEFAULT_ACCENT } from '@/app/lib/theme';
 
+/**
+ * All of TaskManager's UI state — filters/search, modal-open flags, and
+ * in-progress form data — in one hook. Previously split across this hook
+ * and a separate useTaskManagerUIState with no principled boundary between
+ * them (e.g. showCreateHabitModal lived here while showManageHabitsModal
+ * lived there); merged into one so "is this modal open" always has exactly
+ * one place to look.
+ */
 export const useTaskManagerState = () => {
   const [sortOrder, setSortOrder] = useState<Record<FilterType, 'asc' | 'desc'>>({
     all: 'asc',
@@ -32,6 +40,12 @@ export const useTaskManagerState = () => {
   const [showEditTagModal, setShowEditTagModal] = useState(false);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [showCreateHabitModal, setShowCreateHabitModal] = useState(false);
+  const [showManageHabitsModal, setShowManageHabitsModal] = useState(false);
+  const [createHabitFromManage, setCreateHabitFromManage] = useState(false);
+  const [historyHabitId, setHistoryHabitId] = useState<number | null>(null);
+  const [historyFromManageHabits, setHistoryFromManageHabits] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [taskSidebarOpen, setTaskSidebarOpen] = useState(false);
 
   // Form states
   const [newTag, setNewTag] = useState<NewTag>({
@@ -55,8 +69,6 @@ export const useTaskManagerState = () => {
     session_type: null,
     created_date: '',
   });
-  const [listView, setListView] = useState<'list' | 'calendar'>('list');
-
   return {
     // State
     sortOrder,
@@ -83,13 +95,23 @@ export const useTaskManagerState = () => {
     setEditingTag,
     showCreateHabitModal,
     setShowCreateHabitModal,
+    showManageHabitsModal,
+    setShowManageHabitsModal,
+    createHabitFromManage,
+    setCreateHabitFromManage,
+    historyHabitId,
+    setHistoryHabitId,
+    historyFromManageHabits,
+    setHistoryFromManageHabits,
+    showSettings,
+    setShowSettings,
+    taskSidebarOpen,
+    setTaskSidebarOpen,
     newTag,
     setNewTag,
     newHabit,
     setNewHabit,
     newTask,
     setNewTask,
-    listView,
-    setListView,
   };
 };

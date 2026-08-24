@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
+import { AppDataProvider } from "./context/AppDataProvider";
 
 const inter = Inter({
   variable: "--font-heading",
@@ -34,13 +35,14 @@ export default function RootLayout({
       <body className={`${inter.variable} ${geistMono.variable} antialiased`}>
         {/*
          * Anti-flash script — runs synchronously before the first paint.
-         * Reads the stored theme preference (or OS default) and sets .dark on
-         * <html> so the correct CSS variables are active before any component
-         * renders, preventing the flash of the wrong theme.
+         * Follows the OS dark-mode preference and sets .dark on <html> so the
+         * correct CSS variables are active before any component renders,
+         * preventing the flash of the wrong theme. There is no manual
+         * light/dark toggle in the app today — this only mirrors the OS setting.
          */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=localStorage.getItem('komorebi_theme');var d=s==='dark'||(!s&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark')}catch(e){}})()`,
+            __html: `(function(){try{if(window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.classList.add('dark')}catch(e){}})()`,
           }}
         />
         {/*
@@ -65,7 +67,9 @@ export default function RootLayout({
             __html: `(function(){try{var p=localStorage.getItem('tm_page_style');if(p)document.documentElement.setAttribute('data-page-style',p)}catch(e){}})()`,
           }}
         />
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <AppDataProvider>{children}</AppDataProvider>
+        </AuthProvider>
       </body>
     </html>
   );

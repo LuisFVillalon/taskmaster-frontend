@@ -8,9 +8,14 @@
  * session the call throws so the caller can redirect to /login.
  */
 
-import { Task, WorkBlock } from "../types/task";
+import { Task } from "../types/task";
 import { Note } from "../types/notes";
 import { CalendarSettings } from "../types/calendar";
+import { Habit, HabitHistoryEntry } from "../types/habit";
+import { Profile } from "../types/profile";
+import { Drawing } from "../types/drawing";
+import { TaskDebrief } from "../types/debrief";
+import { LearningResourcesResponse } from "../types/learningResources";
 import { supabase } from "./supabase";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_TASKMASTER_DB_URL!;
@@ -325,114 +330,7 @@ export async function updateCalendarSettings(
   return res.json();
 }
 
-// ── Availability Preferences ──────────────────────────────────────────────────
-
-export interface AvailabilityPreference {
-  id: number;
-  user_id: string;
-  day_of_week: number;  // 0 = Sun … 6 = Sat  (JS Date.getDay())
-  start_time: string;   // "HH:MM" UTC
-  end_time: string;     // "HH:MM" UTC
-  label: string | null;
-}
-
-/** Fetch the user's recurring blackout windows. */
-export async function fetchAvailabilityPreferences(): Promise<AvailabilityPreference[]> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/availability-preferences`, { headers });
-  await assertOk(res, "fetchAvailabilityPreferences");
-  return res.json();
-}
-
-/** Create a new recurring blackout window. */
-export async function createAvailabilityPreference(pref: {
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  label?: string | null;
-}): Promise<AvailabilityPreference> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/availability-preferences`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(pref),
-  });
-  await assertOk(res, "createAvailabilityPreference");
-  return res.json();
-}
-
-/** Delete a blackout window by ID. */
-export async function deleteAvailabilityPreference(id: number): Promise<void> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/availability-preferences/${id}`, {
-    method: 'DELETE',
-    headers,
-  });
-  await assertOk(res, "deleteAvailabilityPreference");
-}
-
-// ── Work Blocks ───────────────────────────────────────────────────────────────
-
-/** Fetches all non-dismissed work blocks for the authenticated user. */
-export async function fetchWorkBlocks(): Promise<WorkBlock[]> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/work-blocks`, { headers });
-  await assertOk(res, "fetchWorkBlocks");
-  return res.json();
-}
-
-/** Accept or dismiss an AI-suggested work block. */
-export async function updateWorkBlockStatus(
-  id: number,
-  status: 'confirmed' | 'dismissed',
-): Promise<WorkBlock> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/work-blocks/${id}`, {
-    method: 'PATCH',
-    headers,
-    body: JSON.stringify({ status }),
-  });
-  await assertOk(res, "updateWorkBlockStatus");
-  return res.json();
-}
-
-/** Move a confirmed work block to a new time via drag-and-drop. */
-export async function rescheduleWorkBlock(
-  id: number,
-  startTime: string,
-  endTime: string,
-): Promise<WorkBlock> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/work-blocks/${id}`, {
-    method: 'PATCH',
-    headers,
-    body: JSON.stringify({ start_time: startTime, end_time: endTime }),
-  });
-  await assertOk(res, "rescheduleWorkBlock");
-  return res.json();
-}
-
-/** Hard-delete a work block (e.g. "Remove from Calendar" on a confirmed block). */
-export async function deleteWorkBlock(id: number): Promise<void> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/work-blocks/${id}`, {
-    method: 'DELETE',
-    headers,
-  });
-  await assertOk(res, "deleteWorkBlock");
-}
-
 // ── Habits ────────────────────────────────────────────────────────────────────
-
-export interface Habit {
-  id: number;
-  title: string;
-  user_id?: string | null;
-  current_streak: number;
-  max_streak: number;
-  logged_today: boolean;
-  tags: { id: number; name: string; color?: string | null }[];
-}
 
 /** Fetches all habits for the authenticated user, including today's completion state. */
 export async function fetchHabits(): Promise<Habit[]> {
@@ -486,11 +384,6 @@ export async function deleteHabit(id: number): Promise<Habit> {
   return res.json();
 }
 
-export interface HabitHistoryEntry {
-  date: string;   // YYYY-MM-DD
-  logged: boolean;
-}
-
 /** Fetches logged/not-logged status for the past `days` days (default 30) for a habit. */
 export async function fetchHabitHistory(habitId: number, days: number = 30): Promise<HabitHistoryEntry[]> {
   const headers = await getAuthHeaders();
@@ -532,13 +425,6 @@ export async function verifyHabitStreaks(): Promise<{ reset_count: number }> {
 
 // ── Profile ───────────────────────────────────────────────────────────────────
 
-export interface Profile {
-  user_id: string;
-  name: string;
-  created_at: string;
-  shutoff_time: string | null;
-}
-
 /** Fetches the authenticated user's profile. Returns null if none exists yet. */
 export async function fetchProfile(): Promise<Profile | null> {
   const headers = await getAuthHeaders();
@@ -548,8 +434,28 @@ export async function fetchProfile(): Promise<Profile | null> {
   return res.json();
 }
 
-/** Creates or updates the authenticated user's profile. Returns the saved record. */
-export async function saveProfile(profile: { name: string; shutoff_time?: string | null }): Promise<Profile> {
+/**
+ * Creates or updates the authenticated user's profile. Returns the saved record.
+ *
+ * Request body contract — CURRENT backend only persists `name`/`shutoff_time`.
+ * The rest (`avatar`/`theme_accent`/`page_style`/`day_start_time`/`rest_days`/
+ * `layout_order`) mirror the optional fields already on the `Profile` type
+ * (types/profile.ts) and are the shape `/save-profile` needs to grow to accept
+ * next — all optional, all nullable, upserted the same way `shutoff_time` is
+ * today. Callers (see hooks/useProfile.ts) only send `name`/`shutoff_time`
+ * until the backend accepts the rest, to avoid a strict request schema
+ * rejecting the whole call over an unrecognized field.
+ */
+export async function saveProfile(profile: {
+  name: string;
+  shutoff_time?: string | null;
+  avatar?: string | null;
+  theme_accent?: string | null;
+  page_style?: string | null;
+  day_start_time?: string | null;
+  rest_days?: number[] | null;
+  layout_order?: string[] | null;
+}): Promise<Profile> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/save-profile`, {
     method: 'POST',
@@ -560,48 +466,48 @@ export async function saveProfile(profile: { name: string; shutoff_time?: string
   return res.json();
 }
 
-// ── AI Debrief ────────────────────────────────────────────────────────────────
+// ── Drawing (doodle mode) ───────────────────────────────────────────────────
+// These target endpoints that don't exist on the backend yet — /get-drawing,
+// /save-drawing, /delete-drawing. Shape mirrors fetchProfile/saveProfile
+// exactly (GET 404 → null for "no drawing saved yet", POST upserts, backend
+// derives user_id from the JWT) so the backend implementation can follow the
+// same pattern as the profile endpoints. See DoodleCanvas.tsx for the
+// try-backend-then-fall-back-to-localStorage caller.
 
-export interface AIDebrief {
-  smart_habit_scheduling: string;
-  horizon_scanning: string;
-  tag_volume_audit: string;
+/** Fetches the authenticated user's saved doodle. Returns null if none exists yet. */
+export async function fetchDrawing(): Promise<Drawing | null> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/get-drawing`, { headers });
+  if (res.status === 404) return null;
+  await assertOk(res, "fetchDrawing");
+  return res.json();
+}
+
+/** Creates or overwrites the authenticated user's doodle. Returns the saved record. */
+export async function saveDrawingRemote(imageDataUrl: string): Promise<Drawing> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/save-drawing`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ image_data_url: imageDataUrl }),
+  });
+  await assertOk(res, "saveDrawingRemote");
+  return res.json();
+}
+
+/** Deletes the authenticated user's saved doodle, if any. */
+export async function deleteDrawingRemote(): Promise<void> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/delete-drawing`, {
+    method: 'DELETE',
+    headers,
+  });
+  await assertOk(res, "deleteDrawingRemote");
 }
 
 const AI_BASE_URL = process.env.NEXT_PUBLIC_TASKMASTER_AI_URL!;
 
-/** Calls the AI debrief service and returns the Time & Tag Audit result. */
-export async function fetchAIDebrief(): Promise<AIDebrief> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error("Not authenticated — no active Supabase session.");
-  const res = await fetch(`${AI_BASE_URL}/ai-debrief`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-      'x-timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
-  });
-  await assertOk(res, "fetchAIDebrief");
-  const body = await res.json();
-  return body.debrief as AIDebrief;
-}
-
 // ── Learning Resources ────────────────────────────────────────────────────────
-
-export interface LearningResource {
-  type: 'video' | 'article' | 'exercise';
-  title: string;
-  url: string;
-  why: string;
-  platform: string;
-  activity_label: string;
-}
-
-export interface LearningResourcesResponse {
-  topic: string;
-  resources: LearningResource[];
-}
 
 export async function fetchLearningResources(noteContent: string): Promise<LearningResourcesResponse> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -619,15 +525,6 @@ export async function fetchLearningResources(noteContent: string): Promise<Learn
 }
 
 // ── Task Debrief ──────────────────────────────────────────────────────────────
-
-export interface TaskDebrief {
-  overdue_tasks: string[] | string | null;
-  tasks_due_today: string[] | string | null;
-  task_recommendations: string[] | string | null;
-  remaining_habits: string[] | string | null;
-  future_horizon_warning: string[] | string | null;
-  workload_analysis: string[] | string | null;
-}
 
 /** Calls the AI service and returns an execution-order action plan, horizon warning, and workload analysis. */
 export async function fetchTaskDebrief(): Promise<TaskDebrief> {

@@ -3,24 +3,16 @@
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, Bed, Blinds, Briefcase, Grid2x2, Hourglass, PartyPopper, Smile, Timer as TimerIcon } from 'lucide-react';
 import { CalendarSettings } from '@/app/types/calendar';
-import { fetchCalendarSettings, fetchProfile } from '@/app/lib/backend-api';
-import { CardShell } from '@/app/components/StatsCard';
+import { fetchCalendarSettings } from '@/app/lib/backend-api';
+import { CardShell } from '@/app/components/stats/CardShell';
+import { parseLocalDate, formatLongDate, isWeekday, isWeekend } from '@/app/utils/dateUtils';
+import { useMidnightTick } from '@/app/hooks/useMidnightTick';
+import type { ProfileFields } from '@/app/hooks/useProfile';
 
 // Falls back to the same range BigPictureCalendar defaults to while its own
 // settings are loading, so "in session" reads the same way in both cards.
 const DEFAULT_START_DATE = '2026-01-01';
 const DEFAULT_END_DATE = '2026-03-31';
-
-const parseLocalDate = (iso: string): Date => {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
-
-const formatDate = (date: Date): string =>
-  date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-
-const isWeekday = (dayOfWeek: number) => dayOfWeek >= 1 && dayOfWeek <= 5;
-const isWeekend = (dayOfWeek: number) => dayOfWeek === 0 || dayOfWeek === 6;
 
 const pad = (n: number, width: number) => String(n).padStart(width, '0');
 
@@ -87,7 +79,7 @@ const CountdownClock: React.FC<{ target: Date }> = ({ target }) => {
         style={{ color: 'var(--tm-accent)' }}
       >
         <Hourglass className="w-3.5 h-3.5" />
-        Countdown to {formatDate(target)}
+        Countdown to {formatLongDate(target)}
       </p>
       <div className="grid grid-cols-5 divide-x divide-border-subtle">
         {COUNTDOWN_UNITS.map(unit => (
@@ -260,24 +252,6 @@ const WeekPeriodTimers: React.FC = () => {
 // falls inside it, it counts down to the shutoff time; otherwise it shows
 // the fixed length of the window (e.g. 08:00–22:00 → 14h 0m).
 
-const DEFAULT_DAY_START = '08:00';
-const DEFAULT_DAY_END = '22:00';
-const DEFAULT_REST_DAYS = [0, 6]; // Sat/Sun — matches SettingsModal's default
-
-// Mirrors SettingsModal's loadStoredRestDays: day-of-week indices per
-// JS Date#getDay() (0 = Sunday … 6 = Saturday).
-const loadStoredRestDays = (): number[] => {
-  if (typeof window === 'undefined') return DEFAULT_REST_DAYS;
-  try {
-    const raw = localStorage.getItem('tm_rest_days');
-    if (!raw) return DEFAULT_REST_DAYS;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((d: unknown) => typeof d === 'number' && d >= 0 && d <= 6) : DEFAULT_REST_DAYS;
-  } catch {
-    return DEFAULT_REST_DAYS;
-  }
-};
-
 const timeStringToMinutes = (hm: string): number => {
   const [h, m] = hm.split(':').map(Number);
   return h * 60 + m;
@@ -289,25 +263,19 @@ const buildTimeOnDate = (base: Date, hm: string): Date => {
   return new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m, 0, 0);
 };
 
-const DailyWindowTimer: React.FC = () => {
-  const [now, setNow] = useState<Date>(new Date());
-  // Lazy-init from localStorage — matches Settings' own fallback and avoids
-  // setting state synchronously inside an effect.
-  const [dayStart] = useState<string>(
-    () => (typeof window !== 'undefined' ? localStorage.getItem('tm_day_start_time') ?? DEFAULT_DAY_START : DEFAULT_DAY_START),
-  );
-  const [dayEnd, setDayEnd] = useState<string>(
-    () => (typeof window !== 'undefined' ? localStorage.getItem('tm_call_it_a_day') ?? DEFAULT_DAY_END : DEFAULT_DAY_END),
-  );
-  const [restDays] = useState<number[]>(loadStoredRestDays);
+interface DailyWindowTimerProps {
+  dayStart: string;
+  dayEnd: string;
+  restDays: number[];
+}
 
-  // The backend profile is the source of truth for shutoff_time once it
-  // resolves — overrides the localStorage/default guess above.
-  useEffect(() => {
-    fetchProfile()
-      .then(profile => { if (profile?.shutoff_time) setDayEnd(profile.shutoff_time); })
-      .catch(() => { /* keep localStorage/default fallback */ });
-  }, []);
+// dayStart/dayEnd/restDays come from the shared useProfile hook (see
+// TaskManager.tsx), threaded down via TimersCardProps below — reading them
+// as props instead of an independent localStorage/fetchProfile snapshot
+// means this stays in sync if the user edits them in Settings while this
+// card is already mounted, which the old snapshot-on-mount version couldn't.
+const DailyWindowTimer: React.FC<DailyWindowTimerProps> = ({ dayStart, dayEnd, restDays }) => {
+  const [now, setNow] = useState<Date>(new Date());
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
@@ -404,8 +372,12 @@ const TimersCardSkeleton: React.FC = () => (
 // whether "now" falls inside the configured range — the daily/weekly timers
 // and the countdown only make sense relative to that active window.
 
-const TimersCard: React.FC = () => {
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+interface TimersCardProps {
+  profile: ProfileFields;
+}
+
+const TimersCard: React.FC<TimersCardProps> = ({ profile }) => {
+  const currentDate = useMidnightTick();
   const [settings, setSettings] = useState<CalendarSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -414,21 +386,6 @@ const TimersCard: React.FC = () => {
       .then(data => { if (data !== null) setSettings(data); })
       .catch(() => { /* network / auth error — keep showing defaults */ })
       .finally(() => setLoading(false));
-  }, []);
-
-  // Midnight date updater, same pattern as BigPictureCalendar — keeps the
-  // in-session check correct across a day boundary without a 1s poll.
-  useEffect(() => {
-    const updateDate = () => setCurrentDate(new Date());
-    const now = new Date();
-    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-    const timeout = setTimeout(() => {
-      updateDate();
-      const interval = setInterval(updateDate, 24 * 60 * 60 * 1000);
-      return () => clearInterval(interval);
-    }, timeUntilMidnight);
-    return () => clearTimeout(timeout);
   }, []);
 
   if (loading) return <TimersCardSkeleton />;
@@ -449,7 +406,7 @@ const TimersCard: React.FC = () => {
       <div className="flex-1 flex flex-col justify-center gap-3">
         {inSession ? (
           <>
-            <DailyWindowTimer />
+            <DailyWindowTimer dayStart={profile.dayStartTime} dayEnd={profile.shutoffTime} restDays={profile.restDays} />
             <WeekPeriodTimers />
             <CountdownClock key={end.getTime()} target={end} />
           </>
@@ -460,7 +417,7 @@ const TimersCard: React.FC = () => {
           >
             <AlertCircle className="w-4 h-4 text-text-muted flex-shrink-0 mt-0.5" />
             <p className="text-xs sm:text-sm text-text-muted">
-              No active countdown — {formatDate(today)} is outside the date range set in the Big Picture Calendar card.
+              No active countdown — {formatLongDate(today)} is outside the date range set in the Big Picture Calendar card.
             </p>
           </div>
         )}

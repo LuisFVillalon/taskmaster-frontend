@@ -1,5 +1,6 @@
 import React from 'react';
 import { FilterType, EditTaskForm, Tag, EditTaskModalState, NewTag, BaseTaskForm, Task } from '@/app/types/task';
+import { taskToEditForm } from '@/app/utils/taskUtils';
 
 interface UseTaskHandlersProps {
   // State setters
@@ -93,28 +94,7 @@ export const useTaskHandlers = ({
     e.preventDefault();
 
     if (!showEditTaskModal.task) return;
-    const taskData: EditTaskForm = {
-      id: showEditTaskModal.task.id,
-      title: showEditTaskModal.task.title,
-      description: showEditTaskModal.task.description,
-      priority: showEditTaskModal.task.priority,
-      completed: showEditTaskModal.task.completed,
-      due_date: showEditTaskModal.task.due_date
-        ? (showEditTaskModal.task.due_date instanceof Date
-          ? showEditTaskModal.task.due_date.toISOString().slice(0, 10)
-          : showEditTaskModal.task.due_date)
-        : '',
-      due_time: showEditTaskModal.task.due_time
-        ? (showEditTaskModal.task.due_time instanceof Date
-          ? showEditTaskModal.task.due_time.toISOString().slice(11, 16)
-          : showEditTaskModal.task.due_time)
-        : '',
-      tags: showEditTaskModal.task.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
-      category: showEditTaskModal.task.category ?? null,
-      completed_date: showEditTaskModal.task.completed_date,
-      estimated_time: showEditTaskModal.task.estimated_time ?? null,
-      created_date: showEditTaskModal.task.created_date
-    };
+    const taskData = taskToEditForm(showEditTaskModal.task);
 
     const success = await updateTask(showEditTaskModal.task.id, taskData);
     if (success) {

@@ -5,6 +5,7 @@ import { Trash2 } from 'lucide-react';
 import { Note } from '@/app/types/notes';
 import { stripHtml } from '@/app/utils/textUtils';
 import { formatUpdatedDate } from '@/app/utils/dateUtils';
+import TagChipList from '@/app/components/common/TagChipList';
 
 interface NoteCardProps {
   note: Note;
@@ -19,8 +20,6 @@ const MAX_VISIBLE_TAGS = 2;
 const NoteCard: React.FC<NoteCardProps> = ({ note, isActive, onClick, onDelete, deleting }) => {
   const preview = stripHtml(note.content);
   const accentColor = note.tags[0]?.color;
-  const visibleTags = note.tags.slice(0, MAX_VISIBLE_TAGS);
-  const hiddenTagCount = note.tags.length - visibleTags.length;
 
   return (
     <div
@@ -67,22 +66,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, isActive, onClick, onDelete, 
         </p>
 
         <div className="flex items-end justify-between gap-1.5 min-w-0">
-          <div className="flex flex-wrap gap-1 min-w-0">
-            {visibleTags.map(tag => (
-              <span
-                key={tag.id}
-                className="chip px-1.5 py-0.5 text-[9px] font-medium text-white whitespace-nowrap"
-                style={{ backgroundColor: tag.color }}
-              >
-                {tag.name}
-              </span>
-            ))}
-            {hiddenTagCount > 0 && (
-              <span className="chip px-1.5 py-0.5 text-[9px] font-medium text-text-muted whitespace-nowrap" style={{ backgroundColor: 'var(--tm-surface-raised)' }}>
-                +{hiddenTagCount}
-              </span>
-            )}
-          </div>
+          <TagChipList tags={note.tags} size="2xs" maxVisible={MAX_VISIBLE_TAGS} className="min-w-0" />
           <span className="text-[9px] text-text-muted whitespace-nowrap flex-shrink-0">
             {formatUpdatedDate(note.updated_date)}
           </span>

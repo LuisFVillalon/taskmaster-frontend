@@ -1,4 +1,4 @@
-import { Task } from '@/app/types/task';
+import { EditTaskForm, Task } from '@/app/types/task';
 
 // ── Priority (static badge colors for levels 1–10) ────────────────────────────
 
@@ -145,6 +145,33 @@ export const getTaskDateTime = (task: Task): number => {
 
   return isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
 };
+
+// ── Task → EditTaskForm mapping ─────────────────────────────────────────────
+// Shared by TaskManager's inline priority update and useTaskHandlers' full
+// edit-form submit, which used to each hand-roll this same field mapping.
+// Deliberately leaves due_date/due_time/created_date as whatever shape the
+// task already has (string or Date) rather than pre-converting them —
+// useTasksAndTags.ts's updateTask() already normalizes those correctly via
+// toLocalDateStr/toLocalTimeStr, so converting them here too would be
+// redundant and risks the UTC-drift bug those helpers exist to avoid.
+export function taskToEditForm(task: Task, overrides: Partial<EditTaskForm> = {}): EditTaskForm {
+  return {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    due_date: task.due_date ?? null,
+    due_time: task.due_time ?? null,
+    priority: task.priority,
+    category: task.category ?? null,
+    completed: task.completed,
+    completed_date: task.completed_date ?? null,
+    tags: task.tags ?? [],
+    created_date: task.created_date,
+    estimated_time: task.estimated_time ?? null,
+    parent_task_id: task.parent_task_id ?? null,
+    ...overrides,
+  };
+}
 
 export const countTasksByTag = (tasks: Task[]) => {
   const map: Record<number, { name: string; color: string; count: number }> = {};

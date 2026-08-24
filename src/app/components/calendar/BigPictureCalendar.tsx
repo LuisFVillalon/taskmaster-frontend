@@ -7,6 +7,8 @@ import {
   fetchCalendarSettings,
   updateCalendarSettings,
 } from '@/app/lib/backend-api';
+import { parseLocalDate, formatLongDate, isWeekday, isWeekend } from '@/app/utils/dateUtils';
+import { useMidnightTick } from '@/app/hooks/useMidnightTick';
 
 // ── Defaults used as fallback while settings are loading ──────────────────────
 const DEFAULTS: Omit<CalendarSettings, 'id'> = {
@@ -23,17 +25,6 @@ const CIRCLE_RADIUS = (CIRCLE_SIZE - CIRCLE_STROKE) / 2;
 const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-const parseLocalDate = (iso: string): Date => {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
-
-const formatDate = (date: Date): string =>
-  date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-
-const isWeekday = (dayOfWeek: number) => dayOfWeek >= 1 && dayOfWeek <= 5;
-const isWeekend = (dayOfWeek: number) => dayOfWeek === 0 || dayOfWeek === 6;
 
 // Inclusive count of calendar days between `from` and `to` (dates only, time
 // ignored) whose day-of-week matches `predicate` — used to split the days
@@ -151,7 +142,7 @@ const BigPictureCalendarSkeleton: React.FC = () => (
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 const BigPictureCalendar: React.FC = () => {
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const currentDate = useMidnightTick();
   const [settings, setSettings] = useState<CalendarSettings | null>(null);
   const [loading, setLoading]   = useState(true);
   const [fadeIn, setFadeIn]     = useState(false);
@@ -185,20 +176,6 @@ const BigPictureCalendar: React.FC = () => {
     if (editingField === 'title') titleInputRef.current?.select();
     if (editingField === 'sub_header') subHeaderInputRef.current?.select();
   }, [editingField]);
-
-  // ── Midnight date updater ──────────────────────────────────────────────────
-  useEffect(() => {
-    const updateDate = () => setCurrentDate(new Date());
-    const now = new Date();
-    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-    const timeout = setTimeout(() => {
-      updateDate();
-      const interval = setInterval(updateDate, 24 * 60 * 60 * 1000);
-      return () => clearInterval(interval);
-    }, timeUntilMidnight);
-    return () => clearTimeout(timeout);
-  }, []);
 
   // ── Auto-save with 800 ms debounce ────────────────────────────────────────
   const scheduleAutoSave = (updated: CalendarSettings) => {
@@ -368,7 +345,7 @@ const BigPictureCalendar: React.FC = () => {
                     {progress.daysRemaining}
                   </span>
                   <span className="text-sm sm:text-base text-text-secondary font-medium">
-                    {progress.daysRemaining === 1 ? 'day left' : 'days left'} until {formatDate(progress.end)}
+                    {progress.daysRemaining === 1 ? 'day left' : 'days left'} until {formatLongDate(progress.end)}
                   </span>
                 </div>
               </div>
@@ -455,7 +432,7 @@ const BigPictureCalendar: React.FC = () => {
             <div>
               <h2 className="text-base font-bold text-text-primary mb-0.5">Not Currently In Session</h2>
               <p className="text-sm text-text-muted">
-                Today ({formatDate(currentDate)}) is outside the configured date range. Adjust the dates below.
+                Today ({formatLongDate(currentDate)}) is outside the configured date range. Adjust the dates below.
               </p>
             </div>
           </div>

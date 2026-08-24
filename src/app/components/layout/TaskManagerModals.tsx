@@ -9,9 +9,10 @@ import EditTagModal from '@/app/components/tag/EditTagListModal';
 import CreateHabitModal from '@/app/components/habit/CreateHabitModal';
 import ManageHabitsModal from '@/app/components/habit/ManageHabitsModal';
 import HabitHistoryModal from '@/app/components/habit/HabitHistoryModal';
-import SettingsModal from '@/app/components/SettingsModal';
+import SettingsModal from '@/app/components/settings/SettingsModal';
 import { Tag, BaseTaskForm, NewTag, NewHabit, Task } from '@/app/types/task';
-import type { Habit } from '@/app/lib/backend-api';
+import type { Habit } from '@/app/types/habit';
+import type { ProfileFields } from '@/app/hooks/useProfile';
 
 interface TaskManagerModalsProps {
   // New task
@@ -74,8 +75,9 @@ interface TaskManagerModalsProps {
   showSettings: boolean;
   onCloseSettings: () => void;
   onAccountDeleted: () => void;
-  onProfileNameChange: (name: string) => void;
-  onProfileAvatarChange: (avatar: string | null) => void;
+  profile: ProfileFields;
+  profileLoading: boolean;
+  onSaveProfile: (next: ProfileFields) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const TaskManagerModals: React.FC<TaskManagerModalsProps> = ({
@@ -88,7 +90,7 @@ const TaskManagerModals: React.FC<TaskManagerModalsProps> = ({
   showManageHabitsModal, onCloseManageHabitsModal, habits, onCreateHabitFromManage,
   onDeleteHabit, onUpdateHabit, onViewHabitHistory,
   historyHabit, historyShowBackButton, onCloseHabitHistory, onToggleHabitDate,
-  showSettings, onCloseSettings, onAccountDeleted, onProfileNameChange, onProfileAvatarChange,
+  showSettings, onCloseSettings, onAccountDeleted, profile, profileLoading, onSaveProfile,
 }) => {
   return (
     <>
@@ -166,8 +168,9 @@ const TaskManagerModals: React.FC<TaskManagerModalsProps> = ({
         isOpen={showSettings}
         onClose={onCloseSettings}
         onAccountDeleted={onAccountDeleted}
-        onProfileNameChange={onProfileNameChange}
-        onProfileAvatarChange={onProfileAvatarChange}
+        profile={profile}
+        profileLoading={profileLoading}
+        onSaveProfile={onSaveProfile}
       />
     </>
   );

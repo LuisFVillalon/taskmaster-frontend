@@ -9,13 +9,23 @@
 // entirely, breaking pointer input even with pointer-events: auto.
 // `active` toggles whether it captures pointer input; the toolbar itself
 // lives in the header (see DoodleToolbar), controlling this canvas via
-// props/ref. The drawing is saved to localStorage so it also survives reloads.
+// props/ref.
+//
+// Persistence: localStorage is always the instant, synchronous local cache
+// (written on every stroke) so the drawing never has a chance to be lost —
+// the backend save (fetchDrawing/saveDrawingRemote/deleteDrawingRemote in
+// lib/backend-api.ts) targets endpoints that don't exist yet, so every call
+// currently fails and silently falls back to the localStorage copy. Once
+// those endpoints exist, this component needs no further changes — it's
+// already calling them.
 
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
+import { fetchDrawing, saveDrawingRemote, deleteDrawingRemote } from '@/app/lib/backend-api';
 
 const STROKE_WIDTH = 2.5;
 const ERASER_WIDTH = 24;
 const STORAGE_KEY = 'tm_doodle_drawing';
+const REMOTE_SAVE_DEBOUNCE_MS = 800;
 
 export interface DoodleCanvasHandle {
   clear: () => void;
@@ -31,15 +41,30 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({ active
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const remoteSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const saveDrawing = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const dataUrl = canvas.toDataURL('image/png');
+
     try {
-      localStorage.setItem(STORAGE_KEY, canvas.toDataURL('image/png'));
+      localStorage.setItem(STORAGE_KEY, dataUrl);
     } catch {
-      // Storage full or unavailable (private browsing) — drawing just won't persist.
+      // Storage full or unavailable (private browsing) — drawing just won't persist locally.
     }
+
+    // Debounced backend save — every stroke-end calls saveDrawing(), but a
+    // full-canvas PNG re-encode on every single stroke would be wasteful
+    // over the network the way it isn't for the synchronous localStorage
+    // write above, so only the last stroke in a burst actually sends.
+    if (remoteSaveTimerRef.current) clearTimeout(remoteSaveTimerRef.current);
+    remoteSaveTimerRef.current = setTimeout(() => {
+      saveDrawingRemote(dataUrl).catch(() => {
+        // Endpoint doesn't exist yet (or the request failed) — the
+        // localStorage copy above is already the source of truth until it does.
+      });
+    }, REMOTE_SAVE_DEBOUNCE_MS);
   }, []);
 
   // Size the canvas to the viewport, preserving whatever is already drawn across resizes.
@@ -78,26 +103,46 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({ active
     return () => window.removeEventListener('resize', resizeCanvas);
   }, []);
 
-  // Restore a previously saved doodle once, after the canvas above has its real size.
+  // Restore a previously saved doodle once, after the canvas above has its
+  // real size. Tries the backend first (source of truth once it exists),
+  // falling back to the localStorage cache — unconditionally and silently,
+  // since every backend call fails today until those endpoints ship.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    let stored: string | null = null;
-    try {
-      stored = localStorage.getItem(STORAGE_KEY);
-    } catch {
-      stored = null;
-    }
-    if (!stored) return;
 
-    const img = new Image();
-    img.onload = () => {
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      const dpr = window.devicePixelRatio || 1;
-      ctx.drawImage(img, 0, 0, canvas.width / dpr, canvas.height / dpr);
+    const drawDataUrl = (dataUrl: string) => {
+      const img = new Image();
+      img.onload = () => {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const dpr = window.devicePixelRatio || 1;
+        ctx.drawImage(img, 0, 0, canvas.width / dpr, canvas.height / dpr);
+      };
+      img.src = dataUrl;
     };
-    img.src = stored;
+
+    const loadFromLocalStorage = () => {
+      let stored: string | null = null;
+      try {
+        stored = localStorage.getItem(STORAGE_KEY);
+      } catch {
+        stored = null;
+      }
+      if (stored) drawDataUrl(stored);
+    };
+
+    fetchDrawing()
+      .then(drawing => {
+        if (!drawing) { loadFromLocalStorage(); return; }
+        drawDataUrl(drawing.image_data_url);
+        try {
+          localStorage.setItem(STORAGE_KEY, drawing.image_data_url);
+        } catch {
+          // Storage full or unavailable — the backend copy just won't be cached locally.
+        }
+      })
+      .catch(loadFromLocalStorage);
   }, []);
 
   const getPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -141,11 +186,15 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({ active
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (remoteSaveTimerRef.current) clearTimeout(remoteSaveTimerRef.current);
       try {
         localStorage.removeItem(STORAGE_KEY);
       } catch {
         // ignore
       }
+      deleteDrawingRemote().catch(() => {
+        // Endpoint doesn't exist yet (or the request failed) — the local clear above already stuck.
+      });
     },
   }), []);
 

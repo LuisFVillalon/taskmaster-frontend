@@ -6,7 +6,7 @@
  * Strip all HTML tags from a string and trim whitespace.
  *
  * Used to convert Tiptap HTML note content into plain text for:
- *   - Preview snippets in NoteItem cards
+ *   - Preview snippets in NoteCard
  *   - Minimum-length checks before triggering AI resource fetches
  *
  * @param html - Raw HTML string (e.g. Tiptap output)

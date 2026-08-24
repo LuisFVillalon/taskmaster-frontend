@@ -2,15 +2,16 @@
 
 import React, { useState } from 'react';
 import { Calendar, LayoutGrid } from 'lucide-react';
-import BigPictureCalendar from '@/app/components/BigPictureCalendar';
-import StatsCard from '@/app/components/StatsCard';
-import TimersCard from '@/app/components/TimersCard';
+import BigPictureCalendar from '@/app/components/calendar/BigPictureCalendar';
+import StatsCard from '@/app/components/stats/StatsCard';
+import TimersCard from '@/app/components/stats/TimersCard';
 import DraggableGrid from '@/app/components/common/DraggableGrid';
 import CalendarSummarySlide from '@/app/components/calendar/CalendarSummarySlide';
 import { useGridOrder } from '@/app/hooks/useGridOrder';
-import { Habit } from '@/app/lib/backend-api';
+import { Habit } from '@/app/types/habit';
 import { StatsData, TagStats } from '@/app/types/task';
 import { Note } from '@/app/types/notes';
+import type { ProfileFields } from '@/app/hooks/useProfile';
 
 const GRID_ITEM_IDS = ['calendar', 'timers', 'habits', 'tasks', 'notes'];
 const GRID_ORDER_STORAGE_KEY = 'tm-dashboard-grid-order';
@@ -41,6 +42,7 @@ interface CalendarAndStatsProps {
   stats: StatsData;
   allNotes: Note[];
   noteTags: TagStats[];
+  profile: ProfileFields;
 }
 
 const CalendarAndStats: React.FC<CalendarAndStatsProps> = ({
@@ -52,6 +54,7 @@ const CalendarAndStats: React.FC<CalendarAndStatsProps> = ({
   stats,
   allNotes,
   noteTags,
+  profile,
 }) => {
   const [order, setOrder] = useGridOrder(GRID_ORDER_STORAGE_KEY, GRID_ITEM_IDS);
   const [slide, setSlide] = useState<'grid' | 'calendar'>('grid');
@@ -78,9 +81,6 @@ const CalendarAndStats: React.FC<CalendarAndStatsProps> = ({
         variant="tasks"
         tasks={stats.total.tasks}
         total={stats.total.tasks.length}
-        active={stats.active.tasks.length}
-        activeTags={stats.active.tags}
-        completedTags={stats.completed.tags}
       />
     ),
     notes: (
@@ -90,7 +90,7 @@ const CalendarAndStats: React.FC<CalendarAndStatsProps> = ({
         noteTags={noteTags}
       />
     ),
-    timers: <TimersCard />,
+    timers: <TimersCard profile={profile} />,
   };
 
   const bottomId = order[BOTTOM_INDEX];

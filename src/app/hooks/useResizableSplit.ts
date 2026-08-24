@@ -24,13 +24,12 @@ export function useResizableSplit(
 ) {
   const isDragging = useRef(false);
 
-  const isVertical = anchor === 'top' || anchor === 'bottom';
-
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       isDragging.current = true;
       onResizingChange?.(true);
+      const isVertical = anchor === 'top' || anchor === 'bottom';
       document.body.style.cursor = isVertical ? 'row-resize' : 'col-resize';
       document.body.style.userSelect = 'none';
 

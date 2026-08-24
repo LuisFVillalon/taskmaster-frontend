@@ -4,8 +4,8 @@ import React, { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
-import { useNotes } from '@/app/hooks/useNotes';
-import { useTags } from '@/app/hooks/useTasksAndTags';
+import { useNotesContext } from '@/app/context/NotesContext';
+import { useTagsContext } from '@/app/context/TagsContext';
 import { Note } from '@/app/types/notes';
 import { useResizableSplit } from '@/app/hooks/useResizableSplit';
 import NotesList from './NotesList';
@@ -22,7 +22,7 @@ const MAX_SIDE = 560;
 const DEFAULT_SIDE = 288;
 
 const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
-  const { notes, isLoading: notesLoading, addNote, updateNote, deleteNote, discardDraft, pendingNoteIds } = useNotes();
+  const { notes, isLoading: notesLoading, addNote, updateNote, deleteNote, discardDraft, pendingNoteIds } = useNotesContext();
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredNotes = searchTerm.trim()
@@ -31,7 +31,7 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
         n.content.replace(/<[^>]+>/g, '').toLowerCase().includes(searchTerm.toLowerCase()),
       )
     : notes;
-  const { tags, tagsLoading } = useTags();
+  const { tags, tagsLoading } = useTagsContext();
   const searchParams = useSearchParams();
 
   const [activeNoteId, setActiveNoteIdRaw] = useState<number | null>(null);

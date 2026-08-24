@@ -63,6 +63,32 @@ export const formatDateRange = (start: Date, end: Date): string => {
 };
 
 /**
+ * Parse a "YYYY-MM-DD" date-only string as a local-timezone Date at
+ * midnight. Unlike `new Date(iso)`, this never shifts a day when the local
+ * timezone is behind UTC — the inverse of `toLocalDateStr`.
+ *
+ * @param iso - A "YYYY-MM-DD" string
+ */
+export const parseLocalDate = (iso: string): Date => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+
+/**
+ * Format a Date as a long-form date, e.g. "January 1, 2026".
+ *
+ * @param date - The Date to format
+ */
+export const formatLongDate = (date: Date): string =>
+  date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+/** True for Monday–Friday, given a JS `Date#getDay()` value (0=Sun..6=Sat). */
+export const isWeekday = (dayOfWeek: number): boolean => dayOfWeek >= 1 && dayOfWeek <= 5;
+
+/** True for Saturday/Sunday, given a JS `Date#getDay()` value (0=Sun..6=Sat). */
+export const isWeekend = (dayOfWeek: number): boolean => dayOfWeek === 0 || dayOfWeek === 6;
+
+/**
  * Format an ISO timestamp for "last updated" displays: a bare time when it
  * falls on today, otherwise a short date (with year only if not this year).
  *

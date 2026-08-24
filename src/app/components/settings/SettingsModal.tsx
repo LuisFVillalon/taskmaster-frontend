@@ -20,19 +20,22 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { X, Loader2, Eye, EyeOff, AlertTriangle, ExternalLink, ShieldCheck, User, Check, Palette, CircleUserRound } from 'lucide-react';
 import { supabase } from '@/app/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
-import { updatePassword, deleteAccount, fetchProfile, saveProfile } from '@/app/lib/backend-api';
+import { updatePassword, deleteAccount } from '@/app/lib/backend-api';
 import { validatePassword, MIN_LENGTH } from '@/app/lib/passwordValidation';
-import PasswordStrengthMeter from '@/app/components/PasswordStrengthMeter';
-import { DEFAULT_ACCENT, applyThemeColor, getStoredThemeColor, setStoredThemeColor, resetThemeColor } from '@/app/lib/theme';
-import { PAGE_STYLES, DEFAULT_PAGE_STYLE, applyPageStyle, getStoredPageStyle, setStoredPageStyle, resetPageStyle } from '@/app/lib/pageStyle';
-import { AVATAR_OPTIONS, getStoredProfileAvatar, setStoredProfileAvatar } from '@/app/lib/avatar';
+import PasswordStrengthMeter from '@/app/components/auth/PasswordStrengthMeter';
+import { applyThemeColor } from '@/app/lib/theme';
+import { PAGE_STYLES, applyPageStyle } from '@/app/lib/pageStyle';
+import { AVATAR_OPTIONS } from '@/app/lib/avatar';
 import ThemeAccentPicker from '@/app/components/settings/ThemeAccentPicker';
+import Modal from '@/app/components/common/Modal';
+import type { ProfileFields } from '@/app/hooks/useProfile';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onAccountDeleted: () => void;
-  onProfileNameChange: (name: string) => void;
-  onProfileAvatarChange: (avatar: string | null) => void;
+  profile: ProfileFields;
+  profileLoading: boolean;
+  onSaveProfile: (next: ProfileFields) => Promise<{ ok: boolean; error?: string }>;
 }
 
 type Section = 'profile' | 'password' | 'email' | 'delete';
@@ -51,26 +54,13 @@ const REST_DAY_OPTIONS: { day: number; label: string }[] = [
   { day: 5, label: 'Fri' },
   { day: 6, label: 'Sat' },
 ];
-const DEFAULT_REST_DAYS = [0, 6]; // Sat/Sun
-
-function loadStoredRestDays(): number[] {
-  if (typeof window === 'undefined') return DEFAULT_REST_DAYS;
-  try {
-    const raw = localStorage.getItem('tm_rest_days');
-    if (!raw) return DEFAULT_REST_DAYS;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((d: unknown) => typeof d === 'number' && d >= 0 && d <= 6) : DEFAULT_REST_DAYS;
-  } catch {
-    return DEFAULT_REST_DAYS;
-  }
-}
-
 export default function SettingsModal({
   isOpen,
   onClose,
   onAccountDeleted,
-  onProfileNameChange,
-  onProfileAvatarChange,
+  profile,
+  profileLoading,
+  onSaveProfile,
 }: Props) {
   const { user } = useAuth();
 
@@ -84,76 +74,49 @@ export default function SettingsModal({
   const [section, setSection] = useState<Section>('profile');
 
   // ── Profile ──────────────────────────────────────────────────────────────
-  const [profileName, setProfileName] = useState<string>(
-    () => (typeof window !== 'undefined' ? localStorage.getItem('tm_profile_name') ?? 'G.O.A.T.' : 'G.O.A.T.')
-  );
-  const [dayStartTime, setDayStartTime] = useState<string>(
-    () => (typeof window !== 'undefined' ? localStorage.getItem('tm_day_start_time') ?? '08:00' : '08:00')
-  );
-  const [callItADay, setCallItADay] = useState<string>(
-    () => (typeof window !== 'undefined' ? localStorage.getItem('tm_call_it_a_day') ?? '22:00' : '22:00')
-  );
-  const [restDays, setRestDays] = useState<number[]>(loadStoredRestDays);
+  // Draft copies of the shared profile (see hooks/useProfile.ts) — edited
+  // freely here, only committed (backend + localStorage) via onSaveProfile
+  // when the user clicks Save. Resynced from `profile` below whenever the
+  // modal (re)opens, so closing without saving never leaves a stale draft.
+  const [profileName, setProfileName] = useState(profile.name);
+  const [profileAvatar, setProfileAvatar] = useState<string | null>(profile.avatar);
+  const [dayStartTime, setDayStartTime] = useState(profile.dayStartTime);
+  const [callItADay, setCallItADay] = useState(profile.shutoffTime);
+  const [restDays, setRestDays] = useState<number[]>(profile.restDays);
+  const [themeColor, setThemeColor] = useState(profile.themeAccent);
+  const [pageStyle, setPageStyle] = useState(profile.pageStyle);
   const toggleRestDay = (day: number) => {
     setRestDays(prev => (prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()));
   };
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
 
-  // ── Avatar (local-only until a backend field exists) ────────────────────
-  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
-
+  // This component stays mounted while closed (renders null below rather
+  // than being conditionally rendered by its parent), so there's no natural
+  // remount to reset the draft on each open the way there would be if it
+  // unmounted — an explicit resync on `isOpen` becoming true is the only way
+  // to discard whatever was left over from the last time it was open.
+  /* eslint-disable react-hooks/set-state-in-effect -- resetting the draft from the committed profile on open, not synchronizing derived state on every profile change */
   useEffect(() => {
     if (!isOpen) return;
-    setProfileAvatar(getStoredProfileAvatar());
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setProfileLoading(true);
-    fetchProfile().then(profile => {
-      if (profile) {
-        setProfileName(profile.name);
-        if (profile.shutoff_time) setCallItADay(profile.shutoff_time);
-      }
-    }).catch(() => {/* no-op: fall back to localStorage defaults */})
-      .finally(() => setProfileLoading(false));
-  }, [isOpen]);
-
-  // Closing the modal without saving shouldn't leave behind an edited-but-
-  // unsaved day-start-time/rest-days value — resync from localStorage on
-  // every open, same as the appearance state below.
-  useEffect(() => {
-    if (!isOpen) return;
-    setDayStartTime(localStorage.getItem('tm_day_start_time') ?? '08:00');
-    setRestDays(loadStoredRestDays());
-  }, [isOpen]);
-
-  // ── Appearance (theme accent color) ─────────────────────────────────────
-  const [themeColor, setThemeColor] = useState<string>(DEFAULT_ACCENT);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setThemeColor(getStoredThemeColor() ?? DEFAULT_ACCENT);
-  }, [isOpen]);
-
-  // ── Appearance (notebook page style) ────────────────────────────────────
-  const [pageStyle, setPageStyle] = useState<string>(DEFAULT_PAGE_STYLE);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setPageStyle(getStoredPageStyle() ?? DEFAULT_PAGE_STYLE);
-  }, [isOpen]);
+    setProfileName(profile.name);
+    setProfileAvatar(profile.avatar);
+    setDayStartTime(profile.dayStartTime);
+    setCallItADay(profile.shutoffTime);
+    setRestDays(profile.restDays);
+    setThemeColor(profile.themeAccent);
+    setPageStyle(profile.pageStyle);
+  }, [isOpen, profile]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Closing the modal without saving reverts any previewed-but-unsaved
   // color/page-ruling changes back to whatever's actually persisted.
   useEffect(() => {
     if (isOpen) return;
-    applyThemeColor(getStoredThemeColor() ?? DEFAULT_ACCENT);
-    applyPageStyle(getStoredPageStyle() ?? DEFAULT_PAGE_STYLE);
-  }, [isOpen]);
+    applyThemeColor(profile.themeAccent);
+    applyPageStyle(profile.pageStyle);
+  }, [isOpen, profile]);
 
   // Picking a swatch previews it live on the whole app immediately, but only
   // persists (localStorage) when the user clicks Save Profile.
@@ -197,29 +160,22 @@ export default function SettingsModal({
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileError(null);
-
-    // Appearance is local-only (localStorage) — apply + persist it now, on Save.
-    if (themeColor === DEFAULT_ACCENT) resetThemeColor();
-    else setStoredThemeColor(themeColor);
-    if (pageStyle === DEFAULT_PAGE_STYLE) resetPageStyle();
-    else setStoredPageStyle(pageStyle);
-
     setProfileSaving(true);
-    try {
-      await saveProfile({ name: profileName, shutoff_time: callItADay });
-      localStorage.setItem('tm_profile_name', profileName);
-      localStorage.setItem('tm_day_start_time', dayStartTime);
-      localStorage.setItem('tm_call_it_a_day', callItADay);
-      localStorage.setItem('tm_rest_days', JSON.stringify(restDays));
-      setStoredProfileAvatar(profileAvatar);
-      onProfileNameChange(profileName);
-      onProfileAvatarChange(profileAvatar);
+    const result = await onSaveProfile({
+      name: profileName,
+      avatar: profileAvatar,
+      themeAccent: themeColor,
+      pageStyle,
+      dayStartTime,
+      shutoffTime: callItADay,
+      restDays,
+    });
+    setProfileSaving(false);
+    if (result.ok) {
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 2000);
-    } catch (err) {
-      setProfileError(err instanceof Error ? err.message : 'Failed to save profile.');
-    } finally {
-      setProfileSaving(false);
+    } else {
+      setProfileError(result.error ?? 'Failed to save profile.');
     }
   };
 
@@ -314,11 +270,10 @@ export default function SettingsModal({
     }`;
 
   return (
-    <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="modal-panel w-full max-w-lg flex flex-col max-h-[90vh] relative"
-        style={{ backgroundColor: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}
-      >
+    <Modal
+      onClose={onClose}
+      panelClassName="modal-panel w-full max-w-lg flex flex-col max-h-[90vh] relative bg-[var(--tm-surface)] border border-[var(--tm-border)]"
+    >
         {/* ── Profile save/error toast — floats above everything, doesn't shift layout ── */}
         {section === 'profile' && (profileSaved || profileError) && (
           <div
@@ -784,7 +739,6 @@ export default function SettingsModal({
           )}
 
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

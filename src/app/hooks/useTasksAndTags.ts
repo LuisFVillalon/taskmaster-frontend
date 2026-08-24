@@ -7,7 +7,6 @@ import {
   onDelete,
   onDeleteTag,
   updateTag as updateTagApi,
-  saveTasksToDBAPI,
   updateWholeTask,
 } from '@/app/lib/backend-api';
 import { Task, Tag, BaseTaskForm, EditTaskForm, NewTag } from '@/app/types/task';
@@ -15,8 +14,12 @@ import { toLocalISOString, toLocalDateStr, toLocalTimeStr } from '@/app/utils/da
 
 /**
  * Manages task state and CRUD operations.
+ *
+ * @param enabled - Set false to skip the initial fetch (e.g. no signed-in
+ * user yet) — called from TasksProvider (context/TasksContext.tsx), which
+ * gates this on auth so pages outside the signed-in app never fire it.
  */
-export const useTasks = () => {
+export const useTasks = (enabled: boolean) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   // Guards toggle/delete against double-click races the same way useHabits
@@ -24,12 +27,9 @@ export const useTasks = () => {
   // state so the UI can disable/dim just the item that's in flight.
   const pendingRef = useRef<Set<number>>(new Set());
   const [pendingTaskIds, setPendingTaskIds] = useState<Set<number>>(new Set());
-  // Tracks tasks with an edit (e.g. priority) currently being saved, so the
-  // UI can show a loading state without conflating it with toggle/delete pending.
-  const savingRef = useRef<Set<number>>(new Set());
-  const [savingTaskIds, setSavingTaskIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
+    if (!enabled) return;
     const loadTasks = async () => {
       try {
         setIsLoading(true);
@@ -44,7 +44,7 @@ export const useTasks = () => {
     };
 
     loadTasks();
-  }, []);
+  }, [enabled]);
 
   const toggleComplete = async (id: number): Promise<void> => {
     if (pendingRef.current.has(id)) return;
@@ -120,17 +120,6 @@ export const useTasks = () => {
     }
   }; 
 
-  const addTasks = async (newTasks: Task[]) => {
-    try {
-      await saveTasksToDBAPI(newTasks);
-      return true;
-    } catch (err) {
-      console.error(err);
-      alert("Failed to create tasks");
-      return false;
-    }
-  };  
-
   const deleteTask = async (delTask: Task) => {
     if (pendingRef.current.has(delTask.id)) return false;
     pendingRef.current.add(delTask.id);
@@ -160,8 +149,6 @@ export const useTasks = () => {
   };
 
   const updateTask = async (id: number, updatedTask: EditTaskForm) => {
-    savingRef.current.add(id);
-    setSavingTaskIds(new Set(savingRef.current));
     try {
       const taskToUpdate = {
         ...updatedTask,
@@ -180,9 +167,6 @@ export const useTasks = () => {
       console.error(err);
       alert("Failed to update task");
       return false;
-    } finally {
-      savingRef.current.delete(id);
-      setSavingTaskIds(new Set(savingRef.current));
     }
   };
 
@@ -194,20 +178,23 @@ export const useTasks = () => {
     setTasks,
     deleteTask,
     updateTask,
-    addTasks,
     pendingTaskIds,
-    savingTaskIds
   };
 };
 
 /**
  * Manages tag state and CRUD operations.
+ *
+ * @param enabled - Set false to skip the initial fetch (e.g. no signed-in
+ * user yet) — called from TagsProvider (context/TagsContext.tsx), which
+ * gates this on auth so pages outside the signed-in app never fire it.
  */
-export const useTags = () => {
+export const useTags = (enabled: boolean) => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [tagsLoading, setTagsLoading] = useState(true);
 
   useEffect(() => {
+    if (!enabled) return;
     const loadTags = async () => {
       try {
         setTagsLoading(true);
@@ -222,7 +209,7 @@ export const useTags = () => {
     };
 
     loadTags();
-  }, []);
+  }, [enabled]);
 
   const addTag = async (newTag: NewTag) => {
     if (!newTag.name.trim()) return false;

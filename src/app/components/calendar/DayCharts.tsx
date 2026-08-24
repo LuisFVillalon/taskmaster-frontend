@@ -1,15 +1,27 @@
 'use client';
 
 import React, { useState } from 'react';
+import { TrendLineChart } from '@/app/components/charts/TrendLineChart';
 
 // Small SVG chart primitives for the day-detail view. Mirrors the flat-fill
-// donut / bar / line patterns already shipped in StatsCard.tsx (same CSS
-// vars, same arc/gap math) so these read as part of the same chart system,
-// just scoped to a single day's tasks instead of a habit or the full task
-// list. Category colors intentionally come from each tag's own user-chosen
-// `color` (the same value shown on that tag everywhere else in the app —
-// task chips, note chips, the tag manager) rather than a freshly generated
-// categorical ramp, so a tag's identity color never drifts between screens.
+// donut / bar / line patterns already shipped in components/stats/charts.tsx
+// (same CSS vars, same arc/gap math) so these read as part of the same chart
+// system, just scoped to a single day's tasks instead of a habit or the full
+// task list. Category colors intentionally come from each tag's own
+// user-chosen `color` (the same value shown on that tag everywhere else in
+// the app — task chips, note chips, the tag manager) rather than a freshly
+// generated categorical ramp, so a tag's identity color never drifts between
+// screens.
+//
+// The line chart's plot geometry was a genuine byte-for-byte duplicate of
+// stats/charts.tsx's HoursLineChart and is now the shared TrendLineChart
+// (components/charts/TrendLineChart.tsx). CategoryDonutChart/CategoryBarsChart
+// below were evaluated for the same treatment and deliberately kept separate:
+// stats/charts.tsx's donut/bar plot a *count* with an always-shown legend and
+// a 4rem label column, these plot *hours* with an inline legend and a 6rem
+// label column, and use different inactive-arc opacity — real differences,
+// not just styling, so merging them would trade a visible behavior change for
+// a cosmetic dedup.
 
 export interface ChartCategory {
   label: string;
@@ -168,87 +180,13 @@ interface WeekTrendLineChartProps {
   rangeLabel: string;
 }
 
-export const WeekTrendLineChart: React.FC<WeekTrendLineChartProps> = ({ days, rangeLabel }) => {
-  const totalHours = days.reduce((sum, d) => sum + d.hours, 0);
-
-  if (totalHours <= 0) {
-    return (
-      <div className="flex flex-col gap-1">
-        <p className="text-xs text-text-muted">{rangeLabel}</p>
-        <div className="flex items-center justify-center text-center" style={{ minHeight: '5rem' }}>
-          <p className="text-xs sm:text-sm text-text-muted italic">No estimated hours this week</p>
-        </div>
-      </div>
-    );
-  }
-
-  const W = 300;
-  const H = 100;
-  const padL = 24;
-  const padR = 10;
-  const padT = 14;
-  const padB = 16;
-  const plotW = W - padL - padR;
-  const plotH = H - padT - padB;
-  const maxHours = Math.max(...days.map(d => d.hours), 1);
-  const axisMax = Math.max(Math.ceil(maxHours), 1);
-  const stepX = days.length > 1 ? plotW / (days.length - 1) : 0;
-
-  const points = days.map((d, i) => ({
-    ...d,
-    x: padL + stepX * i,
-    y: padT + plotH - (d.hours / axisMax) * plotH,
-  }));
-
-  const yTicks = Array.from({ length: axisMax + 1 }, (_, i) => ({
-    value: i,
-    y: padT + plotH - (i / axisMax) * plotH,
-  }));
-
-  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  const areaPath = `${linePath} L ${points[points.length - 1].x} ${padT + plotH} L ${points[0].x} ${padT + plotH} Z`;
-
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="text-xs text-text-muted">{rangeLabel}</p>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={`Estimated hours, ${rangeLabel}`}>
-        {yTicks.map((t, i) => (
-          <line key={`grid-${i}`} x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke="var(--tm-border)" strokeWidth={1} opacity={t.value === 0 ? 1 : 0.35} />
-        ))}
-        {yTicks.map((t, i) => (
-          <text key={`ylabel-${i}`} x={0} y={t.y + 2.5} fontSize={7} fill="var(--tm-text-muted)">
-            {fmtHours(t.value)}h
-          </text>
-        ))}
-        <path d={areaPath} fill="var(--tm-accent)" fillOpacity={0.1} stroke="none" />
-        <path d={linePath} fill="none" stroke="var(--tm-accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-        {points.map((p, i) => (
-          <circle
-            key={i}
-            cx={p.x}
-            cy={p.y}
-            r={p.isSelected ? 4 : 2.75}
-            fill={p.isSelected ? 'var(--tm-accent)' : 'var(--tm-surface)'}
-            stroke="var(--tm-accent)"
-            strokeWidth={2}
-          >
-            <title>{`${p.date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${fmtHours(p.hours)}h`}</title>
-          </circle>
-        ))}
-        {points.map((p, i) => (
-          <text
-            key={`label-${i}`}
-            x={p.x}
-            y={H - 3}
-            fontSize={8}
-            textAnchor="middle"
-            fontWeight={p.isSelected ? 700 : 400}
-            fill={p.isSelected ? 'var(--tm-accent)' : 'var(--tm-text-muted)'}
-          >
-            {p.date.toLocaleDateString(undefined, { weekday: 'narrow' })}
-          </text>
-        ))}
-      </svg>
-    </div>
-  );
-};
+export const WeekTrendLineChart: React.FC<WeekTrendLineChartProps> = ({ days, rangeLabel }) => (
+  <div className="flex flex-col gap-1">
+    <p className="text-xs text-text-muted">{rangeLabel}</p>
+    <TrendLineChart
+      days={days.map(d => ({ date: d.date, hours: d.hours, isToday: d.isSelected }))}
+      svgClassName="w-full h-auto"
+      ariaLabel={`Estimated hours, ${rangeLabel}`}
+    />
+  </div>
+);
