@@ -90,7 +90,7 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
 
 
     return (
-        <div className='text-black flex flex-col gap-2'>
+        <div className='text-text-primary flex flex-col gap-2'>
             <CourseSelection
                 canvasCourses={canvasCourses}
                 setActiveView={setActiveView}
@@ -102,6 +102,7 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                 getCourseAssignments={getCourseAssignments}
                 getCourseQuizzes={getCourseQuizzes}
                 setItemsIsLoading={setItemsIsLoading}
+                itemsIsLoading={itemsIsLoading}
             />
             <div>
                 <div className="grid grid-cols-3 gap-3 mb-2">
@@ -109,12 +110,11 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                         onClick={() => handleViewChange('modules')}
                         disabled={itemsIsLoading}
                         className={`flex justify-center items-center gap-1
-                            px-6 py-3 border border-gray-200  
-                            transition-all duration-200 shadow-sm 
-                            hover:shadow-md font-medium ${
-                            activeView === 'modules' 
-                                ? 'bg-blue-500 text-white border-blue-500' 
-                                : 'bg-white text-gray-900 hover:bg-gray-50 hover:border-gray-300'
+                            px-6 py-3 rounded-md border
+                            transition-all duration-200 font-medium ${
+                            activeView === 'modules'
+                                ? 'bg-accent text-white border-accent'
+                                : 'bg-surface text-text-primary border-border hover:bg-surface-raised'
                         } ${itemsIsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         <p>Modules</p>
@@ -145,12 +145,11 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                         onClick={() => handleViewChange('assignments')}
                         disabled={itemsIsLoading}
                         className={`flex justify-center items-center gap-1
-                            px-6 py-3 border border-gray-200  
-                            transition-all duration-200 shadow-sm 
-                            hover:shadow-md font-medium ${
-                            activeView === 'assignments' 
-                                ? 'bg-blue-500 text-white border-blue-500' 
-                                : 'bg-white text-gray-900 hover:bg-gray-50 hover:border-gray-300'
+                            px-6 py-3 rounded-md border
+                            transition-all duration-200 font-medium ${
+                            activeView === 'assignments'
+                                ? 'bg-accent text-white border-accent'
+                                : 'bg-surface text-text-primary border-border hover:bg-surface-raised'
                         } ${itemsIsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         <p>Assignments</p>
@@ -181,12 +180,11 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                         onClick={() => handleViewChange('quizzes')}
                         disabled={itemsIsLoading}
                         className={`flex justify-center items-center gap-1
-                            px-6 py-3 border border-gray-200  
-                            transition-all duration-200 shadow-sm 
-                            hover:shadow-md font-medium ${
-                            activeView === 'quizzes' 
-                                ? 'bg-blue-500 text-white border-blue-500' 
-                                : 'bg-white text-gray-900 hover:bg-gray-50 hover:border-gray-300'
+                            px-6 py-3 rounded-md border
+                            transition-all duration-200 font-medium ${
+                            activeView === 'quizzes'
+                                ? 'bg-accent text-white border-accent'
+                                : 'bg-surface text-text-primary border-border hover:bg-surface-raised'
                         } ${itemsIsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         <p>Quizzes</p>
@@ -219,13 +217,13 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                         currentCourseDisplay.map((obj, index) => (
                             <div 
                                 key={index}
-                                className='flex flex-col gap-2 p-4 mt-3 bg-white border border-gray-200  shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200'
+                                className='flex flex-col gap-2 p-4 mt-3 bg-surface border border-border rounded-xl hover:border-accent transition-all duration-200'
                             >
                                 {('name' in obj && activeView === 'modules') && (
                                     <>
                                         <span
                                             onClick={() => displayItems(obj)}
-                                            className="font-semibold text-gray-900 text-lg cursor-pointer  transition-colors duration-200 inline-flex items-center gap-2 select-none"
+                                            className="font-semibold text-text-primary text-lg cursor-pointer transition-colors duration-200 inline-flex items-center gap-2 select-none"
                                         >
                                             {obj.name}
                                             <svg
@@ -248,9 +246,9 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                                                     : 'max-h-0 opacity-0'
                                             }`}
                                         >
-                                            <div className="space-y-2 pl-4 border-l-2 border-blue-200">
+                                            <div className="space-y-2 pl-4 border-l-2 border-[var(--tm-accent-subtle)]">
                                                 {moduleItemsIsLoading ? (
-                                                    <div className="flex items-center gap-2 text-gray-600">
+                                                    <div className="flex items-center gap-2 text-text-secondary">
                                                         <svg
                                                             className="w-4 h-4 animate-spin"
                                                             viewBox="0 0 24 24"
@@ -290,8 +288,8 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
                                                                         className="
-                                                                            text-gray-700
-                                                                            hover:text-blue-600
+                                                                            text-text-secondary
+                                                                            hover:text-accent
                                                                             hover:underline
                                                                             cursor-pointer
                                                                             transition-all
@@ -302,7 +300,7 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                                                                         {item.title}
                                                                     </Link>
                                                                 ) : (
-                                                                    <div className="text-gray-700">
+                                                                    <div className="text-text-secondary">
                                                                         {item.title}
                                                                     </div>
                                                                 )
@@ -323,8 +321,8 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                                                         target="_blank"
                                                         rel="noopener noreferrer"                                                    
                                                         className="
-                                                            text-gray-700
-                                                            hover:text-blue-600
+                                                            text-text-secondary
+                                                            hover:text-accent
                                                             hover:underline
                                                             cursor-pointer
                                                             transition-all
@@ -339,7 +337,7 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                                             </>
                                         )}
                                         {('due_at' in obj && obj.due_at) && (
-                                            <div className="text-gray-700">
+                                            <div className="text-text-secondary">
                                                 Due: {new Date(obj.due_at).toLocaleDateString('en-US', {
                                                     year: 'numeric',
                                                     month: 'long',
@@ -351,9 +349,9 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                                         )}
                                         <div className='flex gap-2'>
                                             <p>Status: </p>
-                                            {('has_submitted_submissions' in obj && obj.has_submitted_submissions) ? 
-                                                    <div className="font-semibold text-green-500">Submitted</div> : <div className='font-semibold text-red-500'>Not Submitted</div>
-                                            } 
+                                            {('has_submitted_submissions' in obj && obj.has_submitted_submissions) ?
+                                                    <div className="font-semibold text-success">Submitted</div> : <div className='font-semibold text-danger'>Not Submitted</div>
+                                            }
                                         </div>
                                     
                                     </>
@@ -367,8 +365,8 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                                                         target="_blank"
                                                         rel="noopener noreferrer"                                                    
                                                         className="
-                                                            text-gray-700
-                                                            hover:text-blue-600
+                                                            text-text-secondary
+                                                            hover:text-accent
                                                             hover:underline
                                                             cursor-pointer
                                                             transition-all
@@ -385,7 +383,7 @@ const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
                                         <div className='flex gap-2'>
                                             <p>Due: </p>
                                             {('due_at' in obj && obj.due_at) && (
-                                                <div className="text-gray-700">
+                                                <div className="text-text-secondary">
                                                     {new Date(obj.due_at).toLocaleDateString('en-US', {
                                                         year: 'numeric',
                                                         month: 'long',

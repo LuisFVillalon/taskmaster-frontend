@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
@@ -11,6 +11,7 @@ import { useResizableSplit } from '@/app/hooks/useResizableSplit';
 import NotesList from './NotesList';
 import NoteEditor from './NoteEditor';
 import DragHandle from '@/app/components/common/DragHandle';
+import PageSpinner from '@/app/components/common/PageSpinner';
 
 interface NotesViewProps {
   embedded?: boolean;
@@ -21,7 +22,7 @@ const MAX_SIDE = 560;
 const DEFAULT_SIDE = 288;
 
 const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
-  const { notes, addNote, updateNote, deleteNote } = useNotes();
+  const { notes, isLoading: notesLoading, addNote, updateNote, deleteNote, discardDraft, pendingNoteIds } = useNotes();
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredNotes = searchTerm.trim()
@@ -30,10 +31,18 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
         n.content.replace(/<[^>]+>/g, '').toLowerCase().includes(searchTerm.toLowerCase()),
       )
     : notes;
-  const { tags } = useTags();
+  const { tags, tagsLoading } = useTags();
   const searchParams = useSearchParams();
 
-  const [activeNoteId, setActiveNoteId]   = useState<number | null>(null);
+  const [activeNoteId, setActiveNoteIdRaw] = useState<number | null>(null);
+  // Wraps setActiveNoteId so switching away from an untouched draft note
+  // removes it instead of leaving a phantom "Untitled Note" in the list.
+  const setActiveNoteId = useCallback((id: number | null) => {
+    setActiveNoteIdRaw(prev => {
+      if (prev !== null && prev !== id) discardDraft(prev);
+      return id;
+    });
+  }, [discardDraft]);
   const [mobileView, setMobileView]       = useState<'list' | 'editor'>('list');
   const [sidebarOpen, setSidebarOpen]     = useState(true);
   const [leftWidth, setLeftWidth]         = useState(DEFAULT_SIDE);
@@ -76,6 +85,8 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
     onResizingChange: setIsResizingLeft,
   });
 
+  if (notesLoading || tagsLoading) return <PageSpinner />;
+
   const panel = (
     <div
       ref={panelRef}
@@ -98,7 +109,9 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
             onSearchChange={setSearchTerm}
             onSelectNote={handleSelectNote}
             onNewNote={handleNewNote}
+            onUpdateNote={updateNote}
             onDeleteNote={handleDeleteNote}
+            pendingNoteIds={pendingNoteIds}
           />
         </div>
       </div>

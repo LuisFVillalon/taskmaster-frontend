@@ -2,15 +2,16 @@
 
 import React from 'react';
 import NewTaskModal from '@/app/components/task/NewTaskModal';
-import AiSubtasksModal from '@/app/components/task/AiSubtasksModal';
+import EditTaskModal from '@/app/components/task/EditTaskModal';
+import type { TaskFormData } from '@/app/components/task/TaskFormFields';
 import CreateTagModal from '@/app/components/tag/CreateTagModal';
 import EditTagModal from '@/app/components/tag/EditTagListModal';
 import CreateHabitModal from '@/app/components/habit/CreateHabitModal';
 import ManageHabitsModal from '@/app/components/habit/ManageHabitsModal';
 import HabitHistoryModal from '@/app/components/habit/HabitHistoryModal';
 import SettingsModal from '@/app/components/SettingsModal';
-import { Tag, BaseTaskForm, NewTag, NewHabit } from '@/app/types/task';
-import type { PlanTasksResult, AiSubtask, Habit } from '@/app/lib/backend-api';
+import { Tag, BaseTaskForm, NewTag, NewHabit, Task } from '@/app/types/task';
+import type { Habit } from '@/app/lib/backend-api';
 
 interface TaskManagerModalsProps {
   // New task
@@ -20,15 +21,17 @@ interface TaskManagerModalsProps {
   onTaskChange: (task: BaseTaskForm) => void;
   onToggleTag: (tag: Tag) => void;
   onSubmitTask: (e: React.FormEvent) => void;
-  onSmartPlan: (task: BaseTaskForm) => Promise<void>;
   activeTaskCount: number;
   occupiedPriorityLevels: number[];
   tags: Tag[];
 
-  // AI plan result
-  aiPlanResult: PlanTasksResult | null;
-  onSaveSubtasks: (subtasks: AiSubtask[]) => Promise<void>;
-  onDiscardAiPlan: () => void;
+  // Edit task
+  showEditTaskModal: boolean;
+  editTask: Task | null;
+  onCloseEditTaskModal: () => void;
+  onEditTaskChange: (task: TaskFormData) => void;
+  onToggleEditTag: (tag: Tag) => void;
+  onSubmitEditTask: (e: React.FormEvent) => void;
 
   // Create tag
   showCreateTagModal: boolean;
@@ -63,6 +66,7 @@ interface TaskManagerModalsProps {
 
   // Habit history
   historyHabit: Habit | null;
+  historyShowBackButton: boolean;
   onCloseHabitHistory: () => void;
   onToggleHabitDate: (id: number, date: string) => Promise<void>;
 
@@ -70,19 +74,21 @@ interface TaskManagerModalsProps {
   showSettings: boolean;
   onCloseSettings: () => void;
   onAccountDeleted: () => void;
+  onProfileNameChange: (name: string) => void;
+  onProfileAvatarChange: (avatar: string | null) => void;
 }
 
 const TaskManagerModals: React.FC<TaskManagerModalsProps> = ({
   showNewTaskModal, onCloseNewTaskModal, newTask, onTaskChange, onToggleTag,
-  onSubmitTask, onSmartPlan, activeTaskCount, occupiedPriorityLevels, tags,
-  aiPlanResult, onSaveSubtasks, onDiscardAiPlan,
+  onSubmitTask, activeTaskCount, occupiedPriorityLevels, tags,
+  showEditTaskModal, editTask, onCloseEditTaskModal, onEditTaskChange, onToggleEditTag, onSubmitEditTask,
   showCreateTagModal, onCloseCreateTagModal, newTag, onTagChange, onSubmitTag,
   editingTag, showEditTagModal, onCloseEditTagModal, onDeleteTag, onEditTag, onOpenCreateTag,
   showCreateHabitModal, onCloseCreateHabitModal, newHabit, onHabitChange, onSubmitHabit,
   showManageHabitsModal, onCloseManageHabitsModal, habits, onCreateHabitFromManage,
   onDeleteHabit, onUpdateHabit, onViewHabitHistory,
-  historyHabit, onCloseHabitHistory, onToggleHabitDate,
-  showSettings, onCloseSettings, onAccountDeleted,
+  historyHabit, historyShowBackButton, onCloseHabitHistory, onToggleHabitDate,
+  showSettings, onCloseSettings, onAccountDeleted, onProfileNameChange, onProfileAvatarChange,
 }) => {
   return (
     <>
@@ -94,21 +100,21 @@ const TaskManagerModals: React.FC<TaskManagerModalsProps> = ({
         tags={tags}
         onToggleTag={onToggleTag}
         onSubmit={onSubmitTask}
-        onSmartPlan={onSmartPlan}
         activeTaskCount={activeTaskCount}
         usedPriorityLevels={occupiedPriorityLevels}
       />
 
-      {aiPlanResult && (
-        <AiSubtasksModal
-          isOpen={!!aiPlanResult}
-          parentTask={aiPlanResult.new_task}
-          subtasks={aiPlanResult.subtasks}
-          overloadWarning={aiPlanResult.overload_warning}
-          onSave={onSaveSubtasks}
-          onDiscard={onDiscardAiPlan}
-        />
-      )}
+      <EditTaskModal
+        isOpen={showEditTaskModal}
+        task={editTask}
+        onClose={onCloseEditTaskModal}
+        onTaskChange={onEditTaskChange}
+        tags={tags}
+        onToggleTag={onToggleEditTag}
+        onSubmit={onSubmitEditTask}
+        activeTaskCount={activeTaskCount}
+        usedPriorityLevels={occupiedPriorityLevels}
+      />
 
       <CreateTagModal
         isOpen={showCreateTagModal}
@@ -151,6 +157,7 @@ const TaskManagerModals: React.FC<TaskManagerModalsProps> = ({
 
       <HabitHistoryModal
         habit={historyHabit}
+        showBackButton={historyShowBackButton}
         onClose={onCloseHabitHistory}
         onToggleDate={onToggleHabitDate}
       />
@@ -159,6 +166,8 @@ const TaskManagerModals: React.FC<TaskManagerModalsProps> = ({
         isOpen={showSettings}
         onClose={onCloseSettings}
         onAccountDeleted={onAccountDeleted}
+        onProfileNameChange={onProfileNameChange}
+        onProfileAvatarChange={onProfileAvatarChange}
       />
     </>
   );

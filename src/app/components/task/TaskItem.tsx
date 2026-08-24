@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Check, Clock, Trash2, Calendar, SquareArrowUpRight } from 'lucide-react';
+import { Check, Timer, Trash2, Calendar, SquarePen } from 'lucide-react';
 import { Task } from '@/app/types/task';
 import {
   getDueColor,
@@ -20,9 +19,12 @@ interface TaskItemProps {
   tags: Array<{ id: number; name: string; color: string }>;
   onDeleteTask?: (task: Task) => void;
   onUpdatePriority?: (id: number, priority: number | null) => void;
+  onEditTask?: (task: Task) => void;
   activeTaskCount?: number;
   occupiedPriorities?: number[];
   compact?: boolean;
+  /** True while a toggle-complete or delete request for this task is in flight. */
+  pending?: boolean;
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({
@@ -32,12 +34,12 @@ const TaskItem: React.FC<TaskItemProps> = ({
   tags,
   onDeleteTask,
   onUpdatePriority,
+  onEditTask,
   activeTaskCount,
   occupiedPriorities = [],
   compact = false,
+  pending = false,
 }) => {
-  const router = useRouter();
-
   const maxPriority = activeTaskCount ?? Object.keys(PRIORITY_COLORS).length;
 
   const availablePriorities = React.useMemo(() => {
@@ -99,8 +101,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={() => onToggleComplete?.(task.id)}
+            disabled={pending}
             aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
-            className={`flex-shrink-0 w-4 h-4  border-2 flex items-center justify-center transition-all active:scale-90 ${
+            style={{ opacity: pending ? 0.5 : 1, cursor: pending ? 'wait' : 'pointer' }}
+            className={`flex-shrink-0 w-4 h-4 rounded-sm border-2 flex items-center justify-center transition-all active:scale-90 ${
               task.completed
                 ? 'border-[var(--tm-success)] bg-[var(--tm-success)]'
                 : 'border-border hover:border-accent'
@@ -126,17 +130,18 @@ const TaskItem: React.FC<TaskItemProps> = ({
           />
 
           <button
-            onClick={() => router.push(`/tasks?taskId=${task.id}`)}
+            onClick={() => onEditTask?.(task)}
             className="btn btn-ghost p-1 flex-shrink-0"
-            title="Open task"
-            aria-label="Open task"
+            title="Edit task"
+            aria-label="Edit task"
           >
-            <SquareArrowUpRight className="w-3.5 h-3.5" />
+            <SquarePen className="w-3.5 h-3.5" />
           </button>
 
           <button
             onClick={() => onDeleteTask?.(task)}
-            className="btn btn-danger-ghost p-1 flex-shrink-0"
+            disabled={pending}
+            className="btn btn-danger-ghost p-1 flex-shrink-0 disabled:opacity-50 disabled:cursor-wait"
             title="Delete task"
             aria-label="Delete task"
           >
@@ -157,8 +162,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
       <div className="flex items-start gap-3 sm:gap-4">
         <button
           onClick={() => onToggleComplete?.(task.id)}
+          disabled={pending}
           aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
-          className={`mt-0.5 sm:mt-1 flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6  border-2 flex items-center justify-center transition-all active:scale-90 ${
+          style={{ opacity: pending ? 0.5 : 1, cursor: pending ? 'wait' : 'pointer' }}
+          className={`mt-0.5 sm:mt-1 flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-sm border-2 flex items-center justify-center transition-all active:scale-90 ${
             task.completed
               ? 'border-[var(--tm-success)] bg-[var(--tm-success)]'
               : 'border-border hover:border-accent'
@@ -180,7 +187,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {task.category && (
                 <span
-                  className="chip text-xs font-bold uppercase tracking-wide px-2.5 py-1"
+                  className="chip rounded-full text-xs font-bold uppercase tracking-wide px-2.5 py-1"
                   style={{
                     backgroundColor: 'var(--tm-accent-subtle)',
                     color: 'var(--tm-accent)',
@@ -199,17 +206,18 @@ const TaskItem: React.FC<TaskItemProps> = ({
               />
 
               <button
-                onClick={() => router.push(`/tasks?taskId=${task.id}`)}
+                onClick={() => onEditTask?.(task)}
                 className="btn btn-ghost p-1.5"
-                title="Open task"
-                aria-label="Open task"
+                title="Edit task"
+                aria-label="Edit task"
               >
-                <SquareArrowUpRight className="w-4 h-4" />
+                <SquarePen className="w-4 h-4" />
               </button>
 
               <button
                 onClick={() => onDeleteTask?.(task)}
-                className="btn btn-danger-ghost p-1.5"
+                disabled={pending}
+                className="btn btn-danger-ghost p-1.5 disabled:opacity-50 disabled:cursor-wait"
                 title="Delete task"
                 aria-label="Delete task"
               >
@@ -273,7 +281,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
 
             {task.estimated_time != null && (
               <div className="flex items-center gap-1.5">
-                <Clock className={`w-3.5 h-3.5 ${toInkTone(getDurationColor(Number(task.estimated_time)))}`} />
+                <Timer className={`w-3.5 h-3.5 ${toInkTone(getDurationColor(Number(task.estimated_time)))}`} />
                 <span className={toInkTone(getDurationColor(Number(task.estimated_time)))}>
                   {task.estimated_time} hrs
                 </span>

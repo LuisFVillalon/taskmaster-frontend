@@ -16,6 +16,8 @@ interface NotesGridViewProps {
   onFolderClick?: (tag: Tag, notes: Note[]) => void;
   /** Use a wider responsive column count (for full-width contexts like TaskManager). */
   wide?: boolean;
+  /** When set, only these tags may appear as folders (e.g. an active tag filter), even if notes carry other tags too. */
+  tagFilter?: Tag[];
 }
 
 const NotesGridView: React.FC<NotesGridViewProps> = ({
@@ -26,15 +28,21 @@ const NotesGridView: React.FC<NotesGridViewProps> = ({
   onDeleteNote,
   onFolderClick,
   wide = false,
+  tagFilter,
 }) => {
   const [openFolderTagId, setOpenFolderTagId] = useState<number | null>(null);
 
   // Only surface tags that actually appear among the current (filtered) notes,
-  // preserving the canonical allTags ordering for visual stability.
+  // preserving the canonical allTags ordering for visual stability. When a
+  // tag filter is active, further restrict folders to just the selected
+  // tags — a note can carry other tags too, but those shouldn't get folders.
   const activeTags = useMemo(() => {
     const presentIds = new Set(notes.flatMap(n => n.tags.map(t => t.id)));
-    return allTags.filter(t => presentIds.has(t.id));
-  }, [notes, allTags]);
+    const candidateTags = tagFilter && tagFilter.length > 0
+      ? allTags.filter(t => tagFilter.some(sel => sel.id === t.id))
+      : allTags;
+    return candidateTags.filter(t => presentIds.has(t.id));
+  }, [notes, allTags, tagFilter]);
 
   const notesByTag = useMemo(() => {
     const map = new Map<number, Note[]>();
@@ -54,9 +62,10 @@ const NotesGridView: React.FC<NotesGridViewProps> = ({
     }
   };
 
-  const gridClass = wide
-    ? 'grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1'
-    : 'grid grid-cols-3 gap-1';
+  // Column count tracks the container's own width (not the viewport), so the
+  // grid stays correct whether it's rendered in a narrow sidebar or a wide panel.
+  const gridClass = 'grid gap-1';
+  const gridStyle = { gridTemplateColumns: `repeat(auto-fill, minmax(${wide ? 64 : 56}px, 1fr))` };
 
   if (notes.length === 0) {
     return (
@@ -70,7 +79,7 @@ const NotesGridView: React.FC<NotesGridViewProps> = ({
   return (
     <div className="flex flex-col gap-3">
       {/* Main grid: tag folders first, then untagged file icons */}
-      <div className={gridClass}>
+      <div className={gridClass} style={gridStyle}>
         {activeTags.map(tag => (
           <NoteFolder
             key={tag.id}
@@ -101,7 +110,7 @@ const NotesGridView: React.FC<NotesGridViewProps> = ({
             <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: tag.color }}>
               {tag.name}
             </p>
-            <div className={gridClass}>
+            <div className={gridClass} style={gridStyle}>
               {tagNotes.map(note => (
                 <NoteFileIcon
                   key={note.id}

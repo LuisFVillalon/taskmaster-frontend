@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   fetchTasks,
   fetchTags,
@@ -19,6 +19,15 @@ import { toLocalISOString, toLocalDateStr, toLocalTimeStr } from '@/app/utils/da
 export const useTasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Guards toggle/delete against double-click races the same way useHabits
+  // does for habit toggles — a ref for the synchronous check, mirrored into
+  // state so the UI can disable/dim just the item that's in flight.
+  const pendingRef = useRef<Set<number>>(new Set());
+  const [pendingTaskIds, setPendingTaskIds] = useState<Set<number>>(new Set());
+  // Tracks tasks with an edit (e.g. priority) currently being saved, so the
+  // UI can show a loading state without conflating it with toggle/delete pending.
+  const savingRef = useRef<Set<number>>(new Set());
+  const [savingTaskIds, setSavingTaskIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const loadTasks = async () => {
@@ -38,9 +47,17 @@ export const useTasks = () => {
   }, []);
 
   const toggleComplete = async (id: number): Promise<void> => {
+    if (pendingRef.current.has(id)) return;
+    pendingRef.current.add(id);
+    setPendingTaskIds(new Set(pendingRef.current));
+
     const task = tasks.find(t => t.id === id);
-    if (!task) return;
-    
+    if (!task) {
+      pendingRef.current.delete(id);
+      setPendingTaskIds(new Set(pendingRef.current));
+      return;
+    }
+
     const newCompleted = !task.completed;
     const newCompletedDate = newCompleted ? toLocalISOString(new Date()) : null;
 
@@ -77,6 +94,9 @@ export const useTasks = () => {
       setTasks(tasks.map(t =>
         t.id === id ? { ...t, completed: task.completed, completed_date: task.completed_date, priority: task.priority } : t
       ));
+    } finally {
+      pendingRef.current.delete(id);
+      setPendingTaskIds(new Set(pendingRef.current));
     }
   };
 
@@ -112,6 +132,10 @@ export const useTasks = () => {
   };  
 
   const deleteTask = async (delTask: Task) => {
+    if (pendingRef.current.has(delTask.id)) return false;
+    pendingRef.current.add(delTask.id);
+    setPendingTaskIds(new Set(pendingRef.current));
+
     // Optimistic update: remove immediately so the UI responds instantly.
     setTasks(prev => prev.filter(task => task.id !== delTask.id));
 
@@ -129,10 +153,15 @@ export const useTasks = () => {
       });
       alert("Couldn't delete the task — it has been restored.");
       return false;
+    } finally {
+      pendingRef.current.delete(delTask.id);
+      setPendingTaskIds(new Set(pendingRef.current));
     }
   };
 
   const updateTask = async (id: number, updatedTask: EditTaskForm) => {
+    savingRef.current.add(id);
+    setSavingTaskIds(new Set(savingRef.current));
     try {
       const taskToUpdate = {
         ...updatedTask,
@@ -151,6 +180,9 @@ export const useTasks = () => {
       console.error(err);
       alert("Failed to update task");
       return false;
+    } finally {
+      savingRef.current.delete(id);
+      setSavingTaskIds(new Set(savingRef.current));
     }
   };
 
@@ -162,7 +194,9 @@ export const useTasks = () => {
     setTasks,
     deleteTask,
     updateTask,
-    addTasks
+    addTasks,
+    pendingTaskIds,
+    savingTaskIds
   };
 };
 

@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Siren } from 'lucide-react';
+import { Siren, Loader2 } from 'lucide-react';
 import { getPriorityBadgeStyle } from '@/app/utils/taskUtils';
 
 interface PriorityPickerProps {
   priority: number | null;
   maxPriority: number;
   availablePriorities: number[];
-  onSelect: (priority: number | null) => void;
+  onSelect: (priority: number | null) => void | Promise<void>;
   size?: 'sm' | 'md';
 }
 
@@ -18,6 +18,7 @@ const PriorityPicker: React.FC<PriorityPickerProps> = ({
   size = 'md',
 }) => {
   const [open, setOpen] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const style = getPriorityBadgeStyle(priority, maxPriority);
   const isSmall = size === 'sm';
@@ -33,34 +34,45 @@ const PriorityPicker: React.FC<PriorityPickerProps> = ({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  const handleSelect = (p: number | null) => {
-    onSelect(p);
+  const handleSelect = async (p: number | null) => {
     setOpen(false);
+    setUpdating(true);
+    try {
+      await onSelect(p);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
     <div ref={ref} className="relative flex-shrink-0">
       <button
         onClick={() => setOpen(v => !v)}
+        disabled={updating}
         className={`chip font-bold flex items-center gap-1 transition-opacity hover:opacity-75 ${
           priority == null ? 'opacity-40' : ''
-        }`}
+        } ${updating ? 'cursor-wait' : ''}`}
         style={{
           backgroundColor: style.bg,
           color: style.text,
           padding: '0.1rem 0.45rem',
-          borderRadius: '9px',
+          borderRadius: '9999px',
           fontSize: isSmall ? '9px' : '11px',
         }}
-        title="Change priority"
+        title={updating ? 'Saving priority…' : 'Change priority'}
         aria-label="Change priority"
       >
-        <Siren className={isSmall ? 'w-3 h-3' : 'w-4 h-4'} />
+        {updating
+          ? <Loader2 className={`animate-spin ${isSmall ? 'w-3 h-3' : 'w-4 h-4'}`} />
+          : <Siren className={isSmall ? 'w-3 h-3' : 'w-4 h-4'} />}
         {priority ?? '—'}
       </button>
 
       {open && (
-        <div className="absolute z-50 top-full mt-1 right-0 card p-1.5 flex flex-col gap-1 shadow-lg min-w-[72px]">
+        <div
+          className="absolute z-50 top-full mt-1 right-0 card p-1.5 flex flex-col gap-1 min-w-[72px]"
+          style={{ boxShadow: 'var(--tm-shadow-lg)' }}
+        >
           <div
             className={`flex flex-col gap-1 ${
               availablePriorities.length > 5
@@ -79,7 +91,7 @@ const PriorityPicker: React.FC<PriorityPickerProps> = ({
                     backgroundColor: s.bg,
                     color: s.text,
                     padding: '0.15rem 0.5rem',
-                    borderRadius: '6px',
+                    borderRadius: '9999px',
                   }}
                 >
                   <Siren className="w-3 h-3" />

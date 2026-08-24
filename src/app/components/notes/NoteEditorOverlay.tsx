@@ -10,7 +10,7 @@ import NoteEditor from './NoteEditor';
 interface NoteEditorOverlayProps {
   note: Note;
   allTags: Tag[];
-  onUpdate: (id: number, changes: Partial<Pick<Note, 'title' | 'content' | 'tags'>>) => void;
+  onUpdate: (id: number, changes: Partial<Pick<Note, 'title' | 'content' | 'tags'>>) => void | Promise<boolean>;
   onDeleteNote: (id: number) => void;
   onClose: () => void;
 }
@@ -32,11 +32,11 @@ const NoteEditorOverlay: React.FC<NoteEditorOverlayProps> = ({
 
   return (
     <div
-      className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm "
+      className="modal-overlay fixed inset-0 z-[80] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
-        className="relative  shadow-2xl bg-[var(--tm-surface)] border border-[var(--tm-border)] flex flex-col overflow-hidden w-[95%] h-[90%]"
+        className="modal-panel w-full max-w-2xl h-[85vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -47,7 +47,7 @@ const NoteEditorOverlay: React.FC<NoteEditorOverlayProps> = ({
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => { router.push(`/notes?id=${note.id}`); onClose(); }}
-              className="btn btn-ghost p-1 "
+              className="btn btn-ghost p-1"
               aria-label="View in Notes"
               title="View in Notes"
             >
@@ -55,7 +55,7 @@ const NoteEditorOverlay: React.FC<NoteEditorOverlayProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="btn btn-ghost p-1 "
+              className="btn btn-ghost p-1"
               aria-label="Close"
             >
               <X className="w-4 h-4" />

@@ -4,6 +4,7 @@ import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { Note } from '@/app/types/notes';
 import { stripHtml } from '@/app/utils/textUtils';
+import { formatUpdatedDate } from '@/app/utils/dateUtils';
 
 interface NoteItemProps {
   note: Note;
@@ -12,47 +13,28 @@ interface NoteItemProps {
   onDelete: (id: number) => void;
 }
 
-const formatUpdatedDate = (iso: string): string => {
-  const date = new Date(iso);
-  const now = new Date();
-  const sameDay =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
-
-  if (sameDay) {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  }
-  const sameYear = date.getFullYear() === now.getFullYear();
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    ...(sameYear ? {} : { year: 'numeric' }),
-  });
-};
-
 const NoteItem: React.FC<NoteItemProps> = ({ note, isActive, onClick, onDelete }) => {
   const preview = stripHtml(note.content);
 
   return (
     <div
       onClick={onClick}
-      className="group relative  p-3 border cursor-pointer transition-all"
+      className="group relative rounded-xl p-3 border-2 cursor-pointer transition-all"
       style={{
         backgroundColor: isActive ? 'var(--tm-accent-subtle)' : 'var(--tm-surface)',
-        borderColor: isActive ? 'var(--tm-accent)' : 'var(--tm-border-subtle)',
-        boxShadow: 'var(--tm-shadow-sm)',
+        borderColor: isActive ? '#000000' : 'var(--tm-border-subtle)',
+        boxShadow: isActive ? '0 0 0 2px #000000' : 'none',
       }}
       onMouseEnter={e => {
         if (!isActive) {
           (e.currentTarget as HTMLDivElement).style.backgroundColor = 'var(--tm-surface-raised)';
-          (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--tm-shadow-md)';
+          (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--tm-border)';
         }
       }}
       onMouseLeave={e => {
         if (!isActive) {
           (e.currentTarget as HTMLDivElement).style.backgroundColor = 'var(--tm-surface)';
-          (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--tm-shadow-sm)';
+          (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--tm-border-subtle)';
         }
       }}
     >
@@ -89,7 +71,7 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, isActive, onClick, onDelete }
           {note.tags.map(tag => (
             <span
               key={tag.id}
-              className="chip text-white px-2 "
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium text-white whitespace-nowrap"
               style={{ backgroundColor: tag.color }}
             >
               {tag.name}

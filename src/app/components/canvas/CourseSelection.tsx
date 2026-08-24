@@ -14,6 +14,7 @@ interface CourseSelectionProps {
     getCourseQuizzes: (id: number) => Promise<CourseQuiz[]>;
     setCurrentCourseId: React.Dispatch<React.SetStateAction<number>>;
     setItemsIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+    itemsIsLoading: boolean;
 }
 
 
@@ -27,7 +28,8 @@ const CourseSelection: React.FC<CourseSelectionProps> = ({
     getCourseAssignments,
     getCourseQuizzes,
     setCurrentCourseId,
-    setItemsIsLoading
+    setItemsIsLoading,
+    itemsIsLoading
 }) => {
     const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -71,8 +73,8 @@ const CourseSelection: React.FC<CourseSelectionProps> = ({
 
     return (
 
-        <div className='space-y-3 text-black'>
-            <div className='font-bold text-2xl text-black'>Canvas:</div>
+        <div className='space-y-3 text-text-primary'>
+            <div className='font-bold text-2xl text-text-primary'>Canvas:</div>
             {canvasCourses.length > 0 && (
                 <div className="space-y-4">
                     {/* Carousel Container */}
@@ -81,7 +83,8 @@ const CourseSelection: React.FC<CourseSelectionProps> = ({
                         {totalPages > 1 && (
                             <button
                                 onClick={goToPrev}
-                                className="flex-shrink-0 p-2  bg-white border border-gray-300 hover:bg-gray-50 shadow-md transition-all hover:scale-110"
+                                className="flex-shrink-0 p-2 rounded-full bg-surface border border-border hover:bg-surface-raised transition-all hover:scale-110"
+                                style={{ boxShadow: 'var(--tm-shadow-sm)' }}
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -101,16 +104,18 @@ const CourseSelection: React.FC<CourseSelectionProps> = ({
                                     <button
                                         key={course.id}
                                         onClick={() => updateCurrentCourse(course)}
-                                        className={`cursor-pointer w-full px-4 py-3 text-left 
-                                            transition-all duration-200 shadow-sm hover:shadow-md
+                                        disabled={itemsIsLoading}
+                                        className={`w-full px-4 py-3 text-left rounded-xl
+                                            transition-all duration-200
+                                            ${itemsIsLoading ? 'cursor-wait opacity-60' : 'cursor-pointer'}
                                             ${
                                                 activeCourseId === course.id
-                                                    ? "bg-white border-4 border-blue-500"
-                                                    : "bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                                                    ? "bg-accent-subtle border-2 border-accent"
+                                                    : "bg-surface border border-border hover:bg-surface-raised"
                                             }
                                         `}
                                     >
-                                        <span className="break-words font-bold text-gray-900">{course.name}</span>
+                                        <span className="break-words font-bold text-text-primary">{course.name}</span>
                                     </button>
                                 ))}
                             </div>
@@ -120,7 +125,8 @@ const CourseSelection: React.FC<CourseSelectionProps> = ({
                         {totalPages > 1 && (
                             <button
                                 onClick={goToNext}
-                                className="flex-shrink-0 p-2  bg-white border border-gray-300 hover:bg-gray-50 shadow-md transition-all hover:scale-110"
+                                className="flex-shrink-0 p-2 rounded-full bg-surface border border-border hover:bg-surface-raised transition-all hover:scale-110"
+                                style={{ boxShadow: 'var(--tm-shadow-sm)' }}
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -139,10 +145,10 @@ const CourseSelection: React.FC<CourseSelectionProps> = ({
                                         setDirection(index > currentIndex ? 'right' : 'left');
                                         setCurrentIndex(index);
                                     }}
-                                    className={`h-2  transition-all duration-300 ${
-                                        index === currentIndex 
-                                            ? 'w-8 bg-blue-600' 
-                                            : 'w-2 bg-gray-300 hover:bg-gray-400'
+                                    className={`h-2 rounded-full transition-all duration-300 ${
+                                        index === currentIndex
+                                            ? 'w-8 bg-accent'
+                                            : 'w-2 bg-border hover:bg-text-muted'
                                     }`}
                                     aria-label={`Go to page ${index + 1}`}
                                 />

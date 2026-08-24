@@ -2,12 +2,12 @@
 
 import React from 'react';
 import ProtectedPage from '@/app/components/common/ProtectedPage';
-import TasksView from '@/app/components/tasks/TasksView';
+import CalendarView from '@/app/components/calendar/CalendarView';
 
-export default function TasksPage() {
+export default function CalendarPage() {
   return (
     <ProtectedPage>
-      <TasksView />
+      <CalendarView />
     </ProtectedPage>
   );
 }

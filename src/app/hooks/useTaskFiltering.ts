@@ -64,15 +64,15 @@ export const useTaskFiltering = (
           const pb = b.priority ?? Infinity;
           return (pa - pb) * dir;
         }
-        if (filter === 'created') {
-          const da = new Date(a.created_date).getTime();
-          const db = new Date(b.created_date).getTime();
-          return (da - db) * dir;
-        }
         if (filter === 'duration') {
           const ea = a.estimated_time ?? Infinity;
           const eb = b.estimated_time ?? Infinity;
           return (ea - eb) * dir;
+        }
+        if (filter === 'created') {
+          const da = new Date(a.created_date).getTime();
+          const db = new Date(b.created_date).getTime();
+          return (da - db) * dir;
         }
         const diff = getTaskDateTime(a) - getTaskDateTime(b);
         return diff * dir;

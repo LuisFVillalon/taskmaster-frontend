@@ -1,8 +1,14 @@
 'use client';
 
-import React from 'react';
-import { Search, Filter, Files, FolderPen, X, Blocks, ListTodo, Menu } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  Search, Filter, FolderCog, Blocks, Menu, SquarePlus, FilePlus,
+  ChevronsLeft, ChevronsRight, ChevronDown, LayoutList, CalendarClock,
+  Siren, SquareCheck, Timer, History, NotebookText, Settings, LogOut, Loader2,
+  CalendarDays, type LucideIcon,
+} from 'lucide-react';
 import { FilterType, Tag } from '@/app/types/task';
+import ProfileAvatar from '@/app/components/common/ProfileAvatar';
 
 interface TaskControlsProps {
   searchTerm: string;
@@ -10,20 +16,54 @@ interface TaskControlsProps {
   filter: FilterType;
   sortOrder: Record<FilterType, 'asc' | 'desc'>;
   onFilterChange: (filter: FilterType) => void;
+  noteSortOrder: 'asc' | 'desc';
+  onNoteSortToggle: () => void;
   selectedTags: Tag[];
   onTagToggle: (tag: Tag) => void;
   showTagDropdown: boolean;
   onTagDropdownToggle: () => void;
   tags: Tag[];
   searchPlaceholder?: string;
-  onNewTask?: () => void;
-  onNewNote?: () => void;
+  onCreateTask?: () => void;
+  onNewNote?: () => void | Promise<void>;
   onViewNotes?: () => void;
+  onViewCalendar?: () => void;
   onEditTag?: () => void;
   onEditHabit?: () => void;
   menuCollapsed: boolean;
   onToggleMenu: () => void;
+  profileName?: string | null;
+  profileAvatar?: string | null;
+  onSettings?: () => void;
+  onLogout?: () => void;
 }
+
+const FILTERS: { key: FilterType; label: string; icon: LucideIcon }[] = [
+  { key: 'all', label: 'All', icon: LayoutList },
+  { key: 'active', label: 'Due date', icon: CalendarClock },
+  { key: 'priority', label: 'Priority', icon: Siren },
+  { key: 'duration', label: 'Est. time', icon: Timer },
+  { key: 'completed', label: 'Completed', icon: SquareCheck },
+];
+
+const NavAction: React.FC<{
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  collapsed: boolean;
+}> = ({ icon: Icon, label, onClick, collapsed }) => (
+  <button
+    onClick={onClick}
+    className={`sidebar-item ${collapsed ? 'justify-center' : ''}`}
+    title={collapsed ? label : undefined}
+    aria-label={label}
+  >
+    <span className="icon-dot">
+      <Icon className="w-4 h-4" />
+    </span>
+    {!collapsed && <span className="flex-1 text-left truncate">{label}</span>}
+  </button>
+);
 
 export const TaskControls: React.FC<TaskControlsProps> = ({
   searchTerm,
@@ -31,220 +71,399 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
   filter,
   sortOrder,
   onFilterChange,
+  noteSortOrder,
+  onNoteSortToggle,
   selectedTags,
   onTagToggle,
   showTagDropdown,
   onTagDropdownToggle,
   tags,
   searchPlaceholder = 'Search tasks…',
-  onNewTask,
+  onCreateTask,
+  onNewNote,
   onViewNotes,
+  onViewCalendar,
   onEditTag,
   onEditHabit,
   menuCollapsed,
   onToggleMenu,
+  profileName,
+  profileAvatar,
+  onSettings,
+  onLogout,
 }) => {
-  const panelAnimationClass = menuCollapsed ? 'menu-panel-close' : 'menu-panel-open';
+  const collapsed = menuCollapsed;
+  const [sortExpanded, setSortExpanded] = useState(true);
+  const [tagsExpanded, setTagsExpanded] = useState(true);
+  const [actionsExpanded, setActionsExpanded] = useState(true);
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [creatingNote, setCreatingNote] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  if (menuCollapsed) {
-    return null;
-  }
+  const handleNewNoteClick = async () => {
+    if (!onNewNote || creatingNote) return;
+    setCreatingNote(true);
+    try {
+      await onNewNote();
+    } finally {
+      setCreatingNote(false);
+    }
+  };
+
+  const handleLogoutConfirm = async () => {
+    setLoggingOut(true);
+    try {
+      await onLogout?.();
+    } finally {
+      setLoggingOut(false);
+      setConfirmingLogout(false);
+    }
+  };
+
+  const expandThenToggleTags = () => {
+    if (collapsed) onToggleMenu();
+    setTagsExpanded(true);
+    if (!showTagDropdown) onTagDropdownToggle();
+  };
 
   return (
     <>
-        <div className={`fixed inset-x-0 top-0 z-[60] ${panelAnimationClass}`}>
-      <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 md:px-6 lg:px-8 py-4">
-        <div className="card">
-          <div className="flex flex-col gap-4 px-4 py-4 border-b border-border sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <Menu className="w-5 h-5 text-text-secondary" />
-            <div>
-              <p className="font-semibold text-text-primary">Main Menu</p>
-              <p className="text-xs text-text-secondary">Search, filter, and quick actions</p>
-            </div>
-          </div>
+      {/* Mobile hamburger — only needed while the drawer is off-canvas */}
+      {collapsed && (
+        <button
+          onClick={onToggleMenu}
+          className="fixed z-40 top-3 left-3 md:hidden flex items-center justify-center w-10 h-10 border border-border shadow-[var(--tm-shadow-md)]"
+          style={{ backgroundColor: 'var(--tm-surface)', color: 'var(--tm-text-secondary)' }}
+          aria-label="Open menu"
+        >
+          <Menu className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Mobile backdrop while the drawer is open */}
+      {!collapsed && (
+        <div
+          className="fixed inset-0 z-40 bg-black/30 md:hidden animate-fade-backdrop"
+          onClick={onToggleMenu}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`main-menu fixed inset-y-0 left-0 z-50 flex flex-col transition-[width,transform] duration-200 ease-out
+          ${collapsed ? 'w-16 -translate-x-full md:translate-x-0' : 'w-72 translate-x-0'}`}
+        style={{ backgroundColor: 'transparent' }}
+        aria-label="Main menu"
+      >
+        {/* Brand + collapse toggle */}
+        <div className="flex items-center h-14 px-3 border-b border-border-subtle flex-shrink-0 justify-between">
+          {!collapsed && (
+            <span className="font-bold text-text-primary tracking-tight pl-1">Komorebi</span>
+          )}
           <button
             onClick={onToggleMenu}
-            className=" p-2 text-sm font-medium transition-colors"
-            style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-primary)' }}
-            aria-expanded={!menuCollapsed}
-            aria-label="Collapse task menu"
+            className={`flex items-center justify-center w-8 h-8 text-text-secondary hover:text-text-primary hover:bg-surface-raised transition-colors flex-shrink-0 ${collapsed ? 'mx-auto' : ''}`}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? 'Expand menu' : 'Collapse menu'}
           >
-            <X className="w-4 h-4" />
+            {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
           </button>
         </div>
 
-        <div className="p-4 sm:p-5 space-y-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-4">
-
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4 sm:w-5 sm:h-5 pointer-events-none" />
+        {/* Search */}
+        <div className="p-3 border-b border-border-subtle flex-shrink-0">
+          {collapsed ? (
+            <button
+              onClick={onToggleMenu}
+              className="w-10 h-10 flex items-center justify-center mx-auto text-text-muted hover:text-text-primary hover:bg-surface-raised transition-colors"
+              title="Search"
+              aria-label="Search"
+            >
+              <span className="icon-dot">
+                <Search className="w-4 h-4" />
+              </span>
+            </button>
+          ) : (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4 pointer-events-none" />
               <input
                 type="text"
                 placeholder={searchPlaceholder}
                 value={searchTerm}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="input-field pl-9 sm:pl-10"
+                className="input-field pl-9"
               />
             </div>
+          )}
+        </div>
 
+        {/* Create task / note */}
+        {(onCreateTask || onNewNote) && (
+          <div className="px-3 pt-3 flex-shrink-0 space-y-1.5">
+            {onCreateTask && (
+              <button
+                onClick={onCreateTask}
+                className={`sidebar-item btn-primary ${collapsed ? 'justify-center' : ''}`}
+                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+                title={collapsed ? 'Create Task' : undefined}
+                aria-label="Create Task"
+              >
+                <SquarePlus className="w-4 h-4 flex-shrink-0" />
+                {!collapsed && <span className="flex-1 text-left truncate">Create Task</span>}
+              </button>
+            )}
+            {onNewNote && (
+              <button
+                onClick={handleNewNoteClick}
+                disabled={creatingNote}
+                className={`sidebar-item btn-primary disabled:opacity-70 disabled:cursor-wait ${collapsed ? 'justify-center' : ''}`}
+                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+                title={collapsed ? 'Create Note' : undefined}
+                aria-label="Create Note"
+              >
+                {creatingNote
+                  ? <Loader2 className="w-4 h-4 flex-shrink-0 animate-spin" />
+                  : <FilePlus className="w-4 h-4 flex-shrink-0" />}
+                {!collapsed && <span className="flex-1 text-left truncate">{creatingNote ? 'Creating…' : 'Create Note'}</span>}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto scrollbar-custom px-3 py-3 space-y-5">
+          {/* Sort & filter */}
+          <div>
+            {!collapsed && (
+              <button
+                onClick={() => setSortExpanded(prev => !prev)}
+                className="sidebar-section-label-btn"
+                aria-expanded={sortExpanded}
+              >
+                <span>Sort &amp; filter</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${sortExpanded ? '' : '-rotate-90'}`} />
+              </button>
+            )}
+            {(collapsed || sortExpanded) && (
+              <div className={`space-y-0.5 ${!collapsed ? 'mt-1' : ''}`}>
+                {FILTERS.map(f => {
+                  const Icon = f.icon;
+                  const active = filter === f.key;
+                  return (
+                    <button
+                      key={f.key}
+                      onClick={() => onFilterChange(f.key)}
+                      className={`sidebar-item ${active ? 'sidebar-item-active' : ''} ${collapsed ? 'justify-center' : ''}`}
+                      title={collapsed ? f.label : undefined}
+                      aria-pressed={active}
+                    >
+                      {active ? (
+                        <Icon className="w-4 h-4 flex-shrink-0" />
+                      ) : (
+                        <span className="icon-dot">
+                          <Icon className="w-4 h-4" />
+                        </span>
+                      )}
+                      {!collapsed && <span className="flex-1 text-left truncate">{f.label}</span>}
+                      {!collapsed && f.key !== 'all' && (
+                        <span className="text-xs opacity-70 flex-shrink-0">
+                          {sortOrder[f.key] === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                {/* Notes order — independent of the task filters above; never
+                    changes `filter`, so it can't reset or reorder tasks. */}
+                <button
+                  onClick={onNoteSortToggle}
+                  className={`sidebar-item ${collapsed ? 'justify-center' : ''}`}
+                  title={collapsed ? 'Notes order' : undefined}
+                  aria-label="Toggle notes sort order"
+                >
+                  <span className="icon-dot">
+                    <History className="w-4 h-4" />
+                  </span>
+                  {!collapsed && <span className="flex-1 text-left truncate">Notes order</span>}
+                  {!collapsed && (
+                    <span className="text-xs opacity-70 flex-shrink-0">
+                      {noteSortOrder === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Filters row */}
-          <div className="flex gap-2 flex-wrap">
-            {/* Tag filter dropdown */}
-            <div className="relative">
+          {/* Tags */}
+          <div>
+            {collapsed ? (
               <button
-                onClick={onTagDropdownToggle}
-                className="px-3 sm:px-4 py-2  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-secondary cursor-default"
+                onClick={expandThenToggleTags}
+                className={`sidebar-item justify-center ${selectedTags.length > 0 ? 'sidebar-item-active' : ''}`}
+                title="Tags"
+                aria-label="Tags"
               >
-                <Filter className="w-4 h-4" />
-                Tags
-                {selectedTags.length > 0 && (
-                  <span
-                    className="ml-1 text-xs  px-1.5 py-0.5 font-semibold"
-                    style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-                  >
-                    {selectedTags.length}
+                {selectedTags.length > 0 ? (
+                  <Filter className="w-4 h-4" />
+                ) : (
+                  <span className="icon-dot">
+                    <Filter className="w-4 h-4" />
                   </span>
                 )}
               </button>
-
-              {showTagDropdown && (
-                <div
-                  className="absolute z-50 left-full ml-2 top-0 w-56  shadow-[var(--tm-shadow-lg)] border border-border overflow-hidden animate-slide-up"
-                  style={{ backgroundColor: 'var(--tm-surface)' }}
-                  onMouseLeave={() => onTagDropdownToggle()}
+            ) : (
+              <>
+                <button
+                  onClick={() => setTagsExpanded(prev => !prev)}
+                  className="sidebar-section-label-btn"
+                  aria-expanded={tagsExpanded}
                 >
-                  <button
-                    onClick={() => {
-                      selectedTags.forEach(tag => onTagToggle(tag));
-                      onTagDropdownToggle();
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-raised transition-colors"
-                  >
-                    Clear tags
-                  </button>
-                  <div className="max-h-60 overflow-y-auto">
+                  <span>Tags{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${tagsExpanded ? '' : '-rotate-90'}`} />
+                </button>
+
+                {tagsExpanded && (
+                  <div className="mt-1 space-y-0.5 max-h-48 overflow-y-auto scrollbar-custom">
+                    {tags.length === 0 && (
+                      <p className="px-2.5 py-1.5 text-xs text-text-muted">No tags yet</p>
+                    )}
                     {tags.map(tag => {
                       const checked = selectedTags.some(t => t.id === tag.id);
                       return (
                         <label
                           key={tag.id}
-                          className="flex items-center gap-3 px-4 py-2 text-sm cursor-pointer hover:bg-surface-raised transition-colors text-text-primary"
+                          className={`sidebar-item cursor-pointer ${checked ? 'sidebar-item-active' : ''}`}
                         >
                           <input
                             type="checkbox"
                             checked={checked}
                             onChange={() => onTagToggle(tag)}
-                            className="accent-accent "
+                            className="accent-accent flex-shrink-0"
                           />
-                          <span
-                            className="w-3 h-3  flex-shrink-0"
-                            style={{ backgroundColor: tag.color }}
-                          />
-                          <span>{tag.name}</span>
+                          <span className="w-2.5 h-2.5 flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                          <span className="flex-1 text-left truncate">{tag.name}</span>
                         </label>
                       );
                     })}
                   </div>
+                )}
+
+                {selectedTags.length > 0 && (
+                  <button
+                    onClick={() => selectedTags.forEach(tag => onTagToggle(tag))}
+                    className="mt-1.5 ml-2.5 text-xs font-medium text-text-muted hover:text-text-primary underline underline-offset-2"
+                  >
+                    Clear tags
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Quick actions */}
+          <div>
+            {!collapsed && (
+              <button
+                onClick={() => setActionsExpanded(prev => !prev)}
+                className="sidebar-section-label-btn"
+                aria-expanded={actionsExpanded}
+              >
+                <span>Quick actions</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${actionsExpanded ? '' : '-rotate-90'}`} />
+              </button>
+            )}
+            {(collapsed || actionsExpanded) && (
+              <div className={`space-y-0.5 ${!collapsed ? 'mt-1' : ''}`}>
+                {onEditTag && (
+                  <NavAction icon={FolderCog} label="Manage tags" onClick={onEditTag} collapsed={collapsed} />
+                )}
+                {onEditHabit && (
+                  <NavAction icon={Blocks} label="Manage habits" onClick={onEditHabit} collapsed={collapsed} />
+                )}
+                {onViewNotes && (
+                  <NavAction icon={NotebookText} label="Manage notes" onClick={onViewNotes} collapsed={collapsed} />
+                )}
+                {onViewCalendar && (
+                  <NavAction icon={CalendarDays} label="View Calendar" onClick={onViewCalendar} collapsed={collapsed} />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Account — profile, settings, logout */}
+        {(onSettings || onLogout) && (
+          <div className="border-t border-border-subtle p-3 flex-shrink-0 space-y-1.5">
+            {!collapsed && profileName && (
+              <div className="flex items-center gap-2.5 px-0.5 pb-1.5">
+                <ProfileAvatar avatar={profileAvatar} name={profileName} size={32} />
+                <div className="min-w-0">
+                  <p className="text-[0.6875rem] uppercase tracking-wide text-text-muted leading-tight">Signed in as</p>
+                  <p className="text-sm font-semibold text-text-primary truncate leading-tight">{profileName}</p>
                 </div>
+              </div>
+            )}
+            <div className="space-y-0.5">
+              {onSettings && (
+                collapsed ? (
+                  <button
+                    onClick={onSettings}
+                    className="sidebar-item justify-center"
+                    title="Account Settings"
+                    aria-label="Account Settings"
+                  >
+                    <ProfileAvatar avatar={profileAvatar} name={profileName} size={28} />
+                  </button>
+                ) : (
+                  <NavAction icon={Settings} label="Account Settings" onClick={onSettings} collapsed={collapsed} />
+                )
+              )}
+              {onLogout && (
+                <button
+                  onClick={() => setConfirmingLogout(true)}
+                  className={`sidebar-item ${collapsed ? 'justify-center' : ''}`}
+                  style={{ color: 'var(--tm-danger)' }}
+                  title={collapsed ? 'Logout' : undefined}
+                  aria-label="Logout"
+                >
+                  <LogOut className="w-4 h-4 flex-shrink-0" />
+                  {!collapsed && <span className="flex-1 text-left truncate">Logout</span>}
+                </button>
               )}
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-              {(['all', 'active',  'priority', 'completed', 'duration',  'created'] as FilterType[]).map(f => (
-                <button
-                  key={f}
-                  onClick={() => onFilterChange(f)}
-                  className={`px-3 sm:px-4 py-2  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 ${
-                    filter === f
-                      ? 'btn-primary'
-                      : 'btn-secondary'
-                  }`}
-                  style={filter === f ? {
-                    backgroundColor: 'var(--tm-accent)',
-                    color: 'var(--tm-accent-text)',
-                  } : {}}
-                >
-                  {f === 'active' ? 'Due date' : f === 'duration' ? 'Est. Time' : f.charAt(0).toUpperCase() + f.slice(1)}
-                  <span className="ml-1 opacity-70">
-                    {sortOrder[f] === 'asc' ? '↑' : '↓'}
-                  </span>
-                </button>
-              ))}
+          </div>
+        )}
+      </aside>
+
+      {/* Logout confirmation */}
+      {confirmingLogout && (
+        <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[80]">
+          <div className="modal-panel max-w-sm w-full p-6 space-y-4">
+            <p className="text-center text-text-primary">Are you sure you want to log out?</p>
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setConfirmingLogout(false)}
+                disabled={loggingOut}
+                className="btn btn-secondary flex-1 py-2"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleLogoutConfirm}
+                disabled={loggingOut}
+                className="btn flex-1 py-2 text-white flex items-center justify-center gap-1.5 disabled:cursor-wait"
+                style={{ backgroundColor: 'var(--tm-danger)' }}
+              >
+                {loggingOut && <Loader2 className="w-4 h-4 animate-spin" />}
+                {loggingOut ? 'Logging out…' : 'Logout'}
+              </button>
             </div>
           </div>
-
-          {/* Action buttons */}
-          <div className="flex gap-2 flex-wrap ml-auto">
-            {onEditTag && (
-              <button
-                onClick={onEditTag}
-                className="px-3 sm:px-4 py-2  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
-                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-              >
-                <FolderPen className="w-4 h-4" />
-                Manage Tags
-              </button>
-            )}
-            {onEditHabit && (
-              <button
-                onClick={onEditHabit}
-                className="px-3 sm:px-4 py-2  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
-                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-              >
-                <Blocks className="w-4 h-4" />
-                Manage Habits
-              </button>
-            )}
-            {onNewTask && (
-              <button
-                onClick={onNewTask}
-                className="px-3 sm:px-4 py-2  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
-                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-              >
-                <ListTodo className="w-4 h-4" />
-                Manage Tasks
-              </button>
-            )}
-            {onViewNotes && (
-              <button
-                onClick={onViewNotes}
-                className="px-3 sm:px-4 py-2  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-2 btn-primary"
-                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-              >
-                <Files className="w-4 h-4" />
-                Manage Notes
-              </button>
-            )}
-          </div>
-
-          {/* Active tag chips */}
-          {selectedTags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {selectedTags.map(tag => (
-                <span
-                  key={tag.id}
-                  className="chip flex items-center gap-1.5 text-white text-xs font-medium px-2 py-1"
-                  style={{ backgroundColor: tag.color, borderRadius: '10px' }}
-                >
-                  {tag.name}
-                  <button
-                    onClick={() => onTagToggle(tag)}
-                    className="hover:opacity-70 transition-opacity leading-none"
-                    aria-label={`Remove ${tag.name} filter`}
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
         </div>
-      </div>
-    </div>
-  </div>
+      )}
     </>
   );
 };

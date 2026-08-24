@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Newspaper, RefreshCw, AlertTriangle, CalendarCheck, Zap, Repeat2, SkipForward, ChartArea, ChevronDown, ChevronUp, Star } from 'lucide-react';
+import { Newspaper, RefreshCw, AlertTriangle, CalendarCheck, Zap, Repeat2, SkipForward, ChartArea, ChevronDown, ChevronUp, Sunrise } from 'lucide-react';
 import { fetchTaskDebrief, TaskDebrief } from '@/app/lib/backend-api';
 
 type Status = 'idle' | 'loading' | 'done' | 'error';
@@ -58,7 +58,7 @@ const TaskDebriefPanel: React.FC = () => {
             <button
               onClick={run}
               title="Refresh debrief"
-              className="p-1.5  transition-colors hover:bg-[var(--tm-surface-raised)] disabled:opacity-60"
+              className="p-1.5 rounded-md transition-colors hover:bg-[var(--tm-surface-raised)] disabled:opacity-60"
               style={{ color: 'var(--tm-accent)' }}
             >
               <RefreshCw className="w-4 h-4" />
@@ -134,7 +134,7 @@ const TaskDebriefPanel: React.FC = () => {
                     items={comingUp}
                   />
                   <DebriefSection
-                    icon={<Star className="w-4 h-4" />}
+                    icon={<Sunrise className="w-4 h-4" />}
                     title="Get an Early Start On"
                     items={earlyStart}
                     accentColor="#eab308"
@@ -158,13 +158,13 @@ const TaskDebriefPanel: React.FC = () => {
 function SkeletonCard() {
   return (
     <div
-      className=" p-3 space-y-2 animate-pulse"
+      className="rounded-md p-3 space-y-2 animate-pulse"
       style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
     >
-      <div className="h-3.5  w-1/2" style={{ backgroundColor: 'var(--tm-border)' }} />
-      <div className="h-2.5 " style={{ backgroundColor: 'var(--tm-border)' }} />
-      <div className="h-2.5  w-5/6" style={{ backgroundColor: 'var(--tm-border)' }} />
-      <div className="h-2.5  w-4/6" style={{ backgroundColor: 'var(--tm-border)' }} />
+      <div className="h-3.5 rounded-sm w-1/2" style={{ backgroundColor: 'var(--tm-border)' }} />
+      <div className="h-2.5 rounded-sm" style={{ backgroundColor: 'var(--tm-border)' }} />
+      <div className="h-2.5 rounded-sm w-5/6" style={{ backgroundColor: 'var(--tm-border)' }} />
+      <div className="h-2.5 rounded-sm w-4/6" style={{ backgroundColor: 'var(--tm-border)' }} />
     </div>
   );
 }
@@ -177,7 +177,7 @@ function DebriefSection({ icon, title, items, accentColor }: { icon: React.React
 
   return (
     <div
-      className=" p-3"
+      className="rounded-md p-3"
       style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
     >
       <div className="flex items-center gap-1.5 mb-2" style={{ color: accent }}>
@@ -187,7 +187,7 @@ function DebriefSection({ icon, title, items, accentColor }: { icon: React.React
       <ul className="space-y-1">
         {safeItems.map((item, i) => (
           <li key={i} className="flex gap-1.5 text-xs leading-relaxed text-text-secondary">
-            <span className="mt-1.5 flex-shrink-0 w-1 h-1 " style={{ backgroundColor: accent }} />
+            <span className="mt-1.5 flex-shrink-0 w-1 h-1 rounded-full" style={{ backgroundColor: accent }} />
             {item}
           </li>
         ))}

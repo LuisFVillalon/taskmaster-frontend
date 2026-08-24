@@ -1,55 +1,67 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   DESIGN TOKENS — Maruman Spiral Note Basic
-   Kraft-board cover, cream dot-grid paper, coil binding, single stamped
-   ink-red accent. Zero border radius throughout (square corners).
+   DESIGN TOKENS — Notion-style warm paper
+   Warm off-white canvas, white hairline-bordered cards, a single blue
+   primary action, and flat rotating accent hues. 4/8/12px radii, pills at
+   9999px. No gradients; shadows reserved for nav and floating elevation —
+   content cards use hairline borders instead. See DESIGN.md for the source
+   reference. The accent color and page-ruling background stay user-
+   customizable (Settings → Appearance) — only the values they derive from
+   changed, not the mechanism.
 ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
   /* Surfaces */
-  --tm-bg:               #F4EEDD;
-  --tm-surface:          #FBF8EE;
-  --tm-surface-raised:   #EFE3CB;
-  --tm-surface-overlay:  rgba(251, 248, 238, 0.92);
+  --tm-bg:               #F6F5F4;
+  --tm-surface:          #FFFFFF;
+  --tm-surface-raised:   #EFEEEB;
+  --tm-surface-overlay:  rgba(255, 255, 255, 0.92);
 
-  /* Borders */
-  --tm-border-subtle:    #DCD3B9;
-  --tm-border:           #C7BFA9;
+  /* Borders — hairline, per DESIGN.md */
+  --tm-border-subtle:    rgba(0, 0, 0, 0.06);
+  --tm-border:           rgba(0, 0, 0, 0.08);
 
   /* Text (ink) */
-  --tm-text-primary:     #2B2620;
-  --tm-text-secondary:   #6B6255;
-  --tm-text-muted:       #A39B89;
+  --tm-text-primary:     #171717;
+  --tm-text-secondary:   #615D59;
+  --tm-text-muted:       #757575;
 
-  /* Accent — kraft brown */
-  --tm-accent:           #7A5A32;
-  --tm-accent-hover:     #5E4526;
-  --tm-accent-subtle:    #EFE3CB;
-  --tm-accent-text:      #FBF8EE;
+  /* Accent — Notion Blue, the single primary action color */
+  --tm-accent:           #0075DE;
+  --tm-accent-hover:     #097FE8;
+  --tm-accent-subtle:    #E6F3FE;
+  --tm-accent-text:      #FFFFFF;
 
-  /* Accent-2 — stamped ink-red (sparingly: stat numbers, priorities, "on" states) */
-  --tm-accent-2:         #B33A2E;
-  --tm-accent-2-hover:   #942F25;
-  --tm-accent-2-subtle:  #F7E2DE;
+  /* Accent-2 — Coral (used sparingly: priorities, highlight pills, "on" states) */
+  --tm-accent-2:         #F64932;
+  --tm-accent-2-hover:   #E32D14;
+  --tm-accent-2-subtle:  #FDE7E3;
 
   /* Status */
-  --tm-success:          #4B6B3A;
-  --tm-success-subtle:   #E9EEE1;
-  --tm-warning:          #B33A2E;
-  --tm-warning-subtle:   #F7E2DE;
-  --tm-danger:           #B33A2E;
-  --tm-danger-subtle:    #F7E2DE;
+  --tm-success:          #167C4C;
+  --tm-success-subtle:   #E3F3EA;
+  --tm-warning:          #B4790A;
+  --tm-warning-subtle:   #FFF3DA;
+  --tm-danger:           #E32D14;
+  --tm-danger-subtle:    #FDE7E3;
 
   /* Wire/coil */
-  --tm-wire:             #A39B89;
+  --tm-wire:             rgba(0, 0, 0, 0.16);
 
-  /* Elevation — flat notebook look, hairline borders instead of soft shadows */
-  --tm-shadow-sm:  0 1px 0 rgba(43,38,32,0.08);
-  --tm-shadow-md:  0 2px 0 rgba(43,38,32,0.10);
-  --tm-shadow-lg:  0 4px 0 rgba(43,38,32,0.10);
-  --tm-shadow-xl:  0 6px 0 rgba(43,38,32,0.12);
-  --tm-shadow-accent: 0 2px 0 color-mix(in srgb, var(--tm-accent) 45%, transparent);
+  /* Radius — DESIGN.md scale */
+  --tm-radius-small:     4px;
+  --tm-radius-buttons:   8px;
+  --tm-radius-cards:     12px;
+  --tm-radius-pills:     9999px;
+
+  /* Elevation — reserved for nav and floating/product-UI surfaces, never flat content cards */
+  --tm-shadow-nav:     0px 0.7px 1.462px 0px rgba(0, 0, 0, 0.015), 0px 3px 9px 0px rgba(0, 0, 0, 0.03);
+  --tm-shadow-product: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  --tm-shadow-sm:      var(--tm-shadow-nav);
+  --tm-shadow-md:      0px 6px 16px rgba(0, 0, 0, 0.08);
+  --tm-shadow-lg:      0px 12px 32px rgba(0, 0, 0, 0.12);
+  --tm-shadow-xl:      0px 20px 60px rgba(0, 0, 0, 0.16);
 
   /* Motion */
   --tm-ease:         cubic-bezier(0.4, 0, 0.2, 1);
@@ -103,15 +115,15 @@
   --font-mono: var(--font-geist-mono), 'Courier New', monospace;
 
   --radius-none: 0px;
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
-  --radius-2xl: 0px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 12px;
+  --radius-2xl: 12px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   BASE STYLES — cream notebook paper, red margin rule, spiral punch holes
+   BASE STYLES — cream notebook paper
    The page ruling is switchable from Settings → Appearance (lib/pageStyle.ts),
    which stamps data-page-style on <html>. Graph is the default/fallback so
    the pattern still renders correctly before JS sets the attribute.
@@ -121,10 +133,10 @@ html { scroll-behavior: smooth; }
 body {
   position: relative;
   background-color: var(--tm-bg);
-  /* 5mm graph-ruling, like the Maruman Spiral Note Basic page — default page style. */
+  /* 5mm graph-ruling — subtle on the warm paper canvas, default page style. */
   background-image:
-    linear-gradient(color-mix(in srgb, var(--tm-text-primary) 8%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--tm-text-primary) 8%, transparent) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--tm-text-primary) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--tm-text-primary) 5%, transparent) 1px, transparent 1px);
   background-size: 22px 22px;
   color: var(--tm-text-primary);
   font-family: var(--font-heading), var(--font-geist-sans), system-ui, -apple-system, sans-serif;
@@ -133,63 +145,34 @@ body {
 
 /* Dot Grid — bullet-journal style dot matrix */
 html[data-page-style="dot"] body {
-  background-image: radial-gradient(color-mix(in srgb, var(--tm-text-primary) 16%, transparent) 1px, transparent 1.4px);
+  background-image: radial-gradient(color-mix(in srgb, var(--tm-text-primary) 12%, transparent) 1px, transparent 1.4px);
   background-size: 22px 22px;
 }
 
 /* College Rule — narrow-spaced horizontal lines, like loose-leaf ruled paper */
 html[data-page-style="college"] body {
-  background-image: linear-gradient(color-mix(in srgb, var(--tm-text-primary) 10%, transparent) 1px, transparent 1px);
+  background-image: linear-gradient(color-mix(in srgb, var(--tm-text-primary) 7%, transparent) 1px, transparent 1px);
   background-size: 100% 24px;
 }
 
 /* Wide Rule — wider-spaced horizontal lines */
 html[data-page-style="wide"] body {
-  background-image: linear-gradient(color-mix(in srgb, var(--tm-text-primary) 10%, transparent) 1px, transparent 1px);
+  background-image: linear-gradient(color-mix(in srgb, var(--tm-text-primary) 7%, transparent) 1px, transparent 1px);
   background-size: 100% 34px;
 }
 
 /* Isometric Dot — two dot layers offset by half a cell, staggered like a sketching pad */
 html[data-page-style="isometric"] body {
   background-image:
-    radial-gradient(color-mix(in srgb, var(--tm-text-primary) 14%, transparent) 1px, transparent 1.4px),
-    radial-gradient(color-mix(in srgb, var(--tm-text-primary) 14%, transparent) 1px, transparent 1.4px);
+    radial-gradient(color-mix(in srgb, var(--tm-text-primary) 10%, transparent) 1px, transparent 1.4px),
+    radial-gradient(color-mix(in srgb, var(--tm-text-primary) 10%, transparent) 1px, transparent 1.4px);
   background-size: 26px 26px;
   background-position: 0 0, 13px 13px;
 }
 
-/* Blank Page — plain cream paper, no printed ruling or margin rule */
+/* Blank Page — plain warm paper, no printed ruling */
 html[data-page-style="blank"] body {
   background-image: none;
-}
-html[data-page-style="blank"] body::before {
-  display: none;
-}
-
-/* Red margin rule — the vertical stamped line on Japanese-ruled notebook paper */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0 auto 0 44px;
-  width: 1.5px;
-  background: color-mix(in srgb, var(--tm-accent-2) 40%, transparent);
-  pointer-events: none;
-  z-index: -1;
-}
-
-/* Punched spiral holes running down the left margin — present on every page style,
-   since the binding is physical and doesn't change with the ruling. */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0 auto 0 14px;
-  width: 16px;
-  background-image: radial-gradient(circle 5.5px, color-mix(in srgb, var(--tm-text-primary) 16%, transparent) 5.5px, transparent 6px);
-  background-size: 16px 46px;
-  background-repeat: repeat-y;
-  background-position: center 23px;
-  pointer-events: none;
-  z-index: -1;
 }
 
 /* Coil strip — solid accent band with punched cream circles, wire-bound look */
@@ -208,6 +191,105 @@ body::after {
   background-image: repeating-linear-gradient(to right, var(--tm-wire) 0 5px, transparent 5px 14px);
   border: 0;
   margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEASONAL COIL — the notebook's coil binding, dressed for the season.
+   A short "sky" band sits above the coil strip; particles (leaves, snow,
+   clouds, sun/birds) animate within it based on the current month.
+═══════════════════════════════════════════════════════════════════════════ */
+.seasonal-coil {
+  position: relative;
+  height: 52px;
+  overflow: hidden;
+}
+
+.seasonal-coil .coil {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.seasonal-coil__scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.seasonal-particle {
+  position: absolute;
+  top: -18px;
+  line-height: 1;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* Fall — leaves drifting down with a gentle sway and tumble */
+.seasonal-particle--leaf {
+  animation-name: leaf-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Winter — snow falling straight-ish with a light drift */
+.seasonal-particle--snow {
+  border-radius: 9999px;
+  background: #FFFFFF;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, #4A6B8A 60%, transparent),
+    0 0 4px color-mix(in srgb, var(--tm-text-primary) 55%, transparent);
+  opacity: 0.95;
+  animation-name: snow-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Spring — clouds drifting across, flowers bobbing along the bottom */
+.seasonal-particle--cloud {
+  top: 4px;
+  left: -15%;
+  opacity: 0.85;
+  animation-name: cloud-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.seasonal-particle--flower {
+  bottom: -4px;
+  top: auto;
+  font-size: 20px;
+  animation-name: flower-bob;
+  animation-duration: 2.4s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* Summer — a steady sun with birds flying past */
+.seasonal-particle--sun {
+  top: 4px;
+  right: 14px;
+  left: auto;
+  font-size: 34px;
+  animation: sun-pulse 3.5s ease-in-out infinite;
+}
+.seasonal-particle--bird {
+  left: -8%;
+  font-size: 18px;
+  animation-name: bird-fly;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* Beach glyphs — surface only occasionally, low in the scene, rather than sitting on screen the whole time */
+.seasonal-particle--beach {
+  top: auto;
+  bottom: -3px;
+  font-size: 21px;
+  opacity: 0;
+  animation-name: beach-fade;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -235,6 +317,73 @@ body::after {
   to   { background-position:  200% 0; }
 }
 
+@keyframes swatch-pop {
+  0%   { transform: scale(0.3); opacity: 0; }
+  65%  { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes leaf-fall {
+  0%   { transform: translateY(-18px) translateX(0) rotate(0deg); opacity: 0; }
+  8%   { opacity: 0.95; }
+  50%  { transform: translateY(10px) translateX(10px) rotate(150deg); }
+  82%  { opacity: 0.9; }
+  100% { transform: translateY(32px) translateX(-8px) rotate(320deg); opacity: 0.15; }
+}
+
+@keyframes snow-fall {
+  0%   { transform: translateY(-10px) translateX(0); opacity: 0; }
+  8%   { opacity: 0.95; }
+  90%  { opacity: 0.9; }
+  100% { transform: translateY(33px) translateX(6px); opacity: 0.3; }
+}
+
+@keyframes cloud-drift {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(115vw); }
+}
+
+@keyframes flower-bob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50%      { transform: translateY(-4px) rotate(4deg); }
+}
+
+@keyframes sun-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50%      { transform: scale(1.08); opacity: 1; }
+}
+
+@keyframes bird-fly {
+  0%   { transform: translateX(0) translateY(0); }
+  50%  { transform: translateX(58vw) translateY(-8px); }
+  100% { transform: translateX(116vw) translateY(0); }
+}
+
+@keyframes beach-fade {
+  0%, 100% { opacity: 0; transform: translateY(4px) scale(0.9); }
+  6%       { opacity: 0.9; transform: translateY(0) scale(1); }
+  70%      { opacity: 0.9; transform: translateY(0) scale(1); }
+  80%      { opacity: 0; transform: translateY(4px) scale(0.9); }
+}
+
+/* Month-personality band shapes (year calendar) — only the current month's
+   card runs these; every other month is static. */
+@keyframes tm-drift-a { 0%, 100% { transform: translateX(0); }      50% { transform: translateX(34px); } }
+@keyframes tm-drift-b { 0%, 100% { transform: translateX(0); }      50% { transform: translateX(-26px); } }
+@keyframes tm-bob     { 0%, 100% { transform: translateY(0); }      50% { transform: translateY(9px); } }
+@keyframes tm-pulse   { 0%, 100% { transform: scale(1); }           50% { transform: scale(1.22); } }
+@keyframes tm-sway    { 0%, 100% { transform: translate(0, 0); }    50% { transform: translate(16px, 7px); } }
+@keyframes tm-spin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes tm-dia     { 0%, 100% { transform: translateX(0) rotate(45deg); } 50% { transform: translateX(22px) rotate(45deg); } }
+@keyframes tm-dia2    { 0%, 100% { transform: translateY(0) rotate(45deg); } 50% { transform: translateY(8px) rotate(45deg); } }
+@keyframes tm-breathe { 0%, 100% { transform: scale(1); opacity: 0.09; } 50% { transform: scale(1.05); opacity: 0.14; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-shape, .tm-watermark {
+    animation: none !important;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    ANIMATION UTILITIES
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -242,6 +391,7 @@ body::after {
   .animate-slide-up { animation: slide-up var(--tm-dur-slow) var(--tm-ease) both; }
   .animate-fade-in { animation: fade-in var(--tm-dur-base) var(--tm-ease) both; }
   .animate-fade-backdrop { animation: fade-backdrop var(--tm-dur-fast) ease-out both; }
+  .animate-swatch-pop { animation: swatch-pop 280ms var(--tm-ease-spring) both; }
   .animate-shimmer {
     background: linear-gradient(90deg, var(--tm-surface-raised) 25%, var(--tm-border-subtle) 50%, var(--tm-surface-raised) 75%);
     background-size: 200% 100%;
@@ -260,32 +410,45 @@ body::after {
     justify-content: center;
     gap: 0.375rem;
     padding: 0.625rem 1rem;
-    border-radius: 0;
+    border-radius: var(--tm-radius-buttons);
     font-size: 0.875rem;
-    font-weight: 700;
+    font-weight: 500;
     font-family: var(--font-heading), inherit;
     cursor: pointer;
     transition: all var(--tm-dur-base) var(--tm-ease);
-    border: 1.5px solid transparent;
+    border: 1px solid transparent;
     white-space: nowrap;
   }
 
+  /* Primary CTA — the single filled action color per view */
   .btn-primary {
-    background-color: var(--tm-accent-hover);
-    color: var(--tm-accent-text);
-    border-color: var(--tm-accent-hover);
-  }
-  .btn-primary:hover:not(:disabled) {
     background-color: var(--tm-accent);
+    color: var(--tm-accent-text);
     border-color: var(--tm-accent);
   }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--tm-accent-hover);
+    border-color: var(--tm-accent-hover);
+  }
 
+  /* Ghost CTA — tinted secondary action, no second filled color */
   .btn-secondary {
-    background-color: transparent;
-    color: var(--tm-text-primary);
-    border: 1.5px solid var(--tm-text-primary);
+    background-color: var(--tm-accent-subtle);
+    color: var(--tm-accent);
+    border-color: transparent;
   }
   .btn-secondary:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--tm-accent-subtle) 70%, var(--tm-accent) 8%);
+  }
+
+  /* Outlined text button — compact mid-priority action */
+  .btn-outline {
+    background-color: transparent;
+    color: var(--tm-text-primary);
+    border: 1px solid var(--tm-border);
+    border-radius: var(--tm-radius-small);
+  }
+  .btn-outline:hover:not(:disabled) {
     background-color: var(--tm-surface-raised);
   }
 
@@ -293,36 +456,53 @@ body::after {
   .card {
     background-color: var(--tm-surface);
     border: 1px solid var(--tm-border);
-    border-radius: 0;
+    border-radius: var(--tm-radius-cards);
     box-shadow: none;
+  }
+
+  /* Pill Tag — category/status/priority chips (tag colors, priority badges).
+     Callers set their own background/color (usually a tag's own color) and
+     may override padding/font-size via Tailwind utilities; this just fixes
+     the pill shape and base sizing so every chip reads consistently. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: var(--tm-radius-pills);
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
   }
 
   /* Inputs */
   .input-field {
     width: 100%;
     background-color: var(--tm-surface);
-    border: 1.5px solid var(--tm-border);
-    border-radius: 0;
+    border: 1px solid var(--tm-border);
+    border-radius: var(--tm-radius-buttons);
     padding: 0.625rem 1rem;
     color: var(--tm-text-primary);
     outline: none;
+    transition: border-color var(--tm-dur-base) var(--tm-ease), box-shadow var(--tm-dur-base) var(--tm-ease);
   }
   .input-field:focus {
     border-color: var(--tm-accent);
-    box-shadow: none;
+    box-shadow: 0 0 0 3px var(--tm-accent-subtle);
   }
 
   /* Modal primitives */
   .modal-overlay {
-    background-color: rgba(43, 38, 32, 0.45);
+    background-color: transparent;
     backdrop-filter: blur(2px);
   }
 
   .modal-panel {
     background-color: var(--tm-surface);
-    border: 1.5px solid var(--tm-text-primary);
-    border-radius: 0;
-    box-shadow: none;
+    border: 1px solid var(--tm-border);
+    border-radius: var(--tm-radius-cards);
+    box-shadow: var(--tm-shadow-xl);
   }
 
   .menu-panel-open,
@@ -360,6 +540,85 @@ body::after {
       opacity: 0;
       transform: translateY(-14px);
     }
+  }
+
+  /* Sidebar nav — rows in the left main menu (rail + expanded drawer) */
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.5rem 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-family: var(--font-heading), inherit;
+    color: var(--tm-text-secondary);
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--tm-radius-buttons);
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+    transition: background-color var(--tm-dur-fast) var(--tm-ease),
+                color var(--tm-dur-fast) var(--tm-ease),
+                border-color var(--tm-dur-fast) var(--tm-ease);
+  }
+  .sidebar-item:hover {
+    background-color: var(--tm-surface-raised);
+    color: var(--tm-text-primary);
+  }
+  .sidebar-item-active {
+    background-color: var(--tm-accent-subtle);
+    color: var(--tm-accent);
+    border-color: transparent;
+  }
+
+  .sidebar-section-label {
+    padding: 0 0.625rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tm-text-muted);
+  }
+
+  .sidebar-section-label-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 0.625rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tm-text-muted);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    transition: color var(--tm-dur-fast) var(--tm-ease);
+  }
+  .sidebar-section-label-btn:hover {
+    color: var(--tm-text-primary);
+  }
+
+  /* Main menu — hairline edge + nav elevation, matching the sticky-nav spec */
+  .main-menu {
+    border-right: 1px solid var(--tm-border);
+    box-shadow: var(--tm-shadow-nav);
+  }
+
+  /* Icon slot — plain wrapper, no decorative backing, per the Muted Nav
+     Link component (state reads through color alone). */
+  .icon-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
   }
 }
 

@@ -17,16 +17,17 @@ These variables handle the state for editing and deleting tags within the modal.
 */
 
 import React, { useState } from 'react';
-import { X, Trash2, Pencil, FolderPlus } from 'lucide-react';
+import { X, Trash2, FolderPen, FolderPlus, Loader2 } from 'lucide-react';
 import { Tag } from '@/app/types/task';
-import { TAG_COLORS } from '@/app/lib/tagColors';
+import { THEME_ACCENT_COLORS } from '@/app/lib/theme';
+import ColorSwatchPicker from '@/app/components/common/ColorSwatchPicker';
 
 interface EditTagModalProps {
   isOpen: boolean;
   onClose: () => void;
   allTags: Tag[];
-  onDeleteTag?: (tag: Tag) => void;
-  onEditTag?: (tag: Tag) => void;
+  onDeleteTag?: (tag: Tag) => void | Promise<boolean>;
+  onEditTag?: (tag: Tag) => void | Promise<boolean>;
   onCreateTag?: () => void;
 }
 
@@ -42,6 +43,8 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [editedName, setEditedName] = useState('');
   const [editedColor, setEditedColor] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -57,17 +60,27 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
     setEditedColor(t.color);
   };
 
-  const handleSaveEdit = () => {
-    if (editingTag && onEditTag && editedName.trim()) {
-      onEditTag({ ...editingTag, name: editedName.trim(), color: editedColor });
+  const handleSaveEdit = async () => {
+    if (!editingTag || !onEditTag || !editedName.trim()) return;
+    setSaving(true);
+    try {
+      const result = await onEditTag({ ...editingTag, name: editedName.trim(), color: editedColor });
+      if (result === false) return;
       setEditingTag(null);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const confirmDelete = () => {
-    if (deletingTag && onDeleteTag) {
-      onDeleteTag(deletingTag);
+  const confirmDelete = async () => {
+    if (!deletingTag || !onDeleteTag) return;
+    setDeleting(true);
+    try {
+      const result = await onDeleteTag(deletingTag);
+      if (result === false) return;
       setDeletingTag(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -77,7 +90,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
       <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[70]">
         <div className="modal-panel max-w-sm w-full">
           <div
-            className="px-5 py-4 border-b border-border-subtle flex justify-between items-center "
+            className="px-5 py-4 border-b border-border-subtle flex justify-between items-center"
             style={{ backgroundColor: 'var(--tm-surface)' }}
           >
             <h3 className="text-lg font-semibold text-text-primary">Manage Tags</h3>
@@ -85,8 +98,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
               {onCreateTag && (
                 <button
                   onClick={onCreateTag}
-                  className="px-3 py-1.5  font-medium text-sm flex items-center gap-1.5 btn-primary"
-                  style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+                  className="px-3 py-1.5 rounded-md font-medium text-sm flex items-center gap-1.5 btn-primary"
                 >
                   <FolderPlus className="w-4 h-4" />
                   Create Tag
@@ -103,7 +115,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                 <div key={t.id} className="relative group">
                   <div
                     style={{ backgroundColor: t.color }}
-                    className="px-4 py-3  shadow-sm text-white font-medium text-sm text-center transition-all group-hover:shadow-md"
+                    className="px-4 py-3 rounded-lg text-white font-medium text-sm text-center transition-all"
                   >
                     {t.name}
                   </div>
@@ -111,19 +123,19 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                   <button
                     type="button"
                     onClick={(e) => handleEditClick(t, e)}
-                    className="absolute -top-2 -left-2 p-1.5  text-white opacity-0 group-hover:opacity-100 transition-all hover:scale-110 shadow-lg"
-                    style={{ backgroundColor: 'var(--tm-accent)' }}
+                    className="absolute -top-2 -left-2 p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
+                    style={{ backgroundColor: 'var(--tm-accent)', boxShadow: 'var(--tm-shadow-md)' }}
                     title="Edit tag"
                     aria-label={`Edit ${t.name}`}
                   >
-                    <Pencil className="w-3 h-3" />
+                    <FolderPen className="w-3 h-3" />
                   </button>
                   {/* Delete — top-right */}
                   <button
                     type="button"
                     onClick={(e) => handleDeleteClick(t, e)}
-                    className="absolute -top-2 -right-2 p-1.5  text-white opacity-0 group-hover:opacity-100 transition-all hover:scale-110 shadow-lg"
-                    style={{ backgroundColor: 'var(--tm-danger)' }}
+                    className="absolute -top-2 -right-2 p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
+                    style={{ backgroundColor: 'var(--tm-danger)', boxShadow: 'var(--tm-shadow-md)' }}
                     title="Delete tag"
                     aria-label={`Delete ${t.name}`}
                   >
@@ -143,7 +155,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
             <p className="text-center text-text-primary">
               Are you sure you want to delete the tag{' '}
               <span
-                className="chip text-white font-medium"
+                className="chip rounded-full text-white font-medium"
                 style={{ backgroundColor: deletingTag.color }}
               >
                 {deletingTag.name}
@@ -155,6 +167,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
               <button
                 type="button"
                 onClick={() => setDeletingTag(null)}
+                disabled={deleting}
                 className="btn btn-secondary flex-1 py-2"
               >
                 Cancel
@@ -162,10 +175,12 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
               <button
                 type="button"
                 onClick={confirmDelete}
-                className="btn flex-1 py-2 text-white"
+                disabled={deleting}
+                className="btn flex-1 py-2 text-white flex items-center justify-center gap-1.5"
                 style={{ backgroundColor: 'var(--tm-danger)' }}
               >
-                Delete
+                {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {deleting ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </div>
@@ -177,7 +192,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
         <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[80]">
           <div className="modal-panel max-w-sm w-full">
             <div
-              className="px-5 py-4 border-b border-border-subtle flex justify-between items-center "
+              className="px-5 py-4 border-b border-border-subtle flex justify-between items-center"
               style={{ backgroundColor: 'var(--tm-surface)' }}
             >
               <h3 className="text-lg font-semibold text-text-primary">Edit Tag</h3>
@@ -198,26 +213,17 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
               </div>
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">Tag Color</label>
-                <div className="flex gap-3 items-center">
-                  <select
-                    value={editedColor}
-                    onChange={(e) => setEditedColor(e.target.value)}
-                    className="input-field flex-1"
-                  >
-                    {TAG_COLORS.map(c => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
-                    ))}
-                  </select>
-                  <div
-                    style={{ backgroundColor: editedColor }}
-                    className="w-10 h-10  border border-border flex-shrink-0"
-                  />
-                </div>
+                <ColorSwatchPicker
+                  colors={THEME_ACCENT_COLORS}
+                  value={editedColor}
+                  onChange={setEditedColor}
+                />
               </div>
               <div className="flex gap-3 pt-1">
                 <button
                   type="button"
                   onClick={() => setEditingTag(null)}
+                  disabled={saving}
                   className="btn btn-secondary flex-1 py-2"
                 >
                   Cancel
@@ -225,10 +231,11 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                 <button
                   type="button"
                   onClick={handleSaveEdit}
-                  disabled={!editedName.trim()}
-                  className="btn btn-primary flex-1 py-2"
+                  disabled={!editedName.trim() || saving}
+                  className="btn btn-primary flex-1 py-2 flex items-center justify-center gap-1.5"
                 >
-                  Save
+                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {saving ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </div>

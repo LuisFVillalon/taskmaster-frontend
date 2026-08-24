@@ -137,7 +137,7 @@ export const useTaskHandlers = ({
     }
   };
 
-  const handleEditTag = async (tagToEdit: Tag) => {
+  const handleEditTag = async (tagToEdit: Tag): Promise<boolean> => {
     const updatedTagId = await updateTag(tagToEdit);
     if (updatedTagId !== null) {
       // Update the tag in all tasks that have it
@@ -148,9 +148,10 @@ export const useTaskHandlers = ({
         }))
       );
     }
+    return updatedTagId !== null;
   };
 
-  const handleDeleteTag = async (tagToDelete: Tag) => {
+  const handleDeleteTag = async (tagToDelete: Tag): Promise<boolean> => {
     const deletedTagId = await delTag(tagToDelete);
     if (deletedTagId !== null) {
       // Remove the tag from all tasks that have it
@@ -161,6 +162,7 @@ export const useTaskHandlers = ({
         }))
       );
     }
+    return deletedTagId !== null;
   };
 
   const openEditTagModal = (tag: Tag) => {
@@ -181,6 +183,8 @@ export const useTaskHandlers = ({
 
   const handleFilterChange = (newFilter: FilterType) => {
     if (filter === newFilter) {
+      // 'all' has a fixed sort order and doesn't toggle
+      if (newFilter === 'all') return;
       // Same filter clicked → toggle sort
       setSortOrder(prev => ({
         ...prev,

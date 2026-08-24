@@ -3,8 +3,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import TiptapImage from '@tiptap/extension-image';
+import { ResizableImage } from './extensions/ResizableImage';
 import TiptapHighlight from '@tiptap/extension-highlight';
+import TiptapUnderline from '@tiptap/extension-underline';
+import TiptapTextAlign from '@tiptap/extension-text-align';
+import { TableKit } from '@tiptap/extension-table';
 import {
   ChevronDown, ChevronUp, Download, Link2, FileText, Loader2,
   PanelLeftClose, PanelLeftOpen, Save, LibraryBig, X,
@@ -19,7 +22,7 @@ import { fetchLearningResources, LearningResourcesResponse } from '@/app/lib/bac
 interface NoteEditorProps {
   note: Note | null;
   allTags: Tag[];
-  onUpdate: (id: number, changes: Partial<Pick<Note, 'title' | 'content' | 'tags'>>) => void;
+  onUpdate: (id: number, changes: Partial<Pick<Note, 'title' | 'content' | 'tags'>>) => void | Promise<boolean>;
   sidebarOpen?: boolean;
   onToggleSidebar?: () => void;
   showExtendedActions?: boolean;
@@ -33,11 +36,12 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   showExtendedActions = false,
 }) => {
   const [title, setTitle]               = useState(note?.title ?? '');
-  const [saveStatus, setSaveStatus]     = useState<'idle' | 'saved'>('idle');
+  const [saveStatus, setSaveStatus]     = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [pdfLoading, setPdfLoading]     = useState(false);
   const [emptyToast, setEmptyToast]     = useState(false);
   const [pdfError, setPdfError]         = useState(false);
   const [tagsOpen, setTagsOpen]         = useState(false);
+  const [tagTogglingId, setTagTogglingId] = useState<number | null>(null);
   const [resourcesStatus, setResourcesStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [resourcesData, setResourcesData]     = useState<LearningResourcesResponse | null>(null);
   const [resourcesOpen, setResourcesOpen]     = useState(false);
@@ -49,17 +53,27 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   // ── Editor setup ───────────────────────────────────────────────────────────
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3, 4, 5] },
+      }),
 
       // Image: base64 data-URIs are stored in note HTML so images survive
       // page reloads without a separate upload service.
-      TiptapImage.configure({
+      ResizableImage.configure({
         allowBase64: true,
         HTMLAttributes: { class: 'note-img' },
       }),
 
       // Highlight: multicolor=true lets each mark carry its own background-color.
       TiptapHighlight.configure({ multicolor: true }),
+
+      TiptapUnderline,
+
+      TiptapTextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+
+      TableKit.configure({ table: { resizable: true } }),
     ],
     content: note?.content ?? '',
     immediatelyRender: false,
@@ -133,7 +147,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     setResourcesStatus('idle');
     setResourcesData(null);
     if (editor) {
-      editor.commands.setContent(note?.content ?? '');
+      editor.commands.setContent(note?.content ?? '', { emitUpdate: false });
     }
   // `editor` excluded intentionally — setContent is imperative, not reactive.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,22 +172,28 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     }, 500);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!note || !editor) return;
     if (contentTimer.current) clearTimeout(contentTimer.current);
     if (titleTimer.current)   clearTimeout(titleTimer.current);
-    onUpdate(note.id, { title, content: editor.getHTML() });
-    setSaveStatus('saved');
+    setSaveStatus('saving');
+    const result = await onUpdate(note.id, { title, content: editor.getHTML() });
+    setSaveStatus(result === false ? 'error' : 'saved');
     if (savedTimer.current) clearTimeout(savedTimer.current);
     savedTimer.current = setTimeout(() => setSaveStatus('idle'), 2000);
   };
 
-  const handleTagToggle = (tag: Tag) => {
-    if (!note) return;
+  const handleTagToggle = async (tag: Tag) => {
+    if (!note || tagTogglingId !== null) return;
+    setTagTogglingId(tag.id);
     const exists = note.tags.some(t => t.id === tag.id);
-    onUpdate(note.id, {
-      tags: exists ? note.tags.filter(t => t.id !== tag.id) : [...note.tags, tag],
-    });
+    try {
+      await onUpdate(note.id, {
+        tags: exists ? note.tags.filter(t => t.id !== tag.id) : [...note.tags, tag],
+      });
+    } finally {
+      setTagTogglingId(null);
+    }
   };
 
   const handleDownloadPDF = async () => {
@@ -255,6 +275,34 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             font-weight: 700;
             color: #374151;
             margin: 18px 0 6px;
+            line-height: 1.3;
+            break-after: avoid; page-break-after: avoid;
+            break-inside: avoid; page-break-inside: avoid;
+          }
+          /* H3–H5 = nested subsections — progressively lighter weight */
+          .pdf-body h3 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #4b5563;
+            margin: 14px 0 5px;
+            line-height: 1.3;
+            break-after: avoid; page-break-after: avoid;
+            break-inside: avoid; page-break-inside: avoid;
+          }
+          .pdf-body h4 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4b5563;
+            margin: 12px 0 4px;
+            line-height: 1.3;
+            break-after: avoid; page-break-after: avoid;
+            break-inside: avoid; page-break-inside: avoid;
+          }
+          .pdf-body h5 {
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b7280;
+            margin: 10px 0 4px;
             line-height: 1.3;
             break-after: avoid; page-break-after: avoid;
             break-inside: avoid; page-break-inside: avoid;
@@ -352,6 +400,29 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             border-radius: 2px;
             vertical-align: super;
             line-height: 1;
+          }
+
+          /* ── Tables ──────────────────────────────────────────────────────── */
+          .pdf-body .tableWrapper { margin: 10px 0; }
+          .pdf-body table {
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 100%;
+            break-inside: avoid; page-break-inside: avoid;
+          }
+          .pdf-body table td,
+          .pdf-body table th {
+            border: 1px solid #d1d5db;
+            padding: 5px 8px;
+            font-size: 12px;
+            color: #374151;
+            vertical-align: top;
+          }
+          .pdf-body table th {
+            font-weight: 700;
+            color: #111827;
+            background: #f3f4f6;
+            text-align: left;
           }
 
           /* ── Blockquote ──────────────────────────────────────────────────── */
@@ -497,7 +568,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               type="button"
               onClick={onToggleSidebar}
               title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-              className="flex px-2 py-1.5  text-sm transition-colors"
+              className="flex px-2 py-1.5 rounded-md text-sm transition-colors"
               style={{ color: 'var(--tm-text-secondary)' }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
@@ -515,7 +586,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div
-              className="w-16 h-16  flex items-center justify-center mx-auto mb-4"
+              className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4"
               style={{ backgroundColor: 'var(--tm-surface-raised)' }}
             >
               <FileText className="w-8 h-8 text-text-muted" />
@@ -544,7 +615,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               type="button"
               onClick={handleGetResources}
               title={resourcesOpen ? 'Close resources panel' : 'Get AI learning resources'}
-              className="flex items-center gap-1.5 px-3 py-1.5  text-sm font-medium transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
               style={{
                 color: resourcesOpen ? 'var(--tm-accent)' : 'var(--tm-text-secondary)',
                 backgroundColor: resourcesOpen ? 'var(--tm-accent-subtle)' : undefined,
@@ -568,7 +639,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               onClick={handleDownloadPDF}
               disabled={pdfLoading}
               title="Download as PDF"
-              className="flex items-center gap-1.5 px-3 py-1.5  text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ color: 'var(--tm-text-secondary)' }}
               onMouseEnter={e => {
                 if (!pdfLoading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--tm-surface-raised)';
@@ -587,17 +658,28 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
         <button
           onClick={handleSave}
-          className="btn flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium"
+          disabled={saveStatus === 'saving'}
+          className="btn flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium disabled:cursor-wait"
           style={saveStatus === 'saved' ? {
             backgroundColor: 'var(--tm-success-subtle)',
             color: 'var(--tm-success)',
+          } : saveStatus === 'error' ? {
+            backgroundColor: 'var(--tm-danger-subtle)',
+            color: 'var(--tm-danger)',
           } : {
             backgroundColor: 'var(--tm-accent)',
             color: 'var(--tm-accent-text)',
           }}
         >
-          {saveStatus === 'saved' ? (
+          {saveStatus === 'saving' ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Saving…
+            </>
+          ) : saveStatus === 'saved' ? (
             'Saved ✓'
+          ) : saveStatus === 'error' ? (
+            'Failed to save'
           ) : (
             <>
               <Save className="w-3.5 h-3.5" />
@@ -645,7 +727,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                         {note.tags.slice(0, 5).map(t => (
                           <span
                             key={t.id}
-                            className="inline-block w-2 h-2  flex-shrink-0"
+                            className="inline-block w-2 h-2 rounded-full flex-shrink-0"
                             style={{ backgroundColor: t.color }}
                             title={t.name}
                           />
@@ -665,24 +747,31 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                 style={{ maxHeight: tagsOpen ? '160px' : '0px', opacity: tagsOpen ? 1 : 0 }}
               >
                 <div
-                  className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4  border border-border max-h-36 overflow-y-auto scrollbar-custom"
+                  className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 rounded-xl border border-border max-h-36 overflow-y-auto scrollbar-custom"
                   style={{ backgroundColor: 'var(--tm-surface-raised)' }}
                 >
                   {allTags.map(tag => {
                     const selected = note.tags.some(t => t.id === tag.id);
+                    const isToggling = tagTogglingId === tag.id;
+                    const disabled = tagTogglingId !== null;
                     return (
                       <button
                         key={tag.id}
                         type="button"
                         onClick={() => handleTagToggle(tag)}
+                        disabled={disabled}
+                        aria-busy={isToggling}
                         style={{
                           backgroundColor: selected ? tag.color : 'var(--tm-surface)',
                           color: selected ? '#ffffff' : 'var(--tm-text-primary)',
                           border: `1px solid ${selected ? tag.color : 'var(--tm-border)'}`,
                           transform: selected ? 'scale(1)' : 'scale(0.97)',
+                          opacity: disabled && !isToggling ? 0.5 : 1,
+                          cursor: disabled ? 'not-allowed' : 'pointer',
                         }}
-                        className="px-3 py-2  text-sm font-medium transition-all hover:scale-100 active:scale-95"
+                        className="px-3 py-2 rounded-md text-sm font-medium transition-all hover:scale-100 active:scale-95 flex items-center justify-center gap-1.5 disabled:hover:scale-100"
                       >
+                        {isToggling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                         {tag.name}
                       </button>
                     );
@@ -720,7 +809,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                   <span className="text-sm font-semibold" style={{ color: 'var(--tm-text-primary)' }}>Learning Resources</span>
                 </div>
                 {resourcesData?.topic && (
-                  <div className="flex justify-start items-center gap-1 pr-2 py-0.5  w-fit" style={{ backgroundColor: 'var(--tm-accent-subtle)' }}>
+                  <div className="flex justify-start items-center gap-1 pr-2 py-0.5 rounded-full w-fit" style={{ backgroundColor: 'var(--tm-accent-subtle)' }}>
                     <p className='text-xs'>Context caught: </p>
                     <span className="text-sm font-medium" style={{ color: 'var(--tm-accent)' }}>{resourcesData.topic}</span>
                   </div>
@@ -729,7 +818,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               <button
                 type="button"
                 onClick={() => setResourcesOpen(false)}
-                className="p-1  transition-colors"
+                className="p-1 rounded-md transition-colors"
                 style={{ color: 'var(--tm-text-secondary)' }}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--tm-surface)')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = '')}
@@ -753,7 +842,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                   <button
                     type="button"
                     onClick={handleGetResources}
-                    className="text-sm font-medium px-3 py-1.5  transition-colors"
+                    className="text-sm font-medium px-3 py-1.5 rounded-md transition-colors"
                     style={{ color: 'var(--tm-accent)', backgroundColor: 'var(--tm-accent-subtle)' }}
                   >
                     Retry
@@ -769,13 +858,13 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                       href={r.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex flex-col gap-1.5 p-3  border transition-all hover:shadow-sm"
+                      className="flex flex-col gap-1.5 p-3 rounded-xl border transition-all"
                       style={{ border: '1px solid var(--tm-border)', backgroundColor: 'var(--tm-surface)' }}
                       onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--tm-accent)')}
                       onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--tm-border)')}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium px-2 py-0.5  shrink-0" style={{ backgroundColor: 'var(--tm-accent-subtle)', color: 'var(--tm-accent)' }}>
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: 'var(--tm-accent-subtle)', color: 'var(--tm-accent)' }}>
                           {r.activity_label} · {r.platform}
                         </span>
                         <Link2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--tm-text-muted)' }} />
@@ -794,16 +883,16 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       {/* ── Toasts ───────────────────────────────────────────────────────── */}
       {emptyToast && (
         <div
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2  text-sm font-medium shadow-lg pointer-events-none"
-          style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-sm font-medium pointer-events-none"
+          style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)', boxShadow: 'var(--tm-shadow-lg)' }}
         >
           Note is empty — add some content first.
         </div>
       )}
       {pdfError && (
         <div
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2  text-sm font-medium shadow-lg pointer-events-none"
-          style={{ backgroundColor: 'var(--tm-danger-subtle)', color: 'var(--tm-danger)', border: '1px solid var(--tm-danger)' }}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-sm font-medium pointer-events-none"
+          style={{ backgroundColor: 'var(--tm-danger-subtle)', color: 'var(--tm-danger)', border: '1px solid var(--tm-danger)', boxShadow: 'var(--tm-shadow-lg)' }}
         >
           PDF export failed — please try again.
         </div>
@@ -824,6 +913,27 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           color: var(--tm-text-primary);
           margin: 0.875rem 0 0.4rem;
           line-height: 1.3;
+        }
+        .notes-editor h3 {
+          font-size: 1.15rem;
+          font-weight: 700;
+          color: var(--tm-text-primary);
+          margin: 0.75rem 0 0.35rem;
+          line-height: 1.35;
+        }
+        .notes-editor h4 {
+          font-size: 1.05rem;
+          font-weight: 600;
+          color: var(--tm-text-primary);
+          margin: 0.65rem 0 0.3rem;
+          line-height: 1.4;
+        }
+        .notes-editor h5 {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: var(--tm-text-primary);
+          margin: 0.55rem 0 0.25rem;
+          line-height: 1.4;
         }
         .notes-editor p {
           color: var(--tm-text-secondary);
@@ -853,6 +963,46 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         .notes-editor em {
           font-style: italic;
         }
+        .notes-editor u {
+          text-decoration: underline;
+        }
+
+        /* Tables */
+        .notes-editor .tableWrapper {
+          overflow-x: auto;
+          margin: 0.75rem 0;
+        }
+        .notes-editor table {
+          border-collapse: collapse;
+          table-layout: fixed;
+          width: 100%;
+        }
+        .notes-editor table td,
+        .notes-editor table th {
+          border: 1px solid var(--tm-border);
+          padding: 0.4rem 0.6rem;
+          vertical-align: top;
+          position: relative;
+          color: var(--tm-text-secondary);
+        }
+        .notes-editor table th {
+          font-weight: 700;
+          color: var(--tm-text-primary);
+          background-color: var(--tm-surface-raised);
+          text-align: left;
+        }
+        .notes-editor table .selectedCell {
+          background-color: var(--tm-accent-subtle);
+        }
+        .notes-editor table .column-resize-handle {
+          position: absolute;
+          right: -2px;
+          top: 0;
+          bottom: 0;
+          width: 4px;
+          background-color: var(--tm-accent);
+          pointer-events: none;
+        }
 
         /* Highlight marks */
         .notes-editor mark {
@@ -867,16 +1017,33 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           max-width: 100%;
           height: auto;
           border-radius: 8px;
-          margin: 0.75rem 0;
           display: block;
           /* Subtle ring so images don't float invisibly on white */
           box-shadow: 0 0 0 1px var(--tm-border-subtle);
         }
 
-        /* Selected image state */
-        .notes-editor img.ProseMirror-selectednode {
-          outline: 2px solid var(--tm-accent);
-          outline-offset: 2px;
+        /* Resizable image wrapper (custom node view) */
+        .notes-image-wrapper {
+          position: relative;
+          display: inline-block;
+          max-width: 100%;
+          margin: 0.75rem 0;
+        }
+        .notes-image-resize-handle {
+          position: absolute;
+          right: -6px;
+          bottom: -6px;
+          width: 14px;
+          height: 14px;
+          border-radius: 4px;
+          background-color: var(--tm-accent);
+          border: 2px solid var(--tm-surface);
+          cursor: nwse-resize;
+          touch-action: none;
+        }
+        .notes-image-resize-handle.is-dragging,
+        .notes-image-resize-handle:hover {
+          transform: scale(1.15);
         }
       `}</style>
     </div>

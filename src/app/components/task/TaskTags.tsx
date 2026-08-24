@@ -26,7 +26,7 @@ const TaskTags: React.FC<TaskTagsProps> = ({ tags, allTags, className = '' }) =>
             style={{
               backgroundColor: color,
               color: 'white',
-              borderRadius: '6px',
+              borderRadius: '9999px',
               fontSize: '11px',
               fontWeight: 'bold',
             }}

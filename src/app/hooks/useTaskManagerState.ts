@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FilterType, Tag, EditTaskModalState, NewTag, BaseTaskForm, NewHabit } from '@/app/types/task';
+import { DEFAULT_ACCENT } from '@/app/lib/theme';
 
 export const useTaskManagerState = () => {
   const [sortOrder, setSortOrder] = useState<Record<FilterType, 'asc' | 'desc'>>({
@@ -10,6 +11,11 @@ export const useTaskManagerState = () => {
     created: 'asc',
     duration: 'asc',
   });
+
+  // Independent of the task filter/sort above — controls only the note
+  // list's edit-recency order, so toggling it never touches the active
+  // task filter or the tasks' own sort order.
+  const [noteSortOrder, setNoteSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [showTagDropdown, setShowTagDropdown] = useState(false);
@@ -30,7 +36,7 @@ export const useTaskManagerState = () => {
   // Form states
   const [newTag, setNewTag] = useState<NewTag>({
     name: '',
-    color: '#3B82F6'
+    color: DEFAULT_ACCENT
   });
   const [newHabit, setNewHabit] = useState<NewHabit>({
     title: '',
@@ -55,6 +61,8 @@ export const useTaskManagerState = () => {
     // State
     sortOrder,
     setSortOrder,
+    noteSortOrder,
+    setNoteSortOrder,
     selectedTags,
     setSelectedTags,
     showTagDropdown,

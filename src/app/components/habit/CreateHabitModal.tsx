@@ -1,5 +1,5 @@
-import React from 'react';
-import { X } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Tag, NewHabit } from '@/app/types/task';
 
 interface CreateHabitModalProps {
@@ -7,7 +7,7 @@ interface CreateHabitModalProps {
   onClose: () => void;
   newHabit: NewHabit;
   onHabitChange: (habit: NewHabit) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent) => void | Promise<void>;
   availableTags: Tag[];
 }
 
@@ -20,7 +20,18 @@ const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
   onSubmit,
   availableTags,
 }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    setIsSubmitting(true);
+    try {
+      await onSubmit(e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const toggleTag = (tag: Tag) => {
     const alreadySelected = newHabit.tags.some(t => t.id === tag.id);
@@ -37,16 +48,16 @@ const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
       <div className="modal-panel max-w-sm w-full">
         {/* Header */}
         <div
-          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center "
+          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center"
           style={{ backgroundColor: 'var(--tm-surface)' }}
         >
           <h3 className="text-lg font-semibold text-text-primary">Create a Habit</h3>
           <button onClick={onClose} className="btn btn-ghost" aria-label="Close">
-            <X className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">Habit Name</label>
@@ -65,7 +76,7 @@ const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-2">Tags</label>
               <div
-                className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3  border border-border max-h-36 overflow-y-auto scrollbar-custom"
+                className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 rounded-lg border border-border max-h-36 overflow-y-auto scrollbar-custom"
                 style={{ backgroundColor: 'var(--tm-surface-raised)' }}
               >
                 {availableTags.map(tag => {
@@ -81,7 +92,7 @@ const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                         border: `1px solid ${selected ? tag.color : 'var(--tm-border)'}`,
                         transform: selected ? 'scale(1)' : 'scale(0.97)',
                       }}
-                      className="px-3 py-2  text-sm font-medium transition-all hover:scale-100 active:scale-95"
+                      className="px-3 py-2 rounded-full text-sm font-medium transition-all hover:scale-100 active:scale-95"
                     >
                       {tag.name}
                     </button>
@@ -94,7 +105,7 @@ const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
                   {newHabit.tags.map(tag => (
                     <span
                       key={tag.id}
-                      className="chip px-2 "
+                      className="chip rounded-full px-2"
                       style={{ backgroundColor: tag.color, color: 'white' }}
                     >
                       {tag.name}
@@ -107,11 +118,12 @@ const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
 
           {/* Actions */}
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="btn btn-secondary flex-1 py-2">
+            <button type="button" onClick={onClose} disabled={isSubmitting} className="btn btn-secondary flex-1 py-2">
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary flex-1 py-2">
-              Create Habit
+            <button type="submit" disabled={isSubmitting} className="btn btn-primary flex-1 py-2 flex items-center justify-center gap-1.5">
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isSubmitting ? 'Creating…' : 'Create Habit'}
             </button>
           </div>
         </form>

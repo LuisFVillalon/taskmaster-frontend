@@ -491,10 +491,10 @@ export interface HabitHistoryEntry {
   logged: boolean;
 }
 
-/** Fetches logged/not-logged status for the past 30 days for a habit. */
-export async function fetchHabitHistory(habitId: number): Promise<HabitHistoryEntry[]> {
+/** Fetches logged/not-logged status for the past `days` days (default 30) for a habit. */
+export async function fetchHabitHistory(habitId: number, days: number = 30): Promise<HabitHistoryEntry[]> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/habit-history/${habitId}`, { headers });
+  const res = await fetch(`${API_BASE_URL}/habit-history/${habitId}?days=${days}`, { headers });
   await assertOk(res, "fetchHabitHistory");
   return res.json();
 }
@@ -512,22 +512,6 @@ export async function toggleHabitDate(habitId: number, date: string): Promise<Ha
     body: JSON.stringify({ date }),
   });
   await assertOk(res, "toggleHabitDate");
-  return res.json();
-}
-
-/**
- * Toggles today's completion for a habit.
- * - If not logged today: inserts a log, increments current_streak (and max_streak if needed).
- * - If already logged today: deletes the log, decrements current_streak.
- * Returns the updated habit with the new streak values and logged_today state.
- */
-export async function toggleHabit(id: number): Promise<Habit> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/toggle-habit/${id}`, {
-    method: 'PATCH',
-    headers,
-  });
-  await assertOk(res, "toggleHabit");
   return res.json();
 }
 
@@ -631,58 +615,6 @@ export async function fetchLearningResources(noteContent: string): Promise<Learn
     body: JSON.stringify({ note_content: noteContent }),
   });
   await assertOk(res, "fetchLearningResources");
-  return res.json();
-}
-
-// ── AI Smart Plan (subtask generation) ───────────────────────────────────────
-
-export interface AiSubtask {
-  parent_task_id: number;
-  title: string;
-  description: string;
-  category: string | null;
-  session_type: string | null;
-  due_date: string | null;
-  due_time: string | null;
-  estimated_time: number | null;
-  tags: { id: number; name: string; color: string }[];
-}
-
-export interface PlanTasksResult {
-  new_task: Task;
-  subtasks: AiSubtask[];
-  overload_warning: string | null;
-}
-
-/**
- * Calls the AI /plan-tasks endpoint which:
- *   1. Creates the parent task in the backend.
- *   2. Generates AI subtasks (NOT yet persisted — caller decides which to save).
- * Returns the created parent task, the generated subtask list, and an optional overload warning.
- */
-export async function planTasks(task: {
-  title: string;
-  description?: string;
-  priority?: number | null;
-  due_date?: string | null;
-  due_time?: string | null;
-  tags: { id: number; name: string; color: string }[];
-  category?: string | null;
-  estimated_time?: number | null;
-  session_type?: string | null;
-  created_date: string;
-}): Promise<PlanTasksResult> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error("Not authenticated — no active Supabase session.");
-  const res = await fetch(`${AI_BASE_URL}/plan-tasks`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify(task),
-  });
-  await assertOk(res, "planTasks");
   return res.json();
 }
 

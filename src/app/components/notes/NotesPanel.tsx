@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, LayoutGrid, FolderClosed } from 'lucide-react';
+import NoteCard from '@/app/components/notes/NoteCard';
 import NotesGridView from '@/app/components/notes/NotesGridView';
 import TagFolderOverlay from '@/app/components/notes/TagFolderOverlay';
 import NoteEditorOverlay from '@/app/components/notes/NoteEditorOverlay';
@@ -12,41 +13,53 @@ interface NotesPanelProps {
   notes: Note[];
   tags: Tag[];
   noteEditorOverlay: Note | null;
-  onAddNote: () => Promise<Note>;
-  onUpdateNote: (id: number, changes: Partial<Pick<Note, 'title' | 'content' | 'tags'>>) => void;
+  onUpdateNote: (id: number, changes: Partial<Pick<Note, 'title' | 'content' | 'tags'>>) => void | Promise<boolean>;
   onDeleteNote: (id: number) => void;
   onEditorChange: (note: Note | null) => void;
+  /** User-adjustable scroll-area height in px (overrides the default responsive height). */
+  heightPx?: number | null;
+  isLoading?: boolean;
+  pendingNoteIds?: Set<number>;
+  /** When set, only these tags may appear as folders (e.g. an active sidebar tag filter). */
+  tagFilter?: Tag[];
 }
+
+type ViewMode = 'cards' | 'folders';
+
+const NotesPanelSkeleton: React.FC = () => (
+  <div className="card p-3 sm:p-4 mt-2">
+    <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
+      {[0, 1, 2, 3].map(i => (
+        <div key={i} className="h-24 rounded-xl animate-pulse" style={{ backgroundColor: 'var(--tm-surface-raised)' }} />
+      ))}
+    </div>
+  </div>
+);
 
 const NotesPanel: React.FC<NotesPanelProps> = ({
   notes,
   tags,
   noteEditorOverlay,
-  onAddNote,
   onUpdateNote,
   onDeleteNote,
   onEditorChange,
+  heightPx,
+  isLoading,
+  pendingNoteIds,
+  tagFilter,
 }) => {
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [notesFolderOverlay, setNotesFolderOverlay] = useState<{ tag: Tag; notes: Note[] } | null>(null);
 
   return (
     <div className="split-notes relative flex flex-col space-y-2 sm:space-y-3">
-      <div className="flex justify-end gap-2">
-        <button
-          onClick={async () => { const note = await onAddNote(); onEditorChange(note); }}
-          className="px-3 py-1.5  font-medium whitespace-nowrap text-sm flex-shrink-0 flex items-center gap-1.5 btn-primary"
-          style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-        >
-          <FileText className="w-4 h-4" />
-          Create Note
-        </button>
-      </div>
-
-      {notes.length === 0 ? (
+      {isLoading ? (
+        <NotesPanelSkeleton />
+      ) : notes.length === 0 ? (
         <div className="card p-6 sm:p-8 text-center mt-2">
           <div
-            className="w-12 h-12  flex items-center justify-center mx-auto mb-3"
+            className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3"
             style={{ backgroundColor: 'var(--tm-surface-raised)' }}
           >
             <FileText className="w-6 h-6 text-text-muted" />
@@ -55,17 +68,68 @@ const NotesPanel: React.FC<NotesPanelProps> = ({
           <p className="text-sm text-text-secondary">Create a note to get started</p>
         </div>
       ) : (
-        <div className="overflow-y-auto h-[50vh] lg:h-[600px] pl-2 pr-1 scrollbar-custom pt-2">
-          <NotesGridView
-            notes={notes}
-            allTags={tags}
-            activeNoteId={activeNoteId}
-            onSelectNote={note => { setActiveNoteId(note.id); onEditorChange(note); }}
-            onDeleteNote={onDeleteNote}
-            onFolderClick={(tag, folderNotes) => setNotesFolderOverlay({ tag, notes: folderNotes })}
-            wide
-          />
-        </div>
+        <>
+          {/* View toggle — cards (new) vs. folders (the original file/folder browser) */}
+          <button
+            type="button"
+            onClick={() => setViewMode(m => (m === 'cards' ? 'folders' : 'cards'))}
+            aria-label={viewMode === 'cards' ? 'Show folder view' : 'Show card view'}
+            title={viewMode === 'cards' ? 'Show folder view' : 'Show card view'}
+            className="absolute bottom-2 right-2 z-50 w-14 h-7 rounded-full border border-border-subtle shadow-sm transition-colors duration-200 flex-shrink-0"
+            style={{
+              backgroundColor: viewMode === 'folders'
+                ? 'color-mix(in srgb, var(--tm-accent) 55%, white 45%)'
+                : 'var(--tm-border-subtle)',
+            }}
+          >
+            <span
+              className="absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform duration-200 ease-out"
+              style={{ transform: `translateX(${viewMode === 'folders' ? 28 : 0}px)` }}
+            />
+            <span className="absolute inset-0.5 flex items-center justify-between pointer-events-none">
+              <span className="w-6 h-6 flex items-center justify-center">
+                <LayoutGrid className={`w-3.5 h-3.5 transition-colors ${viewMode === 'cards' ? 'text-white' : 'text-text-muted'}`} />
+              </span>
+              <span className="w-6 h-6 flex items-center justify-center">
+                <FolderClosed className={`w-3.5 h-3.5 transition-colors ${viewMode === 'folders' ? 'text-white' : 'text-text-muted'}`} />
+              </span>
+            </span>
+          </button>
+
+          <div
+            className="overflow-y-auto h-[50vh] lg:h-[600px] pl-2 pr-1 scrollbar-custom pt-2"
+            style={heightPx ? { height: `${heightPx}px` } : undefined}
+          >
+            {viewMode === 'cards' ? (
+              <div
+                className="grid gap-2 pb-2"
+                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}
+              >
+                {notes.map(note => (
+                  <NoteCard
+                    key={note.id}
+                    note={note}
+                    isActive={note.id === activeNoteId}
+                    onClick={() => { setActiveNoteId(note.id); onEditorChange(note); }}
+                    onDelete={onDeleteNote}
+                    deleting={pendingNoteIds?.has(note.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <NotesGridView
+                notes={notes}
+                allTags={tags}
+                activeNoteId={activeNoteId}
+                onSelectNote={note => { setActiveNoteId(note.id); onEditorChange(note); }}
+                onDeleteNote={onDeleteNote}
+                onFolderClick={(tag, folderNotes) => setNotesFolderOverlay({ tag, notes: folderNotes })}
+                wide
+                tagFilter={tagFilter}
+              />
+            )}
+          </div>
+        </>
       )}
 
       {notesFolderOverlay && (
@@ -84,12 +148,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({
         <NoteEditorOverlay
           note={noteEditorOverlay}
           allTags={tags}
-          onUpdate={(id, changes) => {
-            onUpdateNote(id, changes);
-            if (changes.title !== undefined) {
-              onEditorChange({ ...noteEditorOverlay, title: changes.title });
-            }
-          }}
+          onUpdate={onUpdateNote}
           onDeleteNote={id => { onDeleteNote(id); onEditorChange(null); }}
           onClose={() => onEditorChange(null)}
         />

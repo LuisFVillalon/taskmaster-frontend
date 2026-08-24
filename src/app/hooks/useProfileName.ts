@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { fetchProfile } from '@/app/lib/backend-api';
 
-export const useProfileName = (user: User | null): string | null => {
+export const useProfileName = (user: User | null): [string | null, Dispatch<SetStateAction<string | null>>] => {
   const [profileName, setProfileName] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('tm_profile_name');
@@ -25,5 +25,5 @@ export const useProfileName = (user: User | null): string | null => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  return profileName;
+  return [profileName, setProfileName];
 };

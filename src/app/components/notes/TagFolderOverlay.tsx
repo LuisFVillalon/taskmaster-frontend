@@ -13,7 +13,7 @@ interface TagFolderOverlayProps {
   notes: Note[];
   activeNoteId: number | null;
   allTags: Tag[];
-  onUpdate: (id: number, changes: Partial<Pick<Note, 'title' | 'content' | 'tags'>>) => void;
+  onUpdate: (id: number, changes: Partial<Pick<Note, 'title' | 'content' | 'tags'>>) => void | Promise<boolean>;
   onDeleteNote: (id: number) => void;
   onClose: () => void;
 }
@@ -48,12 +48,12 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
 
   return (
     <div
-      className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm "
+      className="modal-overlay z-50 flex items-center justify-center absolute inset-0"
       onClick={isEditorView ? undefined : onClose}
     >
       <div
-        className={`relative  shadow-2xl bg-[var(--tm-surface)] border border-[var(--tm-border)] flex flex-col overflow-hidden
-          ${isEditorView ? 'w-[95%] h-[90%]' : 'w-[90%]'}`}
+        className={`modal-panel relative flex flex-col overflow-hidden
+          ${isEditorView ? 'w-full h-full' : 'w-[90%] max-h-[90%]'}`}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -62,14 +62,14 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
             {isEditorView ? (
               <button
                 onClick={() => setSelectedNote(null)}
-                className="btn btn-ghost p-1 "
+                className="btn btn-ghost p-1"
                 aria-label="Back to folder"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
             ) : (
               <span
-                className="inline-block w-3 h-3 "
+                className="inline-block w-3 h-3 rounded-full"
                 style={{ backgroundColor: tag.color }}
               />
             )}
@@ -86,7 +86,7 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
             {isEditorView && (
               <button
                 onClick={() => { router.push(`/notes?id=${selectedNote!.id}`); onClose(); }}
-                className="btn btn-ghost p-1 "
+                className="btn btn-ghost p-1"
                 aria-label="View in Notes"
                 title="View in Notes"
               >
@@ -95,7 +95,7 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
             )}
             <button
               onClick={onClose}
-              className="btn btn-ghost p-1 "
+              className="btn btn-ghost p-1"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
@@ -109,18 +109,20 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
             <NoteEditor
               note={selectedNote}
               allTags={allTags}
-              onUpdate={(id, changes) => {
-                onUpdate(id, changes);
-                if (changes.title !== undefined) {
-                  setSelectedNote(prev => prev ? { ...prev, title: changes.title! } : prev);
-                }
+              onUpdate={async (id, changes) => {
+                const ok = await onUpdate(id, changes);
+                setSelectedNote(prev => prev ? { ...prev, ...changes } : prev);
+                return ok !== false;
               }}
             />
           </div>
         ) : (
-          <div className="p-4">
+          <div className="p-4 overflow-y-auto scrollbar-custom">
             {notes.length > 0 ? (
-              <div className="grid grid-cols-4 gap-1">
+              <div
+                className="grid gap-1"
+                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))' }}
+              >
                 {notes.map(note => (
                   <NoteFileIcon
                     key={note.id}

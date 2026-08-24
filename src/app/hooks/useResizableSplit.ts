@@ -5,8 +5,11 @@ interface UseResizableSplitOptions {
   min?: number;
   /** Upper clamp in px (omit to skip clamping). */
   max?: number;
-  /** 'left' measures from container left edge; 'right' measures from container right edge. */
-  anchor?: 'left' | 'right';
+  /**
+   * 'left'/'right' measure horizontally from the container's left/right edge (column resize).
+   * 'top'/'bottom' measure vertically from the container's top/bottom edge (row resize).
+   */
+  anchor?: 'left' | 'right' | 'top' | 'bottom';
   onResize: (px: number) => void;
   onResizingChange?: (isResizing: boolean) => void;
 }
@@ -21,18 +24,26 @@ export function useResizableSplit(
 ) {
   const isDragging = useRef(false);
 
+  const isVertical = anchor === 'top' || anchor === 'bottom';
+
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       isDragging.current = true;
       onResizingChange?.(true);
-      document.body.style.cursor = 'col-resize';
+      document.body.style.cursor = isVertical ? 'row-resize' : 'col-resize';
       document.body.style.userSelect = 'none';
 
       const onMove = (ev: MouseEvent) => {
         if (!isDragging.current || !containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
-        let raw = anchor === 'left' ? ev.clientX - rect.left : rect.right - ev.clientX;
+        let raw: number;
+        switch (anchor) {
+          case 'left': raw = ev.clientX - rect.left; break;
+          case 'right': raw = rect.right - ev.clientX; break;
+          case 'top': raw = ev.clientY - rect.top; break;
+          case 'bottom': raw = rect.bottom - ev.clientY; break;
+        }
         if (min !== undefined) raw = Math.max(min, raw);
         if (max !== undefined) raw = Math.min(max, raw);
         onResize(raw);

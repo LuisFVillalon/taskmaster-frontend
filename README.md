@@ -53,7 +53,7 @@ src/
       │                   #   EditorToolbar, TagFolderOverlay, NoteFileIcon
       tag/                # CreateTagModal, EditTagListModal
       task/               # NewTaskModal, NewTaskPanel, TaskItem, TaskTags,
-      │                   #   TaskFormFields, PriorityPicker, AiSubtasksModal
+      │                   #   TaskFormFields, PriorityPicker
       tasks/              # TasksPanel, TasksView, TasksList, TaskItem, TaskDetail
       BigPictureCalendar.tsx
       CalendarAndStats.tsx

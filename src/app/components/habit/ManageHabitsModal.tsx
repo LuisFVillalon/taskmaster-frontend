@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Flame, Star, LayersPlus, Pencil, Trash2, Check, CalendarDays } from 'lucide-react';
+import { X, Flame, Star, Grid2x2Plus, Pencil, Trash2, Save, CalendarDays } from 'lucide-react';
 import { Habit } from '@/app/lib/backend-api';
 import { Tag } from '@/app/types/task';
 
@@ -75,7 +75,7 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
     <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[60]">
       <div className="modal-panel max-w-md w-full">
         <div
-          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center "
+          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center"
           style={{ backgroundColor: 'var(--tm-surface)' }}
         >
           <h3 className="text-lg font-semibold text-text-primary">Manage Habits</h3>
@@ -83,10 +83,9 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
             {onCreateHabit && (
               <button
                 onClick={onCreateHabit}
-                className="px-3 py-1.5  font-medium text-sm flex items-center gap-2 btn-primary"
-                style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
+                className="px-3 py-1.5 rounded-md font-medium text-sm flex items-center gap-2 btn-primary"
               >
-                <LayersPlus className="w-4 h-4" />
+                <Grid2x2Plus className="w-4 h-4" />
                 Create Habit
               </button>
             )}
@@ -104,7 +103,7 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
               {habits.map(habit => (
                 <div
                   key={habit.id}
-                  className=" p-4 border border-border"
+                  className="rounded-lg p-4 border border-border"
                   style={{ backgroundColor: 'var(--tm-surface-raised)' }}
                 >
                   {editingId === habit.id ? (
@@ -119,7 +118,7 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
                       />
                       {availableTags.length > 0 && (
                         <div
-                          className="grid grid-cols-2 gap-1.5 p-2  border border-border max-h-28 overflow-y-auto scrollbar-custom"
+                          className="grid grid-cols-2 gap-1.5 p-2 rounded-md border border-border max-h-28 overflow-y-auto scrollbar-custom"
                           style={{ backgroundColor: 'var(--tm-surface)' }}
                         >
                           {availableTags.map(tag => {
@@ -134,7 +133,7 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
                                   color: selected ? '#ffffff' : 'var(--tm-text-primary)',
                                   border: `1px solid ${selected ? tag.color : 'var(--tm-border)'}`,
                                 }}
-                                className="px-2 py-1  text-xs font-medium transition-colors"
+                                className="px-2 py-1 rounded-full text-xs font-medium transition-colors"
                               >
                                 {tag.name}
                               </button>
@@ -156,7 +155,7 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
                           disabled={saving || !editTitle.trim()}
                           className="btn btn-primary px-3 py-1 text-xs flex items-center gap-1"
                         >
-                          <Check className="w-3 h-3" />
+                          <Save className="w-3 h-3" />
                           Save
                         </button>
                       </div>
@@ -207,7 +206,7 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
                               title="Delete habit"
                               aria-label="Delete habit"
                             >
-                              <Trash2 className="w-3.5 h-3.5 text-text-muted hover:text-red-500" />
+                              <Trash2 className="w-3.5 h-3.5 text-text-muted hover:text-danger" />
                             </button>
                           )}
                         </div>
@@ -217,7 +216,7 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
                           {habit.tags.map(tag => (
                             <span
                               key={tag.id}
-                              className="text-xs font-medium px-2 py-0.5  text-white"
+                              className="text-xs font-medium px-2 py-0.5 rounded-full text-white"
                               style={{ backgroundColor: tag.color ?? '#6B7280' }}
                             >
                               {tag.name}

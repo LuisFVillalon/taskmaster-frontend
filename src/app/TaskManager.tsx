@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
-import { createHabit, deleteHabit, updateHabit, planTasks, AiSubtask, createTask } from '@/app/lib/backend-api';
-import { Tag } from '@/app/types/task';
+import { createHabit, deleteHabit, updateHabit } from '@/app/lib/backend-api';
+import { Tag, Task } from '@/app/types/task';
+import type { TaskFormData } from '@/app/components/task/TaskFormFields';
 import { useTasks, useTags } from '@/app/hooks/useTasksAndTags';
 import { useTaskManagerState } from '@/app/hooks/useTaskManagerState';
 import { useTaskManagerUIState } from '@/app/hooks/useTaskManagerUIState';
@@ -16,7 +17,9 @@ import { useProfileName } from '@/app/hooks/useProfileName';
 import { useNotes } from '@/app/hooks/useNotes';
 import { useHabits } from '@/app/hooks/useHabits';
 import { Note } from '@/app/types/notes';
+import { getStoredProfileAvatar } from '@/app/lib/avatar';
 import DragHandle from '@/app/components/common/DragHandle';
+import ProfileAvatar from '@/app/components/common/ProfileAvatar';
 import { TaskControls } from '@/app/components/TaskControls';
 import TasksPanel from '@/app/components/tasks/TasksPanel';
 import NotesPanel from '@/app/components/notes/NotesPanel';
@@ -24,25 +27,34 @@ import CalendarAndStats from '@/app/components/CalendarAndStats';
 import TaskManagerModals from '@/app/components/TaskManagerModals';
 import TaskDebriefPanel from '@/app/components/TaskDebriefPanel';
 import PageSpinner from '@/app/components/common/PageSpinner';
-import { Settings, Menu, X, Maximize2, Minimize2 } from 'lucide-react';
+import DoodleCanvas, { DoodleCanvasHandle } from '@/app/components/DoodleCanvas';
+import DoodleToolbar from '@/app/components/common/DoodleToolbar';
+import ModeSwitcher, { AppMode } from '@/app/components/common/ModeSwitcher';
+import { DEFAULT_ACCENT, getStoredThemeColor } from '@/app/lib/theme';
 
 const TaskManager: React.FC = () => {
   const router = useRouter();
   const { signOut, user } = useAuth();
-  const [focusMode, setFocusMode] = useState(false);
+  const [mode, setMode] = useState<AppMode>('normal');
+  const focusMode = mode === 'focus';
+  const doodleMode = mode === 'doodle';
+  const doodleCanvasRef = useRef<DoodleCanvasHandle>(null);
+  const [doodleColor, setDoodleColor] = useState(() => getStoredThemeColor() ?? DEFAULT_ACCENT);
+  const [doodleErasing, setDoodleErasing] = useState(false);
 
   useClaimOrphanedData(user);
-  const profileName = useProfileName(user);
+  const [profileName, setProfileName] = useProfileName(user);
+  const [profileAvatar, setProfileAvatar] = useState<string | null>(() => getStoredProfileAvatar());
 
   const handleLogout = async () => {
     await signOut();
     Object.keys(localStorage)
-      .filter(k => k.startsWith('onetab_'))
+      .filter(k => k.startsWith('komorebi_'))
       .forEach(k => localStorage.removeItem(k));
     router.replace('/login');
   };
 
-  const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks } = useTasks();
+  const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks, pendingTaskIds } = useTasks();
   const { tags, tagsLoading, addTag, delTag, updateTag } = useTags();
 
   const updatePriority = async (taskId: number, priority: number | null) => {
@@ -70,10 +82,28 @@ const TaskManager: React.FC = () => {
     [tasks],
   );
   const activeTaskCount = useMemo(() => tasks.filter(t => !t.completed).length, [tasks]);
+  const todayLabel = useMemo(
+    () => new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+    [],
+  );
 
   const state = useTaskManagerState();
   const ui = useTaskManagerUIState();
-  const { tasksWidthPct, splitContainerRef, handleSplitterMouseDown } = useSplitPanel();
+  const {
+    tasksWidthPct,
+    panelHeightPx,
+    splitContainerRef,
+    handleSplitterMouseDown,
+    handleHeightSplitterMouseDown,
+  } = useSplitPanel();
+
+  const openEditTaskModal = (task: Task) => {
+    state.setShowEditTaskModal({ status: true, task });
+  };
+
+  const handleEditTaskChange = (next: TaskFormData) => {
+    state.setShowEditTaskModal(prev => prev.task ? { ...prev, task: { ...prev.task, ...next } as Task } : prev);
+  };
 
   const handlers = useTaskHandlers({
     setShowNewTaskModal: state.setShowNewTaskModal,
@@ -102,11 +132,28 @@ const TaskManager: React.FC = () => {
     tasks, state.filter, state.sortOrder, state.searchTerm, state.selectedTags,
   );
 
-  const { habits, toggle: toggleHabit, toggleDate: toggleHabitDate, refetch: refetchHabits } = useHabits();
+  const { habits, habitsLoading, toggle: toggleHabit, toggleDate: toggleHabitDate, pendingHabitIds, refetch: refetchHabits } = useHabits();
   const historyHabit = habits.find(h => h.id === ui.historyHabitId) ?? null;
 
-  const { notes: allNotes, addNote, deleteNote, updateNote } = useNotes();
-  const [noteEditorOverlay, setNoteEditorOverlay] = useState<Note | null>(null);
+  const { notes: allNotes, isLoading: notesLoading, addNote, deleteNote, updateNote, discardDraft, pendingNoteIds } = useNotes();
+  // Only the id is held in state; the note itself is derived live from
+  // allNotes on every render so edits (title/content debounce, tag toggles)
+  // always flow straight through — no separate copy to fall out of sync or
+  // go stale mid-save.
+  const [noteEditorOverlayId, setNoteEditorOverlayIdRaw] = useState<number | null>(null);
+  const noteEditorOverlay = useMemo(
+    () => (noteEditorOverlayId !== null ? allNotes.find(n => n.id === noteEditorOverlayId) ?? null : null),
+    [noteEditorOverlayId, allNotes],
+  );
+  // Wraps setNoteEditorOverlayId so switching away from (or closing) an
+  // untouched draft note removes it instead of leaving a phantom
+  // "Untitled Note" behind in the list.
+  const setNoteEditorOverlay = useCallback((next: Note | null) => {
+    setNoteEditorOverlayIdRaw(prevId => {
+      if (prevId !== null && prevId !== next?.id) discardDraft(prevId);
+      return next?.id ?? null;
+    });
+  }, [discardDraft]);
 
   const noteTags = useMemo(() => {
     const map: Record<number, { name: string; color: string; count: number }> = {};
@@ -120,14 +167,31 @@ const TaskManager: React.FC = () => {
   }, [allNotes]);
 
   const filteredNotes = useMemo(() => {
-    if (!state.searchTerm.trim()) return allNotes;
-    const lower = state.searchTerm.toLowerCase();
-    return allNotes.filter(
-      note =>
+    const lower = state.searchTerm.trim().toLowerCase();
+    const matching = allNotes.filter(note => {
+      const matchesSearch =
+        !lower ||
         note.title.toLowerCase().includes(lower) ||
-        note.content.replace(/<[^>]+>/g, '').toLowerCase().includes(lower),
+        note.content.replace(/<[^>]+>/g, '').toLowerCase().includes(lower);
+
+      const matchesTags =
+        state.selectedTags.length === 0 ||
+        (note.tags ?? []).some(noteTag =>
+          state.selectedTags.some(selected => selected.id === noteTag.id)
+        );
+
+      return matchesSearch && matchesTags;
+    });
+
+    // Notes always sort by edit recency, independent of whichever task
+    // filter/sort (e.g. Due date) is active. noteSortOrder is its own piece
+    // of state so toggling it never touches the task filter or task order
+    // (default: most recently edited first).
+    const dir = state.noteSortOrder === 'desc' ? 1 : -1;
+    return [...matching].sort(
+      (a, b) => (new Date(a.updated_date).getTime() - new Date(b.updated_date).getTime()) * dir,
     );
-  }, [allNotes, state.searchTerm]);
+  }, [allNotes, state.searchTerm, state.selectedTags, state.noteSortOrder]);
 
   // ── Habit handlers ────────────────────────────────────────────────────────────
 
@@ -169,198 +233,150 @@ const TaskManager: React.FC = () => {
     }
   };
 
-  // ── AI Smart Plan handlers ────────────────────────────────────────────────────
-
-  const handleSmartPlan = async (task: typeof state.newTask) => {
-    const result = await planTasks({
-      title: task.title,
-      description: task.description || undefined,
-      priority: task.priority,
-      due_date: task.due_date instanceof Date
-        ? task.due_date.toISOString().slice(0, 10)
-        : task.due_date || undefined,
-      due_time: task.due_time instanceof Date
-        ? task.due_time.toISOString().slice(11, 16)
-        : task.due_time || undefined,
-      tags: task.tags.map(t => ({ id: t.id, name: t.name, color: t.color })),
-      category: task.category ?? null,
-      estimated_time: task.estimated_time ?? null,
-      session_type: task.session_type ?? 'deep_work',
-      created_date: new Date().toISOString(),
-    });
-    setTasks(prev => [result.new_task, ...prev]);
-    ui.setAiPlanResult(result);
-    state.setShowNewTaskModal(false);
-    state.setNewTask({
-      id: 0, title: '', description: '', priority: null,
-      due_date: '', due_time: '', tags: [], category: null,
-      estimated_time: null, session_type: null, created_date: '',
-    });
-  };
-
-  const handleSaveSubtasks = async (subtasks: AiSubtask[]) => {
-    const created_date = new Date().toISOString();
-    try {
-      const saved = await Promise.all(
-        subtasks.map(s =>
-          createTask({
-            title: s.title,
-            description: s.description,
-            due_date: s.due_date ?? undefined,
-            due_time: s.due_time ?? undefined,
-            tags: s.tags.map(t => ({ name: t.name, color: t.color })),
-            category: s.category ?? null,
-            estimated_time: s.estimated_time ?? null,
-            parent_task_id: s.parent_task_id,
-            created_date,
-          }),
-        ),
-      );
-      setTasks(prev => [...saved, ...prev]);
-      ui.setAiPlanResult(null);
-    } catch (err) {
-      console.error('Failed to save subtasks:', err);
-      alert('Failed to save subtasks. Please try again.');
-      throw err;
-    }
-  };
-
   if (isLoading || tagsLoading) return <PageSpinner size="lg" />;
 
   return (
-    <div className="relative min-h-screen">
-      <div className="coil" />
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
+    <>
+    {/*
+     * DoodleCanvas renders first so DOM order keeps it visually behind
+     * everything else here. pointer-events-none while doodling lets clicks
+     * fall through this whole wrapper to it — otherwise this min-h-screen
+     * box (which covers the full viewport regardless of how little content
+     * it holds) would win hit-testing and swallow the clicks itself.
+     * TaskControls and the header opt back into pointer-events-auto so they
+     * stay usable while doodle mode hides everything else.
+     */}
+    <div className={`relative min-h-screen ${doodleMode ? 'pointer-events-none' : ''}`}>
+      <DoodleCanvas ref={doodleCanvasRef} active={doodleMode} color={doodleColor} isErasing={doodleErasing} />
 
-        <TaskControls
-          searchTerm={state.searchTerm}
-          onSearchChange={state.setSearchTerm}
-          filter={state.filter}
-          sortOrder={state.sortOrder}
-          onFilterChange={handlers.handleFilterChange}
-          selectedTags={state.selectedTags}
-          onTagToggle={handlers.toggleSelectedTag}
-          showTagDropdown={state.showTagDropdown}
-          onTagDropdownToggle={() => state.setShowTagDropdown(prev => !prev)}
-          tags={tags}
-          searchPlaceholder={'Search tasks & notes…'}
-          onNewTask={() => router.push('/tasks')}
-          onNewNote={async () => { const note = await addNote(); setNoteEditorOverlay(note); }}
-          onViewNotes={() => router.push('/notes')}
-          onEditTag={() => handlers.openEditTagModal(tags[0])}
-          onEditHabit={() => ui.setShowManageHabitsModal(true)}
-          menuCollapsed={!ui.taskSidebarOpen}
-          onToggleMenu={() => ui.setTaskSidebarOpen(prev => !prev)}
-        />
+      <div className="pointer-events-auto">
+      <TaskControls
+        searchTerm={state.searchTerm}
+        onSearchChange={state.setSearchTerm}
+        filter={state.filter}
+        sortOrder={state.sortOrder}
+        onFilterChange={handlers.handleFilterChange}
+        noteSortOrder={state.noteSortOrder}
+        onNoteSortToggle={() => state.setNoteSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+        selectedTags={state.selectedTags}
+        onTagToggle={handlers.toggleSelectedTag}
+        showTagDropdown={state.showTagDropdown}
+        onTagDropdownToggle={() => state.setShowTagDropdown(prev => !prev)}
+        tags={tags}
+        searchPlaceholder={'Search tasks & notes…'}
+        onCreateTask={() => state.setShowNewTaskModal(true)}
+        onNewNote={async () => { const note = await addNote(); setNoteEditorOverlay(note); }}
+        onViewNotes={() => router.push('/notes')}
+        onViewCalendar={() => router.push('/calendar')}
+        onEditTag={() => handlers.openEditTagModal(tags[0])}
+        onEditHabit={() => ui.setShowManageHabitsModal(true)}
+        menuCollapsed={!ui.taskSidebarOpen}
+        onToggleMenu={() => ui.setTaskSidebarOpen(prev => !prev)}
+        profileName={profileName}
+        profileAvatar={profileAvatar}
+        onSettings={() => ui.setShowSettings(true)}
+        onLogout={handleLogout}
+      />
+      </div>
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:mb-4 sm:gap-0">
-          <div className="flex items-end gap-3">
-            <div>
-              <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-text-primary">OneTab</h1>
-              <p className="text-xs sm:text-sm lg:text-base text-text-secondary"></p>
-            </div>
-            <button
-              onClick={() => setFocusMode(prev => !prev)}
-              className="btn px-2 py-1 text-[0.65rem] sm:text-xs font-medium flex items-center gap-1"
-              style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
-              title={focusMode ? 'Show debrief & calendar' : 'Hide debrief & calendar'}
-            >
-              {focusMode ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
-              <span>{focusMode ? 'Exit Focus Mode' : 'Focus Mode'}</span>
-            </button>
+      <div className={`transition-[margin] duration-200 ease-out ${ui.taskSidebarOpen ? 'md:ml-72' : 'md:ml-16'}`}>
+        <div className="max-w-[1600px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 pt-0 pb-4 sm:pb-6 lg:pb-10">
+
+          {/*
+            Header — pointer-events-auto so the mode switcher stays usable
+            while doodling. Also needs relative + a z-index: DoodleCanvas is
+            position:fixed, which (per spec) always opens its own stacking
+            context even at z-index:auto, so it otherwise outranks this
+            plain non-positioned div regardless of DOM order and would
+            swallow clicks meant for the mode switcher.
+          */}
+        <div className="relative z-10 pointer-events-auto flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 pb-3 sm:pb-4 mb-4 sm:mb-6 mt-4 sm:mt-6 border-b border-border-subtle">
+          <div>
+            <p className="text-[0.6875rem] sm:text-xs font-semibold uppercase tracking-wide text-text-muted">
+              {todayLabel}
+            </p>
+            <h1 className="flex items-center gap-2 sm:gap-3 text-xl sm:text-2xl lg:text-3xl font-bold text-text-primary">
+              <ProfileAvatar avatar={profileAvatar} name={profileName} size={32} />
+              Welcome back{profileName ? `, ${profileName}` : ''}
+            </h1>
           </div>
           <div className="flex items-center gap-2">
-            <span className="hidden sm:block text-xs sm:text-sm text-text-secondary whitespace-nowrap">
-              Welcome back, {profileName}
-            </span>
-            <button
-              onClick={() => ui.setShowSettings(true)}
-              className="btn px-3 py-2 sm:px-4  text-xs sm:text-sm font-medium w-full sm:w-auto flex items-center gap-1.5"
-              style={{ backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
-              title="Account Settings"
-            >
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">Settings</span>
-            </button>
-            <button
-              onClick={handleLogout}
-              className="btn px-3 py-2 sm:px-4 text-white  text-xs sm:text-sm font-medium w-full sm:w-auto"
-              style={{ backgroundColor: 'var(--tm-danger)' }}
-            >
-              Logout
-            </button>
-            <button
-              onClick={() => ui.setTaskSidebarOpen(prev => !prev)}
-              className="fixed z-50 btn px-3 py-2  text-xs sm:text-sm font-medium flex items-center gap-1.5 shadow-md"
-              style={{ top: '1rem', right: '0.75rem', backgroundColor: 'var(--tm-surface-raised)', color: 'var(--tm-text-secondary)', border: '1px solid var(--tm-border)' }}
-              aria-label={ui.taskSidebarOpen ? 'Close task menu' : 'Open task menu'}
-            >
-              {ui.taskSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-            </button>
+            {doodleMode && (
+              <DoodleToolbar
+                color={doodleColor}
+                onColorChange={setDoodleColor}
+                isErasing={doodleErasing}
+                onToggleErase={() => setDoodleErasing(prev => !prev)}
+                onClear={() => doodleCanvasRef.current?.clear()}
+              />
+            )}
+            <ModeSwitcher mode={mode} onChange={setMode} />
           </div>
         </div>
 
-        {!focusMode && (
+        {!doodleMode && (
           <>
-            <TaskDebriefPanel />
+            {!focusMode && (
+              <>
+                <TaskDebriefPanel />
 
-            <CalendarAndStats
-              habits={habits}
-              onToggleHabit={toggleHabit}
-              onCreateHabit={() => state.setShowCreateHabitModal(true)}
-              onViewHabitHistory={id => ui.setHistoryHabitId(id)}
-              stats={stats}
-              allNotes={allNotes}
-              noteTags={noteTags}
-            />
+                <CalendarAndStats
+                  habits={habits}
+                  onToggleHabit={toggleHabit}
+                  onCreateHabit={() => ui.setShowManageHabitsModal(true)}
+                  pendingHabitIds={pendingHabitIds}
+                  habitsLoading={habitsLoading}
+                  stats={stats}
+                  allNotes={allNotes}
+                  noteTags={noteTags}
+                />
+              </>
+            )}
+
+            {/* Tasks & Notes — split layout */}
+            <div className="space-y-4">
+              <div
+                ref={splitContainerRef}
+                className="flex flex-col md:flex-row"
+                style={{ ['--tasks-w' as string]: `${tasksWidthPct}%` }}
+              >
+                <TasksPanel
+                  tags={tags}
+                  filteredTasks={filteredTasks}
+                  onToggleComplete={toggleComplete}
+                  onDeleteTask={deleteTask}
+                  onUpdatePriority={updatePriority}
+                  onEditTask={openEditTaskModal}
+                  activeTaskCount={activeTaskCount}
+                  occupiedPriorities={occupiedPriorityLevels}
+                  compact={tasksWidthPct < 40}
+                  heightPx={panelHeightPx}
+                  pendingTaskIds={pendingTaskIds}
+                />
+
+                <DragHandle onMouseDown={handleSplitterMouseDown} />
+
+                <NotesPanel
+                  notes={filteredNotes}
+                  tags={tags}
+                  noteEditorOverlay={noteEditorOverlay}
+                  onUpdateNote={updateNote}
+                  onDeleteNote={deleteNote}
+                  onEditorChange={setNoteEditorOverlay}
+                  heightPx={panelHeightPx}
+                  isLoading={notesLoading}
+                  pendingNoteIds={pendingNoteIds}
+                  tagFilter={state.selectedTags}
+                />
+              </div>
+
+              <DragHandle onMouseDown={handleHeightSplitterMouseDown} orientation="row" alwaysVisible />
+            </div>
           </>
         )}
-
-        {/* Tasks & Notes — split layout */}
-        <div className="space-y-4">
-          <div
-            ref={splitContainerRef}
-            className="flex flex-col md:flex-row"
-            style={{ ['--tasks-w' as string]: `${tasksWidthPct}%` }}
-          >
-            <TasksPanel
-              filter={state.filter}
-              sortOrder={state.sortOrder}
-              selectedTags={state.selectedTags}
-              showTagDropdown={state.showTagDropdown}
-              onTagDropdownToggle={() => state.setShowTagDropdown(prev => !prev)}
-              onClearTags={() => {
-                state.selectedTags.forEach(tag => handlers.toggleSelectedTag(tag));
-                state.setShowTagDropdown(false);
-              }}
-              onTagToggle={handlers.toggleSelectedTag}
-              onFilterChange={handlers.handleFilterChange}
-              onCreateTask={() => state.setShowNewTaskModal(true)}
-              tags={tags}
-              filteredTasks={filteredTasks}
-              onToggleComplete={toggleComplete}
-              onDeleteTask={deleteTask}
-              onUpdatePriority={updatePriority}
-              activeTaskCount={activeTaskCount}
-              occupiedPriorities={occupiedPriorityLevels}
-              compact={tasksWidthPct < 40}
-            />
-
-            <DragHandle onMouseDown={handleSplitterMouseDown} />
-
-            <NotesPanel
-              notes={filteredNotes}
-              tags={tags}
-              noteEditorOverlay={noteEditorOverlay}
-              onAddNote={addNote}
-              onUpdateNote={updateNote}
-              onDeleteNote={deleteNote}
-              onEditorChange={setNoteEditorOverlay}
-            />
-          </div>
-        </div>
       </div>
+      </div>
+    </div>
 
       <TaskManagerModals
         // New task
@@ -370,14 +386,16 @@ const TaskManager: React.FC = () => {
         onTaskChange={state.setNewTask}
         onToggleTag={handlers.toggleTag}
         onSubmitTask={handlers.handleCreateTask}
-        onSmartPlan={handleSmartPlan}
         activeTaskCount={activeTaskCount}
         occupiedPriorityLevels={occupiedPriorityLevels}
         tags={tags}
-        // AI plan
-        aiPlanResult={ui.aiPlanResult}
-        onSaveSubtasks={handleSaveSubtasks}
-        onDiscardAiPlan={() => ui.setAiPlanResult(null)}
+        // Edit task
+        showEditTaskModal={state.showEditTaskModal.status}
+        editTask={state.showEditTaskModal.task}
+        onCloseEditTaskModal={() => state.setShowEditTaskModal({ status: false, task: null })}
+        onEditTaskChange={handleEditTaskChange}
+        onToggleEditTag={handlers.toggleEditTag}
+        onSubmitEditTask={handlers.handleEditTask}
         // Create tag
         showCreateTagModal={state.showCreateTagModal}
         onCloseCreateTagModal={() => state.setShowCreateTagModal(false)}
@@ -415,17 +433,26 @@ const TaskManager: React.FC = () => {
         }}
         onDeleteHabit={handleDeleteHabit}
         onUpdateHabit={handleUpdateHabit}
-        onViewHabitHistory={id => { ui.setShowManageHabitsModal(false); ui.setHistoryHabitId(id); }}
+        onViewHabitHistory={id => { ui.setShowManageHabitsModal(false); ui.setHistoryFromManageHabits(true); ui.setHistoryHabitId(id); }}
         // Habit history
         historyHabit={historyHabit}
-        onCloseHabitHistory={() => ui.setHistoryHabitId(null)}
+        historyShowBackButton={ui.historyFromManageHabits}
+        onCloseHabitHistory={() => {
+          ui.setHistoryHabitId(null);
+          if (ui.historyFromManageHabits) {
+            ui.setHistoryFromManageHabits(false);
+            ui.setShowManageHabitsModal(true);
+          }
+        }}
         onToggleHabitDate={toggleHabitDate}
         // Settings
         showSettings={ui.showSettings}
         onCloseSettings={() => ui.setShowSettings(false)}
         onAccountDeleted={handleLogout}
+        onProfileNameChange={setProfileName}
+        onProfileAvatarChange={setProfileAvatar}
       />
-    </div>
+    </>
   );
 };
 

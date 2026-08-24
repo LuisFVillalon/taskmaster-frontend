@@ -1,10 +1,11 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { X, Flame, Star, Loader2 } from 'lucide-react';
+import { X, ArrowLeft, Flame, Star, Loader2 } from 'lucide-react';
 import { Habit, HabitHistoryEntry, fetchHabitHistory } from '@/app/lib/backend-api';
 
 interface HabitHistoryModalProps {
   habit: Habit | null;
+  showBackButton?: boolean;
   onClose: () => void;
   onToggleDate: (habitId: number, date: string) => Promise<void>;
 }
@@ -15,7 +16,7 @@ function toLocalDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const HabitHistoryModal: React.FC<HabitHistoryModalProps> = ({ habit, onClose, onToggleDate }) => {
+const HabitHistoryModal: React.FC<HabitHistoryModalProps> = ({ habit, showBackButton = false, onClose, onToggleDate }) => {
   const [history, setHistory] = useState<HabitHistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
@@ -46,6 +47,11 @@ const HabitHistoryModal: React.FC<HabitHistoryModalProps> = ({ habit, onClose, o
 
   const loggedSet = new Set(history.filter(e => e.logged).map(e => e.date));
   const todayStr = toLocalDateStr(today);
+  // "Today" is tracked authoritatively on the habit object itself (shared
+  // with the stats-card checkbox), not the independently-fetched history
+  // list — override so this calendar can never disagree with the checkbox.
+  if (habit.logged_today) loggedSet.add(todayStr);
+  else loggedSet.delete(todayStr);
 
   const cells: (Date | null)[] = Array(startDow).fill(null);
   for (let i = 0; i < 30; i++) {
@@ -86,15 +92,19 @@ const HabitHistoryModal: React.FC<HabitHistoryModalProps> = ({ habit, onClose, o
       <div className="modal-panel max-w-sm w-full">
         {/* Header */}
         <div
-          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center "
+          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center"
           style={{ backgroundColor: 'var(--tm-surface)' }}
         >
           <div>
             <h3 className="text-base font-semibold text-text-primary leading-tight">{habit.title}</h3>
             <p className="text-xs text-text-muted mt-0.5">Past 30 days</p>
           </div>
-          <button onClick={onClose} className="btn btn-ghost" aria-label="Close history">
-            <X className="w-5 h-5" />
+          <button
+            onClick={onClose}
+            className="btn btn-ghost"
+            aria-label={showBackButton ? 'Back to manage habits' : 'Close history'}
+          >
+            {showBackButton ? <ArrowLeft className="w-5 h-5" /> : <X className="w-5 h-5" />}
           </button>
         </div>
 
@@ -147,7 +157,7 @@ const HabitHistoryModal: React.FC<HabitHistoryModalProps> = ({ habit, onClose, o
                       title={dateStr}
                       aria-label={`${dateStr}${isLogged ? ' (logged)' : ''}`}
                       aria-pressed={isLogged}
-                      className="relative aspect-square  flex flex-col items-center justify-center transition-all hover:opacity-80 active:scale-95"
+                      className="relative aspect-square rounded-md flex flex-col items-center justify-center transition-all hover:opacity-80 active:scale-95"
                       style={{
                         backgroundColor: isLogged
                           ? 'var(--tm-accent)'
@@ -177,7 +187,7 @@ const HabitHistoryModal: React.FC<HabitHistoryModalProps> = ({ habit, onClose, o
 
         <div className="px-5 pb-4 flex justify-end">
           <button onClick={onClose} className="btn btn-secondary px-5 py-2">
-            Close
+            {showBackButton ? 'Back' : 'Close'}
           </button>
         </div>
       </div>

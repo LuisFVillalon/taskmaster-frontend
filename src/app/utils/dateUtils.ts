@@ -46,3 +46,43 @@ export const toLocalTimeStr = (d: Date): string => {
   const pad2 = (n: number) => String(n).padStart(2, '0');
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 };
+
+/**
+ * Format a start/end Date pair as a short range, e.g. "Aug 18–24" when both
+ * fall in the same month, or "Aug 30 – Sep 5" when the range crosses months.
+ *
+ * @param start - The range's first day
+ * @param end - The range's last day
+ */
+export const formatDateRange = (start: Date, end: Date): string => {
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  const startLabel = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (sameMonth) return `${startLabel}–${end.getDate()}`;
+  const endLabel = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${startLabel} – ${endLabel}`;
+};
+
+/**
+ * Format an ISO timestamp for "last updated" displays: a bare time when it
+ * falls on today, otherwise a short date (with year only if not this year).
+ *
+ * @param iso - An ISO 8601 timestamp string
+ */
+export const formatUpdatedDate = (iso: string): string => {
+  const date = new Date(iso);
+  const now = new Date();
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (sameDay) {
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  });
+};

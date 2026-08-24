@@ -56,8 +56,8 @@ const PasswordAuth: React.FC<PasswordAuthProps> = ({ onAuthenticated }) => {
     }
 
     // Store authentication in localStorage
-    localStorage.setItem('onetab_authenticated', 'true');
-    localStorage.setItem('onetab_demo', isDemo ? 'true' : 'false');
+    localStorage.setItem('komorebi_authenticated', 'true');
+    localStorage.setItem('komorebi_demo', isDemo ? 'true' : 'false');
     onAuthenticated(isDemo);
 
     setIsLoading(false);
@@ -76,7 +76,7 @@ const PasswordAuth: React.FC<PasswordAuthProps> = ({ onAuthenticated }) => {
                 height={120}
               />
             </div>
-            <h1 className="text-2xl font-bold text-text-primary mb-2">OneTab</h1>
+            <h1 className="text-2xl font-bold text-text-primary mb-2">Komorebi</h1>
             <p className="text-text-secondary text-sm">Type &quot;recruiter&quot; to try the demo</p>
           </div>
 
@@ -112,7 +112,7 @@ const PasswordAuth: React.FC<PasswordAuthProps> = ({ onAuthenticated }) => {
             </div>
 
             {error && (
-              <div className="text-sm text-center px-3 py-2.5 "
+              <div className="text-sm text-center rounded-md px-3 py-2.5"
                 style={{ color: 'var(--tm-danger)', backgroundColor: 'var(--tm-danger-subtle)' }}>
                 {error}
               </div>

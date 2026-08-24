@@ -12,17 +12,18 @@ Variables Summary:
 These variables manage the modal state and form data for tag creation.
 */
 
-import React from 'react';
-import { X } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Loader2 } from 'lucide-react';
 import { NewTag } from '@/app/types/task';
-import { TAG_COLORS } from '@/app/lib/tagColors';
+import { THEME_ACCENT_COLORS } from '@/app/lib/theme';
+import ColorSwatchPicker from '@/app/components/common/ColorSwatchPicker';
 
 interface CreateTagModalProps {
   isOpen: boolean;
   onClose: () => void;
   newTag: NewTag;
   onTagChange: (tag: NewTag) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent) => void | Promise<void>;
 }
 
 const CreateTagModal: React.FC<CreateTagModalProps> = ({
@@ -32,14 +33,25 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
   onTagChange,
   onSubmit
 }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   if (!isOpen) return null;
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    setIsSubmitting(true);
+    try {
+      await onSubmit(e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[60]">
+    <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-[80]">
       <div className="modal-panel max-w-sm w-full">
         {/* Header */}
         <div
-          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center "
+          className="px-5 py-4 border-b border-border-subtle flex justify-between items-center"
           style={{ backgroundColor: 'var(--tm-surface)' }}
         >
           <h3 className="text-lg font-semibold text-text-primary">Create a Tag</h3>
@@ -48,7 +60,7 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Tag Name */}
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">Tag Name</label>
@@ -65,15 +77,11 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
           {/* Color */}
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">Color</label>
-            <select
+            <ColorSwatchPicker
+              colors={THEME_ACCENT_COLORS}
               value={newTag.color}
-              onChange={(e) => onTagChange({ ...newTag, color: e.target.value })}
-              className="input-field"
-            >
-              {TAG_COLORS.map(c => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
+              onChange={(hex) => onTagChange({ ...newTag, color: hex })}
+            />
           </div>
 
           {/* Preview */}
@@ -83,7 +91,7 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
               className="chip text-white font-medium px-2"
               style={{
                 backgroundColor: newTag.color,
-                borderRadius: '10px'
+                borderRadius: '9999px'
               }}
             >
               {newTag.name || 'Tag'}
@@ -92,11 +100,12 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
 
           {/* Actions */}
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="btn btn-secondary flex-1 py-2">
+            <button type="button" onClick={onClose} disabled={isSubmitting} className="btn btn-secondary flex-1 py-2">
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary flex-1 py-2">
-              Create Tag
+            <button type="submit" disabled={isSubmitting} className="btn btn-primary flex-1 py-2 flex items-center justify-center gap-1.5">
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isSubmitting ? 'Creating…' : 'Create Tag'}
             </button>
           </div>
         </form>
