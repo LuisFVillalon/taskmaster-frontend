@@ -16,6 +16,7 @@ export interface ProfileFields {
   dayStartTime: string;
   shutoffTime: string;
   restDays: number[];
+  layoutOrder: string[] | null;
 }
 
 const readLocalDefaults = (): ProfileFields => ({
@@ -26,16 +27,19 @@ const readLocalDefaults = (): ProfileFields => ({
   dayStartTime: (typeof window !== 'undefined' ? localStorage.getItem('tm_day_start_time') : null) ?? DEFAULT_DAY_START,
   shutoffTime: (typeof window !== 'undefined' ? localStorage.getItem('tm_call_it_a_day') : null) ?? DEFAULT_DAY_END,
   restDays: loadStoredRestDays(),
+  // Not read from localStorage here — useGridOrder owns that local cache
+  // independently and resolves it on its own. This is purely the
+  // backend-authoritative value, populated once fetchProfile() resolves.
+  layoutOrder: null,
 });
 
 /**
  * Single source of truth for the user's profile — name, avatar, appearance,
- * and daily-schedule preferences. `name`/`shutoffTime` are backend-authoritative
- * once `fetchProfile()` resolves (falling back to the localStorage cache /
- * defaults above until then, or forever if the request fails); every other
- * field is localStorage-only today — see the `Profile` interface in
- * types/profile.ts for the fields the backend contract still needs to grow
- * to cover, and `saveProfile()`'s call below for exactly what's already sent.
+ * and daily-schedule preferences. Backend-authoritative once `fetchProfile()`
+ * resolves (falling back to the localStorage cache / defaults above until
+ * then, or forever if the request fails or the field was never saved by this
+ * user yet — a null field from the backend just means "not saved there yet",
+ * so hydration never overwrites an existing local value with it).
  *
  * Call this once (in TaskManager) and thread `profile`/`saveProfile` down to
  * whatever needs them (Settings, TimersCard, ...) rather than calling it from
@@ -52,9 +56,24 @@ export function useProfile(user: User | null) {
       try {
         const p = await fetchProfile();
         if (!p) return;
-        setProfile(prev => ({ ...prev, name: p.name, shutoffTime: p.shutoff_time ?? prev.shutoffTime }));
+        setProfile(prev => ({
+          ...prev,
+          name: p.name,
+          shutoffTime: p.shutoff_time ?? prev.shutoffTime,
+          avatar: p.avatar ?? prev.avatar,
+          themeAccent: p.theme_accent ?? prev.themeAccent,
+          pageStyle: p.page_style ?? prev.pageStyle,
+          dayStartTime: p.day_start_time ?? prev.dayStartTime,
+          restDays: p.rest_days ?? prev.restDays,
+          layoutOrder: p.layout_order ?? prev.layoutOrder,
+        }));
         localStorage.setItem('tm_profile_name', p.name);
         if (p.shutoff_time) localStorage.setItem('tm_call_it_a_day', p.shutoff_time);
+        if (p.day_start_time) localStorage.setItem('tm_day_start_time', p.day_start_time);
+        if (p.rest_days) localStorage.setItem('tm_rest_days', JSON.stringify(p.rest_days));
+        if (p.avatar) setStoredProfileAvatar(p.avatar);
+        if (p.theme_accent) setStoredThemeColor(p.theme_accent);
+        if (p.page_style) setStoredPageStyle(p.page_style);
       } catch {
         // keep localStorage/default fallback
       } finally {
@@ -66,14 +85,16 @@ export function useProfile(user: User | null) {
 
   const saveProfile = useCallback(async (next: ProfileFields): Promise<{ ok: boolean; error?: string }> => {
     try {
-      // TODO(backend): saveProfileApi's request body only carries name/
-      // shutoff_time today, matching what /save-profile currently accepts.
-      // Once it also accepts avatar/theme_accent/page_style/day_start_time/
-      // rest_days (see Profile in types/profile.ts), extend this call to
-      // send `next` in full instead of persisting the rest to localStorage
-      // only — a strict backend schema could otherwise reject the whole
-      // request if sent early.
-      await saveProfileApi({ name: next.name, shutoff_time: next.shutoffTime });
+      await saveProfileApi({
+        name: next.name,
+        shutoff_time: next.shutoffTime,
+        avatar: next.avatar,
+        theme_accent: next.themeAccent,
+        page_style: next.pageStyle,
+        day_start_time: next.dayStartTime,
+        rest_days: next.restDays,
+        layout_order: next.layoutOrder,
+      });
 
       localStorage.setItem('tm_profile_name', next.name);
       localStorage.setItem('tm_day_start_time', next.dayStartTime);

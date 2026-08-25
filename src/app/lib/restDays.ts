@@ -1,8 +1,7 @@
 /**
  * "Rest days" and daily-window defaults for the Settings → Profile daily
- * schedule. Currently localStorage-only (no backend field yet) — see
- * `Profile.rest_days` / `Profile.day_start_time` in types/profile.ts for the
- * backend contract this is expected to migrate to.
+ * schedule. Cached in localStorage; synced to the backend's `rest_days` /
+ * `day_start_time` profile columns via useProfile.ts.
  */
 
 // Day-of-week indices follow JS Date#getDay() (0 = Sunday … 6 = Saturday).

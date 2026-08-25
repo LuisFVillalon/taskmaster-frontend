@@ -11,7 +11,7 @@ import { useGridOrder } from '@/app/hooks/useGridOrder';
 import { Habit } from '@/app/types/habit';
 import { StatsData, TagStats } from '@/app/types/task';
 import { Note } from '@/app/types/notes';
-import type { ProfileFields } from '@/app/hooks/useProfile';
+import type { ProfileFields, useProfile } from '@/app/hooks/useProfile';
 
 const GRID_ITEM_IDS = ['calendar', 'timers', 'habits', 'tasks', 'notes'];
 const GRID_ORDER_STORAGE_KEY = 'tm-dashboard-grid-order';
@@ -43,6 +43,7 @@ interface CalendarAndStatsProps {
   allNotes: Note[];
   noteTags: TagStats[];
   profile: ProfileFields;
+  onSaveProfile: ReturnType<typeof useProfile>['saveProfile'];
 }
 
 const CalendarAndStats: React.FC<CalendarAndStatsProps> = ({
@@ -55,8 +56,14 @@ const CalendarAndStats: React.FC<CalendarAndStatsProps> = ({
   allNotes,
   noteTags,
   profile,
+  onSaveProfile,
 }) => {
-  const [order, setOrder] = useGridOrder(GRID_ORDER_STORAGE_KEY, GRID_ITEM_IDS);
+  const [order, setOrder] = useGridOrder(
+    GRID_ORDER_STORAGE_KEY,
+    GRID_ITEM_IDS,
+    profile.layoutOrder,
+    next => { onSaveProfile({ ...profile, layoutOrder: next }); },
+  );
   const [slide, setSlide] = useState<'grid' | 'calendar'>('grid');
   const toggleSlide = () => setSlide(s => (s === 'grid' ? 'calendar' : 'grid'));
 

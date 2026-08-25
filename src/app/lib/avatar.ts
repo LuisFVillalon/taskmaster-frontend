@@ -1,6 +1,6 @@
 // Lets the user pick an icon-based profile avatar shown in the sidebar and
-// header. Mirrors theme.ts / pageStyle.ts: stored in localStorage only, since
-// there's no backend column for it yet — syncing it server-side is future work.
+// header. Mirrors theme.ts / pageStyle.ts: cached in localStorage, synced to
+// the backend's `avatar` profile column via useProfile.ts.
 
 import type { LucideIcon } from 'lucide-react';
 import { Disc3, Sticker, IceCreamCone, Tractor, Origami } from 'lucide-react';

@@ -1,24 +1,27 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Newspaper, RefreshCw, AlertTriangle, CalendarCheck, Zap, Repeat2, SkipForward, ChartArea, ChevronDown, ChevronUp, Sunrise } from 'lucide-react';
+import {
+  Newspaper, RefreshCw, AlertTriangle, CalendarCheck, Repeat2, Gauge,
+  ChevronDown, ChevronUp, CheckCircle2, Circle, Flame, Siren, TrendingUp, Moon,
+} from 'lucide-react';
 import { fetchTaskDebrief } from '@/app/lib/backend-api';
-import { TaskDebrief } from '@/app/types/debrief';
+import { DailyDebriefReport, DebriefTaskItem, HabitDebriefStatus, FocusNextItem, WorkloadCapacity } from '@/app/types/debrief';
+import { getPriorityStyle, formatDueDate } from '@/app/utils/taskUtils';
 
 type Status = 'idle' | 'loading' | 'done' | 'error';
 
-function splitFutureHorizon(items: unknown): { comingUp: string[]; earlyStart: string[] } {
-  const list: string[] = Array.isArray(items)
-    ? (items as unknown[]).map(String).filter(Boolean)
-    : (items && typeof items === 'string' ? [String(items)] : []);
-  const headerIdx = list.findIndex(s => /get an early start on:/i.test(s));
-  if (headerIdx === -1) return { comingUp: list, earlyStart: [] };
-  return { comingUp: list.slice(0, headerIdx), earlyStart: list.slice(headerIdx + 1) };
+function formatMinutes(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = Math.round(mins % 60);
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
 }
 
 const TaskDebriefPanel: React.FC = () => {
   const [status, setStatus] = useState<Status>('idle');
-  const [debrief, setDebrief] = useState<TaskDebrief | null>(null);
+  const [debrief, setDebrief] = useState<DailyDebriefReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(true);
 
@@ -76,22 +79,19 @@ const TaskDebriefPanel: React.FC = () => {
 
           {status === 'idle' && (
             <p className="text-sm text-text-secondary text-center py-3">
-              Get an execution-order action plan, upcoming spike warnings, and a workload feasibility verdict for your tasks.
+              See what&apos;s overdue, due today, and next on deck — plus your habit streaks and today&apos;s workload capacity.
             </p>
           )}
 
           {status === 'loading' && (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[0, 1, 2, 3].map(i => (
-                  <SkeletonCard key={i} />
-                ))}
-              </div>
+              <SkeletonBar />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[4, 5, 6].map(i => (
+                {[0, 1, 2].map(i => (
                   <SkeletonCard key={i} />
                 ))}
               </div>
+              <SkeletonBar tall />
             </div>
           )}
 
@@ -99,57 +99,45 @@ const TaskDebriefPanel: React.FC = () => {
             <p className="text-sm py-2" style={{ color: 'var(--tm-danger)' }}>{error}</p>
           )}
 
-          {status === 'done' && debrief && (() => {
-            const { comingUp, earlyStart } = splitFutureHorizon(debrief.future_horizon_warning);
-            return (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <DebriefSection
-                    icon={<AlertTriangle className="w-4 h-4" />}
-                    title="Overdue Tasks"
-                    items={debrief.overdue_tasks}
-                    accentColor="#dc2626"
-                  />
-                  <DebriefSection
-                    icon={<CalendarCheck className="w-4 h-4" />}
-                    title="Due Today"
-                    items={debrief.tasks_due_today}
-                    accentColor="#16a34a"
-                  />
-                  <DebriefSection
-                    icon={<Zap className="w-4 h-4" />}
-                    title="Task Recommendations"
-                    items={debrief.task_recommendations}
-                  />
-                  <DebriefSection
-                    icon={<Repeat2 className="w-4 h-4" />}
-                    title="Remaining Habits"
-                    items={debrief.remaining_habits}
-                    accentColor="#9333ea"
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <DebriefSection
-                    icon={<SkipForward className="w-4 h-4" />}
-                    title="Coming Up"
-                    items={comingUp}
-                  />
-                  <DebriefSection
-                    icon={<Sunrise className="w-4 h-4" />}
-                    title="Get an Early Start On"
-                    items={earlyStart}
-                    accentColor="#eab308"
-                  />
-                  <DebriefSection
-                    icon={<ChartArea className="w-4 h-4" />}
-                    title="Today's Load"
-                    items={debrief.workload_analysis}
-                    accentColor="#f97316"
-                  />
-                </div>
+          {status === 'done' && debrief && (
+            <div className="space-y-3">
+              <WorkloadCard workload={debrief.workload} />
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <SectionCard
+                  icon={<AlertTriangle className="w-4 h-4" />}
+                  title="Overdue Tasks"
+                  accentColor="var(--tm-danger)"
+                  isEmpty={debrief.overdue_tasks.length === 0}
+                  emptyText="Nothing overdue."
+                >
+                  {debrief.overdue_tasks.map(task => <TaskRow key={task.id} task={task} />)}
+                </SectionCard>
+
+                <SectionCard
+                  icon={<CalendarCheck className="w-4 h-4" />}
+                  title="Due Today"
+                  accentColor="var(--tm-success)"
+                  isEmpty={debrief.due_today_tasks.length === 0}
+                  emptyText="Nothing due today."
+                >
+                  {debrief.due_today_tasks.map(task => <TaskRow key={task.id} task={task} />)}
+                </SectionCard>
+
+                <SectionCard
+                  icon={<Repeat2 className="w-4 h-4" />}
+                  title="Habit Tracker Status"
+                  accentColor="var(--tm-accent-2)"
+                  isEmpty={debrief.habit_status.length === 0}
+                  emptyText="No habits tracked."
+                >
+                  {debrief.habit_status.map(habit => <HabitRow key={habit.id} habit={habit} />)}
+                </SectionCard>
               </div>
-            );
-          })()}
+
+              <FocusNextCard items={debrief.focus_next} />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -170,29 +158,224 @@ function SkeletonCard() {
   );
 }
 
-function DebriefSection({ icon, title, items, accentColor }: { icon: React.ReactNode; title: string; items: unknown; accentColor?: string }) {
-  const accent = accentColor ?? 'var(--tm-accent)';
-  const safeItems: string[] = Array.isArray(items)
-    ? (items as unknown[]).map(String)
-    : (items && typeof items === 'string' ? [items] : []);
+function SkeletonBar({ tall = false }: { tall?: boolean }) {
+  return (
+    <div
+      className={`rounded-md p-3 animate-pulse ${tall ? 'space-y-2' : ''}`}
+      style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
+    >
+      <div className="h-3.5 rounded-sm w-1/3 mb-2" style={{ backgroundColor: 'var(--tm-border)' }} />
+      <div className="h-2.5 rounded-sm" style={{ backgroundColor: 'var(--tm-border)' }} />
+      {tall && <div className="h-2.5 rounded-sm w-5/6" style={{ backgroundColor: 'var(--tm-border)' }} />}
+    </div>
+  );
+}
+
+function SectionCard({
+  icon, title, accentColor, isEmpty, emptyText, children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  accentColor: string;
+  isEmpty: boolean;
+  emptyText: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="rounded-md p-3"
+      style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
+    >
+      <div className="flex items-center gap-1.5 mb-2" style={{ color: accentColor }}>
+        {icon}
+        <span className="text-xs font-semibold uppercase tracking-wide">{title}</span>
+      </div>
+      {isEmpty ? (
+        <p className="text-xs text-text-muted py-1">{emptyText}</p>
+      ) : (
+        <ul>{children}</ul>
+      )}
+    </div>
+  );
+}
+
+function TaskRow({ task }: { task: DebriefTaskItem }) {
+  const style = getPriorityStyle(task.priority);
+  const due = formatDueDate(task.due_date, task.due_time);
+  return (
+    <li
+      className="flex items-start justify-between gap-2 py-1 border-b last:border-b-0"
+      style={{ borderColor: 'var(--tm-border-subtle)' }}
+    >
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-text-primary truncate">{task.title}</p>
+        <div className="flex items-center gap-1 mt-0.5 flex-wrap text-[10px] text-text-muted">
+          {task.due_date && <span>{due}</span>}
+          {task.category && <span>· {task.category}</span>}
+        </div>
+      </div>
+      {task.priority != null && (
+        <span
+          className="chip flex-shrink-0 font-bold"
+          style={{ backgroundColor: style.bg, color: style.text, padding: '0.1rem 0.4rem', fontSize: '10px' }}
+        >
+          {task.priority}
+        </span>
+      )}
+    </li>
+  );
+}
+
+function HabitRow({ habit }: { habit: HabitDebriefStatus }) {
+  return (
+    <li
+      className="flex items-center justify-between gap-2 py-1 border-b last:border-b-0"
+      style={{ borderColor: 'var(--tm-border-subtle)' }}
+    >
+      <div className="flex items-center gap-1.5 min-w-0">
+        {habit.logged_today ? (
+          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--tm-success)' }} />
+        ) : (
+          <Circle className="w-3.5 h-3.5 flex-shrink-0 text-text-muted" />
+        )}
+        <span className="text-xs font-medium text-text-primary truncate">{habit.title}</span>
+      </div>
+      {habit.current_streak > 0 && (
+        <span
+          className="flex items-center gap-0.5 text-[10px] font-semibold flex-shrink-0"
+          style={{ color: 'var(--tm-warning)' }}
+        >
+          <Flame className="w-3 h-3" />
+          {habit.current_streak}
+        </span>
+      )}
+    </li>
+  );
+}
+
+function WorkloadCard({ workload }: { workload: WorkloadCapacity }) {
+  if (workload.is_rest_day) {
+    return (
+      <div
+        className="rounded-md p-3 flex items-center gap-2"
+        style={{ backgroundColor: 'var(--tm-accent-subtle)', border: '1px solid var(--tm-border)' }}
+      >
+        <Moon className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--tm-accent)' }} />
+        <span className="text-xs font-semibold text-text-primary">Rest day</span>
+        <span className="text-xs text-text-secondary">— no workload scheduled today.</span>
+      </div>
+    );
+  }
+
+  const pct = workload.utilization_pct;
+  const overCap = workload.is_overcommitted || (pct != null && pct > 100);
+  const barPct = pct != null ? Math.min(Math.max(pct, 0), 100) : (workload.committed_minutes > 0 ? 100 : 0);
+  const barColor = overCap ? 'var(--tm-danger)' : (pct != null && pct >= 70 ? 'var(--tm-warning)' : 'var(--tm-success)');
 
   return (
     <div
       className="rounded-md p-3"
       style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
     >
-      <div className="flex items-center gap-1.5 mb-2" style={{ color: accent }}>
-        {icon}
-        <span className="text-xs font-semibold uppercase tracking-wide">{title}</span>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5" style={{ color: overCap ? 'var(--tm-danger)' : 'var(--tm-text-primary)' }}>
+          <Gauge className="w-4 h-4" />
+          <span className="text-xs font-semibold uppercase tracking-wide">Workload &amp; Capacity</span>
+        </div>
+        {overCap && (
+          <span
+            className="chip text-[10px] font-bold"
+            style={{ backgroundColor: 'var(--tm-danger-subtle)', color: 'var(--tm-danger)' }}
+          >
+            Overcommitted
+          </span>
+        )}
       </div>
-      <ul className="space-y-1">
-        {safeItems.map((item, i) => (
-          <li key={i} className="flex gap-1.5 text-xs leading-relaxed text-text-secondary">
-            <span className="mt-1.5 flex-shrink-0 w-1 h-1 rounded-full" style={{ backgroundColor: accent }} />
-            {item}
-          </li>
-        ))}
-      </ul>
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--tm-border)' }}>
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${barPct}%`, backgroundColor: barColor }}
+          />
+        </div>
+        <span className="text-xs font-medium text-text-secondary whitespace-nowrap">
+          {formatMinutes(workload.committed_minutes)}
+          {workload.available_minutes != null && ` / ${formatMinutes(workload.available_minutes)}`}
+        </span>
+      </div>
+      {pct != null && (
+        <p className="text-[11px] text-text-muted mt-1.5">
+          {Math.round(pct)}% of today&apos;s capacity committed
+        </p>
+      )}
+    </div>
+  );
+}
+
+function FocusNextCard({ items }: { items: FocusNextItem[] }) {
+  return (
+    <div
+      className="rounded-md p-3"
+      style={{ backgroundColor: 'var(--tm-surface-raised)', border: '1px solid var(--tm-border)' }}
+    >
+      <div className="flex items-center gap-1.5 mb-2" style={{ color: 'var(--tm-accent)' }}>
+        <TrendingUp className="w-4 h-4" />
+        <span className="text-xs font-semibold uppercase tracking-wide">Focus Next</span>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-xs text-text-muted py-1">Nothing urgent — you&apos;re on top of it.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {items.map(item => <FocusNextRow key={item.task_id} item={item} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FocusNextRow({ item }: { item: FocusNextItem }) {
+  const style = getPriorityStyle(item.priority);
+  const isHighPriority = item.reason === 'high_priority';
+
+  return (
+    <div
+      className="flex items-center gap-3 rounded-md p-2.5"
+      style={{ backgroundColor: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}
+    >
+      <span
+        className="flex items-center justify-center flex-shrink-0 w-7 h-7 rounded-full"
+        style={{
+          backgroundColor: isHighPriority ? 'var(--tm-danger-subtle)' : 'var(--tm-accent-subtle)',
+          color: isHighPriority ? 'var(--tm-danger)' : 'var(--tm-accent)',
+        }}
+      >
+        {isHighPriority ? <Siren className="w-3.5 h-3.5" /> : <TrendingUp className="w-3.5 h-3.5" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-text-primary truncate">{item.title}</p>
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+          <span
+            className="text-[10px] font-semibold uppercase tracking-wide"
+            style={{ color: isHighPriority ? 'var(--tm-danger)' : 'var(--tm-accent)' }}
+          >
+            {isHighPriority ? 'High priority' : 'Plan ahead'}
+          </span>
+          {item.due_date && (
+            <span className="text-[10px] text-text-muted">· due {formatDueDate(item.due_date)}</span>
+          )}
+          {item.estimated_time != null && (
+            <span className="text-[10px] text-text-muted">· {item.estimated_time} hrs</span>
+          )}
+        </div>
+      </div>
+      {item.priority != null && (
+        <span
+          className="chip flex-shrink-0 font-bold"
+          style={{ backgroundColor: style.bg, color: style.text, padding: '0.1rem 0.4rem', fontSize: '10px' }}
+        >
+          {item.priority}
+        </span>
+      )}
     </div>
   );
 }

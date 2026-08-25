@@ -14,7 +14,7 @@ import { CalendarSettings } from "../types/calendar";
 import { Habit, HabitHistoryEntry } from "../types/habit";
 import { Profile } from "../types/profile";
 import { Drawing } from "../types/drawing";
-import { TaskDebrief } from "../types/debrief";
+import { DailyDebriefReport } from "../types/debrief";
 import { LearningResourcesResponse } from "../types/learningResources";
 import { supabase } from "./supabase";
 
@@ -436,15 +436,9 @@ export async function fetchProfile(): Promise<Profile | null> {
 
 /**
  * Creates or updates the authenticated user's profile. Returns the saved record.
- *
- * Request body contract — CURRENT backend only persists `name`/`shutoff_time`.
- * The rest (`avatar`/`theme_accent`/`page_style`/`day_start_time`/`rest_days`/
- * `layout_order`) mirror the optional fields already on the `Profile` type
- * (types/profile.ts) and are the shape `/save-profile` needs to grow to accept
- * next — all optional, all nullable, upserted the same way `shutoff_time` is
- * today. Callers (see hooks/useProfile.ts) only send `name`/`shutoff_time`
- * until the backend accepts the rest, to avoid a strict request schema
- * rejecting the whole call over an unrecognized field.
+ * All fields besides `name` are optional and upserted individually (unset
+ * fields on the request leave the stored value untouched — see
+ * `upsert_profile` in the backend's `profile_crud.py`).
  */
 export async function saveProfile(profile: {
   name: string;
@@ -467,12 +461,9 @@ export async function saveProfile(profile: {
 }
 
 // ── Drawing (doodle mode) ───────────────────────────────────────────────────
-// These target endpoints that don't exist on the backend yet — /get-drawing,
-// /save-drawing, /delete-drawing. Shape mirrors fetchProfile/saveProfile
-// exactly (GET 404 → null for "no drawing saved yet", POST upserts, backend
-// derives user_id from the JWT) so the backend implementation can follow the
-// same pattern as the profile endpoints. See DoodleCanvas.tsx for the
-// try-backend-then-fall-back-to-localStorage caller.
+// Shape mirrors fetchProfile/saveProfile (GET 404 → null for "no drawing
+// saved yet", POST upserts, backend derives user_id from the JWT). See
+// DoodleCanvas.tsx for the try-backend-then-fall-back-to-localStorage caller.
 
 /** Fetches the authenticated user's saved doodle. Returns null if none exists yet. */
 export async function fetchDrawing(): Promise<Drawing | null> {
@@ -526,20 +517,15 @@ export async function fetchLearningResources(noteContent: string): Promise<Learn
 
 // ── Task Debrief ──────────────────────────────────────────────────────────────
 
-/** Calls the AI service and returns an execution-order action plan, horizon warning, and workload analysis. */
-export async function fetchTaskDebrief(): Promise<TaskDebrief> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error("Not authenticated — no active Supabase session.");
-  const res = await fetch(`${AI_BASE_URL}/task-debrief`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-      'x-timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
-  });
+/**
+ * Fetches the authenticated user's daily debrief — overdue/due-today tasks,
+ * habit status, workload capacity, and focus-next recommendations — computed
+ * server-side from DB state (no AI call, unlike learning-resources above).
+ */
+export async function fetchTaskDebrief(): Promise<DailyDebriefReport> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/daily-debrief`, { headers });
   await assertOk(res, "fetchTaskDebrief");
-  const body = await res.json();
-  return body.debrief as TaskDebrief;
+  return res.json();
 }
 

@@ -169,6 +169,7 @@ export default function SettingsModal({
       dayStartTime,
       shutoffTime: callItADay,
       restDays,
+      layoutOrder: profile.layoutOrder,
     });
     setProfileSaving(false);
     if (result.ok) {

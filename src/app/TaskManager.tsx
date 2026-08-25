@@ -318,6 +318,7 @@ const TaskManager: React.FC = () => {
                   allNotes={allNotes}
                   noteTags={noteTags}
                   profile={profile}
+                  onSaveProfile={saveProfile}
                 />
               </>
             )}

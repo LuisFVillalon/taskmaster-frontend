@@ -12,12 +12,14 @@
 // props/ref.
 //
 // Persistence: localStorage is always the instant, synchronous local cache
-// (written on every stroke) so the drawing never has a chance to be lost —
-// the backend save (fetchDrawing/saveDrawingRemote/deleteDrawingRemote in
-// lib/backend-api.ts) targets endpoints that don't exist yet, so every call
-// currently fails and silently falls back to the localStorage copy. Once
-// those endpoints exist, this component needs no further changes — it's
-// already calling them.
+// (written on every stroke) so the drawing never has a chance to be lost.
+// The backend save (fetchDrawing/saveDrawingRemote/deleteDrawingRemote in
+// lib/backend-api.ts) is the source of truth once it responds, but every
+// call still silently falls back to the localStorage copy on failure (backend
+// unreachable, request error, etc.) rather than surfacing anything to the
+// user — since logout clears the localStorage cache (see TaskManager.tsx),
+// a backend outage during a save is effectively invisible until the next
+// login shows the drawing missing.
 
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 import { fetchDrawing, saveDrawingRemote, deleteDrawingRemote } from '@/app/lib/backend-api';
