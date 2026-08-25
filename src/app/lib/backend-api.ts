@@ -15,6 +15,7 @@ import { Habit, HabitHistoryEntry } from "../types/habit";
 import { Profile } from "../types/profile";
 import { Drawing } from "../types/drawing";
 import { DailyDebriefReport } from "../types/debrief";
+import { toLocalDateStr, toLocalTimeStr } from "../utils/dateUtils";
 import { LearningResourcesResponse } from "../types/learningResources";
 import { supabase } from "./supabase";
 
@@ -525,10 +526,20 @@ export async function fetchLearningResources(noteContent: string): Promise<Learn
  * Fetches the authenticated user's daily debrief — overdue/due-today tasks,
  * habit status, workload capacity, and focus-next recommendations — computed
  * server-side from DB state (no AI call, unlike learning-resources above).
+ *
+ * Sends our own local date/time rather than letting the server infer "today"
+ * from its own clock — the backend may run in a different timezone (e.g.
+ * UTC), and using its date would roll "today" over before our local day
+ * ends, silently reclassifying today's tasks as overdue.
  */
 export async function fetchTaskDebrief(): Promise<DailyDebriefReport> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/daily-debrief`, { headers });
+  const now = new Date();
+  const params = new URLSearchParams({
+    local_date: toLocalDateStr(now),
+    local_time: toLocalTimeStr(now),
+  });
+  const res = await fetch(`${API_BASE_URL}/daily-debrief?${params.toString()}`, { headers });
   await assertOk(res, "fetchTaskDebrief");
   return res.json();
 }

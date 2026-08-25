@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Flame, Star, Grid2x2Plus, Pencil, Trash2, Save, CalendarDays } from 'lucide-react';
+import { X, Flame, Star, Grid2x2Plus, Pencil, Trash2, Save, CalendarDays, Loader2 } from 'lucide-react';
 import { Habit } from '@/app/types/habit';
 import { Tag } from '@/app/types/task';
 import Modal from '@/app/components/common/Modal';
@@ -31,6 +31,7 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
   const [editTags, setEditTags] = useState<Tag[]>([]);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingHabit, setDeletingHabit] = useState<Habit | null>(null);
 
   if (!isOpen) return null;
 
@@ -71,6 +72,12 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingHabit) return;
+    await handleDelete(deletingHabit.id);
+    setDeletingHabit(null);
   };
 
   return (
@@ -187,7 +194,7 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
                         )}
                         {onDeleteHabit && (
                           <button
-                            onClick={() => handleDelete(habit.id)}
+                            onClick={() => setDeletingHabit(habit)}
                             disabled={deletingId === habit.id}
                             className="btn btn-ghost p-1"
                             title="Delete habit"
@@ -232,6 +239,37 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Delete confirmation */}
+      {deletingHabit && (
+        <Modal onClose={() => setDeletingHabit(null)} layer="top" panelClassName="modal-panel max-w-sm w-full p-6 space-y-4">
+          <p className="text-center text-text-primary">
+            Are you sure you want to delete the habit{' '}
+            <span className="font-medium">{deletingHabit.title}</span>?
+          </p>
+          <p className="text-center text-sm text-text-muted">This action cannot be undone.</p>
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => setDeletingHabit(null)}
+              disabled={deletingId === deletingHabit.id}
+              className="btn btn-secondary flex-1 py-2"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmDelete}
+              disabled={deletingId === deletingHabit.id}
+              className="btn flex-1 py-2 text-white flex items-center justify-center gap-1.5"
+              style={{ backgroundColor: 'var(--tm-danger)' }}
+            >
+              {deletingId === deletingHabit.id && <Loader2 className="w-4 h-4 animate-spin" />}
+              {deletingId === deletingHabit.id ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 };
