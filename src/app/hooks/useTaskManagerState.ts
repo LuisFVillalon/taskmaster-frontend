@@ -55,6 +55,7 @@ export const useTaskManagerState = () => {
   const [newHabit, setNewHabit] = useState<NewHabit>({
     title: '',
     tags: [],
+    estimated_time: null,
   });
   const [newTask, setNewTask] = useState<BaseTaskForm>({
     id: 0,

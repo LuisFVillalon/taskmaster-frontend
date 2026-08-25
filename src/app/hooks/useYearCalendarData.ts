@@ -111,7 +111,9 @@ export function useYearCalendarData() {
       if (!logged) continue;
       for (const dateStr of logged) {
         if (!dateStr.startsWith(yearPrefix)) continue;
-        ensure(dateStr).habitsCompleted.push(habit);
+        const d = ensure(dateStr);
+        d.habitsCompleted.push(habit);
+        d.estimatedHours += habit.estimated_time ?? 0;
       }
     }
 

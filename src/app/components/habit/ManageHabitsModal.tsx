@@ -12,7 +12,7 @@ interface ManageHabitsModalProps {
   availableTags?: Tag[];
   onCreateHabit?: () => void;
   onDeleteHabit?: (id: number) => Promise<void>;
-  onUpdateHabit?: (id: number, title: string, tags: Tag[]) => Promise<void>;
+  onUpdateHabit?: (id: number, title: string, tags: Tag[], estimatedTime?: number | null) => Promise<void>;
   onViewHistory?: (id: number) => void;
 }
 
@@ -29,6 +29,7 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editTags, setEditTags] = useState<Tag[]>([]);
+  const [editEstimatedTime, setEditEstimatedTime] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deletingHabit, setDeletingHabit] = useState<Habit | null>(null);
@@ -39,12 +40,14 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
     setEditingId(habit.id);
     setEditTitle(habit.title);
     setEditTags(habit.tags.map(t => ({ id: t.id, name: t.name, color: t.color ?? '#6B7280' })));
+    setEditEstimatedTime(habit.estimated_time ?? null);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditTitle('');
     setEditTags([]);
+    setEditEstimatedTime(null);
   };
 
   const toggleEditTag = (tag: Tag) => {
@@ -57,7 +60,7 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
     if (!editTitle.trim() || !onUpdateHabit) return;
     setSaving(true);
     try {
-      await onUpdateHabit(id, editTitle.trim(), editTags);
+      await onUpdateHabit(id, editTitle.trim(), editTags, editEstimatedTime);
       cancelEdit();
     } finally {
       setSaving(false);
@@ -124,6 +127,18 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
                       className="input-field w-full text-sm"
                       autoFocus
                     />
+                    <div>
+                      <label className="block text-xs font-medium text-text-muted mb-1">Estimated Time (hours, optional)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        value={editEstimatedTime ?? ''}
+                        onChange={e => setEditEstimatedTime(e.target.value === '' ? null : Number(e.target.value))}
+                        placeholder="e.g. 0.5"
+                        className="input-field w-full text-sm"
+                      />
+                    </div>
                     {availableTags.length > 0 && (
                       <TagMultiSelect
                         tags={availableTags}
@@ -160,6 +175,11 @@ const ManageHabitsModal: React.FC<ManageHabitsModalProps> = ({
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <span className="font-medium text-text-primary text-sm leading-snug">{habit.title}</span>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        {habit.estimated_time != null && (
+                          <span className="text-xs font-semibold text-text-muted" title="Estimated time">
+                            {Number.isInteger(habit.estimated_time) ? habit.estimated_time : habit.estimated_time.toFixed(1)}h
+                          </span>
+                        )}
                         <div className="flex items-center gap-1" title="Current streak">
                           <Flame className="w-4 h-4" style={{ color: '#F97316' }} />
                           <span className="text-sm font-semibold" style={{ color: '#F97316' }}>

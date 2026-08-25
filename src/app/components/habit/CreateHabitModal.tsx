@@ -72,6 +72,25 @@ const CreateHabitModal: React.FC<CreateHabitModalProps> = ({
           />
         </div>
 
+        {/* Estimated Time */}
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-1">Estimated Time (hours, optional)</label>
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            value={newHabit.estimated_time ?? ''}
+            onChange={(e) =>
+              onHabitChange({
+                ...newHabit,
+                estimated_time: e.target.value === '' ? null : Number(e.target.value),
+              })
+            }
+            placeholder="e.g. 0.5"
+            className="input-field"
+          />
+        </div>
+
         {/* Tags */}
         {availableTags.length > 0 && (
           <div>

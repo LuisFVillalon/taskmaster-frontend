@@ -311,11 +311,11 @@ const TasksStatsCard: React.FC<Omit<TasksVariant, 'variant'>> = ({ tasks, total 
           <p className="text-xs sm:text-sm text-text-muted">No tasks yet — add one to get moving.</p>
         </div>
       ) : (
-        <>
+        <div className="flex-1 min-h-0 flex flex-col justify-center">
           {/* Today/Week/Active overview, plus Priority/Active/Completed
               per-category bar charts, one swipeable carousel slide each */}
           <TaskStatsCarousel slides={carouselSlides} />
-        </>
+        </div>
       )}
     </CardShell>
   );

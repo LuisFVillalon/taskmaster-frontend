@@ -200,9 +200,9 @@ const TaskManager: React.FC = () => {
     }
   };
 
-  const handleUpdateHabit = async (id: number, title: string, habitTags: Tag[]) => {
+  const handleUpdateHabit = async (id: number, title: string, habitTags: Tag[], estimatedTime?: number | null) => {
     try {
-      await updateHabit(id, { title, tags: habitTags });
+      await updateHabit(id, { title, tags: habitTags, estimated_time: estimatedTime ?? null });
       refetchHabits();
     } catch (err) {
       console.error('Failed to update habit:', err);
@@ -214,8 +214,8 @@ const TaskManager: React.FC = () => {
     e.preventDefault();
     if (!state.newHabit.title.trim()) return;
     try {
-      await createHabit({ title: state.newHabit.title.trim(), tags: state.newHabit.tags });
-      state.setNewHabit({ title: '', tags: [] });
+      await createHabit({ title: state.newHabit.title.trim(), tags: state.newHabit.tags, estimated_time: state.newHabit.estimated_time ?? null });
+      state.setNewHabit({ title: '', tags: [], estimated_time: null });
       state.setShowCreateHabitModal(false);
       if (state.createHabitFromManage) {
         state.setCreateHabitFromManage(false);
@@ -412,7 +412,7 @@ const TaskManager: React.FC = () => {
         showCreateHabitModal={state.showCreateHabitModal}
         onCloseCreateHabitModal={() => {
           state.setShowCreateHabitModal(false);
-          state.setNewHabit({ title: '', tags: [] });
+          state.setNewHabit({ title: '', tags: [], estimated_time: null });
           if (state.createHabitFromManage) {
             state.setCreateHabitFromManage(false);
             state.setShowManageHabitsModal(true);

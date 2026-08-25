@@ -4,6 +4,7 @@ import React from 'react';
 import { Flame, SquareCheck, FileText, Timer, Clock } from 'lucide-react';
 import type { DayData } from '@/app/hooks/useYearCalendarData';
 import type { Task } from '@/app/types/task';
+import type { Habit } from '@/app/types/habit';
 import { toLocalDateStr, toLocalTimeStr } from '@/app/utils/dateUtils';
 import { formatTime12Hour } from '@/app/utils/taskUtils';
 import { bucketByTag } from '@/app/utils/tagBucketing';
@@ -24,7 +25,13 @@ const fmtHours = (hours: number): string => (Number.isInteger(hours) ? `${hours}
 const normalizedTime = (t: Task): string | null =>
   typeof t.due_time === 'string' ? t.due_time : t.due_time instanceof Date ? toLocalTimeStr(t.due_time) : null;
 
-const hoursByTag = (tasks: Task[]): ChartCategory[] => bucketByTag(tasks, t => t.estimated_time ?? 0);
+const hoursByTag = (tasks: Task[], habits: Habit[]): ChartCategory[] => {
+  const items = [
+    ...tasks.map(t => ({ tags: t.tags, value: t.estimated_time ?? 0 })),
+    ...habits.map(h => ({ tags: h.tags, value: h.estimated_time ?? 0 })),
+  ];
+  return bucketByTag(items, i => i.value);
+};
 
 const DESCRIPTION_TRUNCATE_LENGTH = 80;
 // Widget card is narrow, so a "long" description is capped much sooner —
@@ -126,7 +133,7 @@ const DaySummary: React.FC<DaySummaryProps> = ({ date, data, totalHabits, dayDat
   const weekEnd = weekDays[6].date;
   const rangeLabel = `Week of ${monday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
 
-  const donutCategories = hoursByTag(tasksDue);
+  const donutCategories = hoursByTag(tasksDue, habitsCompleted);
   const barCategories: ChartCategory[] = tasksDue
     .filter(t => (t.estimated_time ?? 0) > 0)
     .map(t => ({ label: t.title, value: t.estimated_time ?? 0, color: t.tags[0]?.color ?? 'var(--tm-accent)' }))
@@ -147,7 +154,12 @@ const DaySummary: React.FC<DaySummaryProps> = ({ date, data, totalHabits, dayDat
             {habitsCompleted.map(h => (
               <div key={h.id} className="flex items-center justify-between gap-2 p-2 rounded-md border border-border-subtle">
                 <span className="text-sm font-medium text-text-primary truncate">{h.title}</span>
-                <TagChipList tags={h.tags} size="xs" />
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {h.estimated_time != null && (
+                    <span className="text-xs font-semibold text-text-muted">{fmtHours(h.estimated_time)}h</span>
+                  )}
+                  <TagChipList tags={h.tags} size="xs" />
+                </div>
               </div>
             ))}
           </div>,

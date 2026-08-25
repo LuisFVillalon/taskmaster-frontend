@@ -79,6 +79,7 @@ export type NewTag = Omit<Tag, "id">;
 export interface NewHabit {
   title: string;
   tags: Tag[];
+  estimated_time?: number | null;
 }
 
 export interface TagStats {

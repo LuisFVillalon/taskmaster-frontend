@@ -4,34 +4,10 @@ import React, { useEffect, useState } from 'react';
 import { Check, Cuboid, Flame, Repeat, Star } from 'lucide-react';
 import { fetchHabitHistory } from '@/app/lib/backend-api';
 import { Habit, HabitHistoryEntry } from '@/app/types/habit';
-import { TagStats } from '@/app/types/task';
 import { toLocalDateStr } from '@/app/utils/dateUtils';
 import { CardShell } from './CardShell';
 import { ProgressRing } from './charts';
 import type { HabitsVariant } from './types';
-
-interface HabitTagChipsProps {
-  tags: TagStats[];
-}
-
-const HabitTagChips: React.FC<HabitTagChipsProps> = ({ tags }) => {
-  if (tags.length === 0) {
-    return <p className="text-xs sm:text-sm text-text-muted italic">No tags</p>;
-  }
-  return (
-    <div className="flex flex-wrap gap-1.5 sm:gap-x-3 sm:gap-y-1.5">
-      {tags.map(tag => (
-        <span
-          key={tag.name}
-          style={{ backgroundColor: tag.color ?? 'var(--tm-accent)', color: 'white' }}
-          className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap"
-        >
-          {tag.name} ({tag.count})
-        </span>
-      ))}
-    </div>
-  );
-};
 
 interface StreakBadgeProps {
   icon: React.ReactNode;
@@ -208,7 +184,7 @@ const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ habit }) => {
     : `${startDate.toLocaleDateString(undefined, { ...dateFmt, year: 'numeric' })} – ${today.toLocaleDateString(undefined, { ...dateFmt, year: 'numeric' })}`;
 
   return (
-    <div className="flex flex-col gap-2 w-full min-w-0 max-w-sm mx-auto">
+    <div className="flex flex-col gap-2 w-full min-w-0">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-semibold text-text-primary truncate min-w-0" title={habit.title}>
           {habit.title}
@@ -283,16 +259,6 @@ const HabitsStatsCard: React.FC<Omit<HabitsVariant, 'variant'>> = ({
     );
   }
 
-  const habitTagMap = new Map<string, { color: string; count: number }>();
-  for (const habit of habits) {
-    for (const tag of habit.tags) {
-      const existing = habitTagMap.get(tag.name);
-      if (existing) { existing.count++; }
-      else { habitTagMap.set(tag.name, { color: tag.color ?? 'var(--tm-accent)', count: 1 }); }
-    }
-  }
-  const habitTags = Array.from(habitTagMap.entries()).map(([name, { color, count }]) => ({ name, color, count }));
-
   // Default to the top habit so the right-hand slot is never empty; fall
   // back automatically if the previously-selected habit disappears (e.g. deleted).
   const heatmapHabit = habits.find(h => h.id === heatmapHabitId) ?? habits[0] ?? null;
@@ -326,11 +292,8 @@ const HabitsStatsCard: React.FC<Omit<HabitsVariant, 'variant'>> = ({
               />
             ))}
           </div>
-          <div className="flex justify-center">
+          <div className="flex-1 min-h-0 flex items-center justify-center">
             {heatmapHabit && <HabitHeatmap habit={heatmapHabit} />}
-          </div>
-          <div>
-            <HabitTagChips tags={habitTags} />
           </div>
         </div>
       )}

@@ -6,6 +6,7 @@ export interface Habit {
   max_streak: number;
   logged_today: boolean;
   tags: { id: number; name: string; color?: string | null }[];
+  estimated_time?: number | null;
 }
 
 export interface HabitHistoryEntry {

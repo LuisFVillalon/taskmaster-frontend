@@ -345,6 +345,7 @@ export async function fetchHabits(): Promise<Habit[]> {
 export async function createHabit(habit: {
   title: string;
   tags?: { id: number; name: string; color?: string | null }[];
+  estimated_time?: number | null;
 }): Promise<Habit> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/create-habit`, {
@@ -362,6 +363,7 @@ export async function updateHabit(
   habit: {
     title: string;
     tags?: { id: number; name: string; color?: string | null }[];
+    estimated_time?: number | null;
   },
 ): Promise<Habit> {
   const headers = await getAuthHeaders();

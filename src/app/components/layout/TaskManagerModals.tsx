@@ -62,7 +62,7 @@ interface TaskManagerModalsProps {
   habits: Habit[];
   onCreateHabitFromManage: () => void;
   onDeleteHabit: (id: number) => Promise<void>;
-  onUpdateHabit: (id: number, title: string, tags: Tag[]) => Promise<void>;
+  onUpdateHabit: (id: number, title: string, tags: Tag[], estimatedTime?: number | null) => Promise<void>;
   onViewHabitHistory: (id: number) => void;
 
   // Habit history
