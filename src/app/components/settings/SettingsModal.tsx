@@ -170,6 +170,10 @@ export default function SettingsModal({
       shutoffTime: callItADay,
       restDays,
       layoutOrder: profile.layoutOrder,
+      appMode: profile.appMode,
+      dailyBriefCollapsed: profile.dailyBriefCollapsed,
+      dashboardView: profile.dashboardView,
+      notesViewMode: profile.notesViewMode,
     });
     setProfileSaving(false);
     if (result.ok) {
@@ -369,7 +373,7 @@ export default function SettingsModal({
                   value={profileName}
                   onChange={e => setProfileName(e.target.value)}
                   disabled={profileLoading}
-                  placeholder="G.O.A.T."
+                  placeholder="User name"
                   className="input-field w-full text-sm disabled:opacity-60"
                 />
               </div>

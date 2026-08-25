@@ -6,12 +6,17 @@ import { useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { useNotesContext } from '@/app/context/NotesContext';
 import { useTagsContext } from '@/app/context/TagsContext';
+import { useAuth } from '@/app/context/AuthContext';
 import { Note } from '@/app/types/notes';
 import { useResizableSplit } from '@/app/hooks/useResizableSplit';
-import NotesList from './NotesList';
+import { useProfile } from '@/app/hooks/useProfile';
+import { usePersistedPref } from '@/app/hooks/usePersistedPref';
+import NotesList, { ViewMode } from './NotesList';
 import NoteEditor from './NoteEditor';
 import DragHandle from '@/app/components/common/DragHandle';
 import PageSpinner from '@/app/components/common/PageSpinner';
+
+const isViewMode = (c: unknown): c is ViewMode => c === 'cards' || c === 'folders';
 
 interface NotesViewProps {
   embedded?: boolean;
@@ -23,6 +28,15 @@ const DEFAULT_SIDE = 288;
 
 const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
   const { notes, isLoading: notesLoading, addNote, updateNote, deleteNote, discardDraft, pendingNoteIds } = useNotesContext();
+  const { user } = useAuth();
+  const { profile, saveProfile } = useProfile(user);
+  const [viewMode, setViewMode] = usePersistedPref<ViewMode>(
+    'tm-notes-view-mode',
+    'cards',
+    isViewMode,
+    profile.notesViewMode as ViewMode | null,
+    next => { saveProfile({ ...profile, notesViewMode: next }); },
+  );
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredNotes = searchTerm.trim()
@@ -112,6 +126,8 @@ const NotesView: React.FC<NotesViewProps> = ({ embedded = false }) => {
             onUpdateNote={updateNote}
             onDeleteNote={handleDeleteNote}
             pendingNoteIds={pendingNoteIds}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
           />
         </div>
       </div>

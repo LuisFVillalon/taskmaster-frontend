@@ -21,4 +21,12 @@ export interface Profile {
   rest_days?: number[] | null;
   /** Dashboard card ordering — see hooks/useGridOrder.ts and ProfileFields.layoutOrder in useProfile.ts. */
   layout_order?: string[] | null;
+  /** 'normal' | 'focus' | 'doodle' — see components/common/ModeSwitcher.tsx. */
+  app_mode?: string | null;
+  /** Whether the Daily Brief panel is collapsed. */
+  daily_brief_collapsed?: boolean | null;
+  /** 'grid' | 'calendar' — dashboard widgets-vs-calendar toggle in CalendarAndStats.tsx. */
+  dashboard_view?: string | null;
+  /** 'cards' | 'folders' — notes view-mode toggle in NotesPanel.tsx / NotesList.tsx. */
+  notes_view_mode?: string | null;
 }

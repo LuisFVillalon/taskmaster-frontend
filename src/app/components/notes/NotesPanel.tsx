@@ -8,6 +8,8 @@ import TagFolderOverlay from '@/app/components/notes/TagFolderOverlay';
 import NoteEditorOverlay from '@/app/components/notes/NoteEditorOverlay';
 import { Note } from '@/app/types/notes';
 import { Tag } from '@/app/types/task';
+import { usePersistedPref } from '@/app/hooks/usePersistedPref';
+import type { ProfileFields, useProfile } from '@/app/hooks/useProfile';
 
 interface NotesPanelProps {
   notes: Note[];
@@ -22,9 +24,12 @@ interface NotesPanelProps {
   pendingNoteIds?: Set<number>;
   /** When set, only these tags may appear as folders (e.g. an active sidebar tag filter). */
   tagFilter?: Tag[];
+  profile: ProfileFields;
+  onSaveProfile: ReturnType<typeof useProfile>['saveProfile'];
 }
 
 type ViewMode = 'cards' | 'folders';
+const isViewMode = (c: unknown): c is ViewMode => c === 'cards' || c === 'folders';
 
 const NotesPanelSkeleton: React.FC = () => (
   <div className="card p-3 sm:p-4 mt-2">
@@ -47,9 +52,17 @@ const NotesPanel: React.FC<NotesPanelProps> = ({
   isLoading,
   pendingNoteIds,
   tagFilter,
+  profile,
+  onSaveProfile,
 }) => {
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [viewMode, setViewMode] = usePersistedPref<ViewMode>(
+    'tm-notes-view-mode',
+    'cards',
+    isViewMode,
+    profile.notesViewMode as ViewMode | null,
+    next => { onSaveProfile({ ...profile, notesViewMode: next }); },
+  );
   const [notesFolderOverlay, setNotesFolderOverlay] = useState<{ tag: Tag; notes: Note[] } | null>(null);
 
   return (
@@ -72,7 +85,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({
           {/* View toggle — cards (new) vs. folders (the original file/folder browser) */}
           <button
             type="button"
-            onClick={() => setViewMode(m => (m === 'cards' ? 'folders' : 'cards'))}
+            onClick={() => setViewMode(viewMode === 'cards' ? 'folders' : 'cards')}
             aria-label={viewMode === 'cards' ? 'Show folder view' : 'Show card view'}
             title={viewMode === 'cards' ? 'Show folder view' : 'Show card view'}
             className="absolute bottom-2 right-2 z-50 w-14 h-7 rounded-full border border-border-subtle shadow-sm transition-colors duration-200 flex-shrink-0"

@@ -8,6 +8,8 @@ import {
 import { fetchTaskDebrief } from '@/app/lib/backend-api';
 import { DailyDebriefReport, DebriefTaskItem, HabitDebriefStatus, FocusNextItem, WorkloadCapacity } from '@/app/types/debrief';
 import { getPriorityStyle, formatDueDate } from '@/app/utils/taskUtils';
+import { usePersistedPref } from '@/app/hooks/usePersistedPref';
+import type { ProfileFields, useProfile } from '@/app/hooks/useProfile';
 
 type Status = 'idle' | 'loading' | 'done' | 'error';
 
@@ -19,11 +21,25 @@ function formatMinutes(mins: number): string {
   return `${h}h ${m}m`;
 }
 
-const TaskDebriefPanel: React.FC = () => {
+interface TaskDebriefPanelProps {
+  profile: ProfileFields;
+  onSaveProfile: ReturnType<typeof useProfile>['saveProfile'];
+}
+
+const isBoolean = (c: unknown): c is boolean => typeof c === 'boolean';
+
+const TaskDebriefPanel: React.FC<TaskDebriefPanelProps> = ({ profile, onSaveProfile }) => {
   const [status, setStatus] = useState<Status>('idle');
   const [debrief, setDebrief] = useState<DailyDebriefReport | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(true);
+  const [collapsed, setCollapsed] = usePersistedPref<boolean>(
+    'tm-daily-brief-collapsed',
+    false,
+    isBoolean,
+    profile.dailyBriefCollapsed,
+    next => { onSaveProfile({ ...profile, dailyBriefCollapsed: next }); },
+  );
+  const open = !collapsed;
 
   const run = async () => {
     setStatus('loading');
@@ -43,7 +59,7 @@ const TaskDebriefPanel: React.FC = () => {
 
   const toggle = () => {
     const next = !open;
-    setOpen(next);
+    setCollapsed(!next);
     if (next && status === 'idle') run();
   };
 

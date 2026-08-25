@@ -19,9 +19,11 @@ interface NotesListProps {
   onUpdateNote: (id: number, changes: Partial<Pick<Note, 'title' | 'content' | 'tags'>>) => void | Promise<boolean>;
   onDeleteNote: (id: number) => void;
   pendingNoteIds?: Set<number>;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
-type ViewMode = 'cards' | 'folders';
+export type ViewMode = 'cards' | 'folders';
 type SortOrder = 'recent' | 'oldest';
 
 const NotesList: React.FC<NotesListProps> = ({
@@ -35,8 +37,9 @@ const NotesList: React.FC<NotesListProps> = ({
   onUpdateNote,
   onDeleteNote,
   pendingNoteIds,
+  viewMode,
+  onViewModeChange,
 }) => {
-  const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [sortOrder, setSortOrder] = useState<SortOrder>('recent');
   const [tagFolderOverlay, setTagFolderOverlay] = useState<{ tag: Tag; notes: Note[] } | null>(null);
   const [creatingNote, setCreatingNote] = useState(false);
@@ -192,7 +195,7 @@ const NotesList: React.FC<NotesListProps> = ({
         {/* View toggle — cards vs. folders */}
         <button
           type="button"
-          onClick={() => setViewMode(m => (m === 'cards' ? 'folders' : 'cards'))}
+          onClick={() => onViewModeChange(viewMode === 'cards' ? 'folders' : 'cards')}
           aria-label={viewMode === 'cards' ? 'Show folder view' : 'Show card view'}
           title={viewMode === 'cards' ? 'Show folder view' : 'Show card view'}
           className="relative w-14 h-7 rounded-full border border-border-subtle shadow-sm transition-colors duration-200 flex-shrink-0"

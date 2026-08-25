@@ -449,6 +449,10 @@ export async function saveProfile(profile: {
   day_start_time?: string | null;
   rest_days?: number[] | null;
   layout_order?: string[] | null;
+  app_mode?: string | null;
+  daily_brief_collapsed?: boolean | null;
+  dashboard_view?: string | null;
+  notes_view_mode?: string | null;
 }): Promise<Profile> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/save-profile`, {

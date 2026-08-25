@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Calendar, LayoutGrid } from 'lucide-react';
 import BigPictureCalendar from '@/app/components/calendar/BigPictureCalendar';
 import StatsCard from '@/app/components/stats/StatsCard';
@@ -8,6 +8,7 @@ import TimersCard from '@/app/components/stats/TimersCard';
 import DraggableGrid from '@/app/components/common/DraggableGrid';
 import CalendarSummarySlide from '@/app/components/calendar/CalendarSummarySlide';
 import { useGridOrder } from '@/app/hooks/useGridOrder';
+import { usePersistedPref } from '@/app/hooks/usePersistedPref';
 import { Habit } from '@/app/types/habit';
 import { StatsData, TagStats } from '@/app/types/task';
 import { Note } from '@/app/types/notes';
@@ -64,8 +65,14 @@ const CalendarAndStats: React.FC<CalendarAndStatsProps> = ({
     profile.layoutOrder,
     next => { onSaveProfile({ ...profile, layoutOrder: next }); },
   );
-  const [slide, setSlide] = useState<'grid' | 'calendar'>('grid');
-  const toggleSlide = () => setSlide(s => (s === 'grid' ? 'calendar' : 'grid'));
+  const [slide, setSlide] = usePersistedPref<'grid' | 'calendar'>(
+    'tm-dashboard-view',
+    'grid',
+    (c): c is 'grid' | 'calendar' => c === 'grid' || c === 'calendar',
+    profile.dashboardView as 'grid' | 'calendar' | null,
+    next => { onSaveProfile({ ...profile, dashboardView: next }); },
+  );
+  const toggleSlide = () => setSlide(slide === 'grid' ? 'calendar' : 'grid');
 
   const items: Record<string, React.ReactNode> = {
     calendar: (

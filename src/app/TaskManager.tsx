@@ -16,6 +16,7 @@ import { useTaskHandlers } from '@/app/hooks/useTaskHandlers';
 import { useTaskFiltering } from '@/app/hooks/useTaskFiltering';
 import { useClaimOrphanedData } from '@/app/hooks/useClaimOrphanedData';
 import { useProfile } from '@/app/hooks/useProfile';
+import { usePersistedPref } from '@/app/hooks/usePersistedPref';
 import { Note } from '@/app/types/notes';
 import { taskToEditForm } from '@/app/utils/taskUtils';
 import DragHandle from '@/app/components/common/DragHandle';
@@ -35,15 +36,21 @@ import { DEFAULT_ACCENT, getStoredThemeColor } from '@/app/lib/theme';
 const TaskManager: React.FC = () => {
   const router = useRouter();
   const { signOut, user } = useAuth();
-  const [mode, setMode] = useState<AppMode>('normal');
-  const focusMode = mode === 'focus';
-  const doodleMode = mode === 'doodle';
   const doodleCanvasRef = useRef<DoodleCanvasHandle>(null);
   const [doodleColor, setDoodleColor] = useState(() => getStoredThemeColor() ?? DEFAULT_ACCENT);
   const [doodleErasing, setDoodleErasing] = useState(false);
 
   useClaimOrphanedData(user);
   const { profile, loading: profileLoading, saveProfile } = useProfile(user);
+  const [mode, setMode] = usePersistedPref<AppMode>(
+    'tm-app-mode',
+    'normal',
+    (c): c is AppMode => c === 'normal' || c === 'focus' || c === 'doodle',
+    profile.appMode as AppMode | null,
+    next => { saveProfile({ ...profile, appMode: next }); },
+  );
+  const focusMode = mode === 'focus';
+  const doodleMode = mode === 'doodle';
 
   const handleLogout = async () => {
     await signOut();
@@ -306,7 +313,7 @@ const TaskManager: React.FC = () => {
           <>
             {!focusMode && (
               <>
-                <TaskDebriefPanel />
+                <TaskDebriefPanel profile={profile} onSaveProfile={saveProfile} />
 
                 <CalendarAndStats
                   habits={habits}
@@ -357,6 +364,8 @@ const TaskManager: React.FC = () => {
                   isLoading={notesLoading}
                   pendingNoteIds={pendingNoteIds}
                   tagFilter={state.selectedTags}
+                  profile={profile}
+                  onSaveProfile={saveProfile}
                 />
               </div>
 

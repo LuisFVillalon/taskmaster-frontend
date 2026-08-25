@@ -17,20 +17,29 @@ export interface ProfileFields {
   shutoffTime: string;
   restDays: number[];
   layoutOrder: string[] | null;
+  appMode: string | null;
+  dailyBriefCollapsed: boolean | null;
+  dashboardView: string | null;
+  notesViewMode: string | null;
 }
 
 const readLocalDefaults = (): ProfileFields => ({
-  name: (typeof window !== 'undefined' ? localStorage.getItem('tm_profile_name') : null) ?? 'G.O.A.T.',
+  name: (typeof window !== 'undefined' ? localStorage.getItem('tm_profile_name') : null) ?? ' ',
   avatar: getStoredProfileAvatar(),
   themeAccent: getStoredThemeColor() ?? DEFAULT_ACCENT,
   pageStyle: getStoredPageStyle() ?? DEFAULT_PAGE_STYLE,
   dayStartTime: (typeof window !== 'undefined' ? localStorage.getItem('tm_day_start_time') : null) ?? DEFAULT_DAY_START,
   shutoffTime: (typeof window !== 'undefined' ? localStorage.getItem('tm_call_it_a_day') : null) ?? DEFAULT_DAY_END,
   restDays: loadStoredRestDays(),
-  // Not read from localStorage here — useGridOrder owns that local cache
-  // independently and resolves it on its own. This is purely the
-  // backend-authoritative value, populated once fetchProfile() resolves.
+  // Not read from localStorage here — useGridOrder/usePersistedPref own
+  // their own local caches independently and resolve them on their own.
+  // These are purely the backend-authoritative values, populated once
+  // fetchProfile() resolves.
   layoutOrder: null,
+  appMode: null,
+  dailyBriefCollapsed: null,
+  dashboardView: null,
+  notesViewMode: null,
 });
 
 /**
@@ -66,6 +75,10 @@ export function useProfile(user: User | null) {
           dayStartTime: p.day_start_time ?? prev.dayStartTime,
           restDays: p.rest_days ?? prev.restDays,
           layoutOrder: p.layout_order ?? prev.layoutOrder,
+          appMode: p.app_mode ?? prev.appMode,
+          dailyBriefCollapsed: p.daily_brief_collapsed ?? prev.dailyBriefCollapsed,
+          dashboardView: p.dashboard_view ?? prev.dashboardView,
+          notesViewMode: p.notes_view_mode ?? prev.notesViewMode,
         }));
         localStorage.setItem('tm_profile_name', p.name);
         if (p.shutoff_time) localStorage.setItem('tm_call_it_a_day', p.shutoff_time);
@@ -94,6 +107,10 @@ export function useProfile(user: User | null) {
         day_start_time: next.dayStartTime,
         rest_days: next.restDays,
         layout_order: next.layoutOrder,
+        app_mode: next.appMode,
+        daily_brief_collapsed: next.dailyBriefCollapsed,
+        dashboard_view: next.dashboardView,
+        notes_view_mode: next.notesViewMode,
       });
 
       localStorage.setItem('tm_profile_name', next.name);
