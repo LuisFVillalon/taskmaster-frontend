@@ -3,12 +3,12 @@
 // color picker in theme.ts: stored in localStorage, applied via a
 // document-level attribute so plain CSS handles the actual pattern.
 
-export const PAGE_STYLE_STORAGE_KEY = 'tm_page_style';
+const PAGE_STYLE_STORAGE_KEY = 'tm_page_style';
 
 // The 5mm graph ruling defined by default in globals.css — offered as the "reset" option.
 export const DEFAULT_PAGE_STYLE = 'graph';
 
-export interface PageStyleOption {
+interface PageStyleOption {
   key: string;
   label: string;
   description: string;

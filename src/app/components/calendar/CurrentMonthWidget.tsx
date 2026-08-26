@@ -97,11 +97,6 @@ const CurrentMonthWidget: React.FC<CurrentMonthWidgetProps> = ({ onExpand, dragH
   const now = new Date();
   const todayStr = toLocalDateStr(now);
   const cells = monthCells(now.getFullYear(), now.getMonth());
-  const loggedDays = cells.filter(d => {
-    if (!d) return false;
-    const data = dayData.get(toLocalDateStr(d));
-    return !!data && (data.tasksDue.length > 0 || data.tasksCompleted.length > 0 || data.habitsCompleted.length > 0);
-  }).length;
 
   if (loading) return <CurrentMonthWidgetSkeleton />;
 

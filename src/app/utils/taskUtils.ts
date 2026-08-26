@@ -23,44 +23,6 @@ export function getPriorityStyle(priority: number | null) {
   return PRIORITY_COLORS[priority] ?? DEFAULT_PRIORITY_COLOR;
 }
 
-// ── Priority (dynamic color interpolated by rank among active tasks) ──────────
-
-interface HslStop { h: number; s: number; l: number }
-
-const PRIORITY_SPECTRUM: HslStop[] = [
-  { h: 0,   s: 72, l: 50 }, // red
-  { h: 24,  s: 94, l: 53 }, // orange
-  { h: 45,  s: 93, l: 47 }, // yellow
-  { h: 142, s: 71, l: 45 }, // green
-  { h: 217, s: 91, l: 60 }, // blue
-  { h: 210, s: 30, l: 93 }, // near-white
-];
-
-function lerpHsl(a: HslStop, b: HslStop, t: number): HslStop {
-  return { h: a.h + (b.h - a.h) * t, s: a.s + (b.s - a.s) * t, l: a.l + (b.l - a.l) * t };
-}
-
-export function getPriorityColorByRank(rank: number, total: number): { bg: string; text: string } {
-  const t = total <= 1 ? 0 : rank / (total - 1);
-  const scaled = t * (PRIORITY_SPECTRUM.length - 1);
-  const i = Math.min(Math.floor(scaled), PRIORITY_SPECTRUM.length - 2);
-  const c = lerpHsl(PRIORITY_SPECTRUM[i], PRIORITY_SPECTRUM[i + 1], scaled - i);
-  return {
-    bg: `hsl(${c.h.toFixed(1)}, ${c.s.toFixed(1)}%, ${c.l.toFixed(1)}%)`,
-    text: c.l > 70 ? '#334155' : '#ffffff',
-  };
-}
-
-// Returns a raw CSS color value — use for text/icon coloring in TaskItem.
-export function getDueDateColor(due: string | Date | null, completed: boolean): string {
-  if (!due || completed) return 'var(--tm-text-muted)';
-  const dueDate = typeof due === 'string' ? new Date(due + 'T00:00:00') : new Date(due);
-  const diffDays = Math.ceil((dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return '#b91c1c';
-  if (diffDays <= 3) return '#a16207';
-  return '#15803d';
-}
-
 export function formatDueDateShort(due: string | Date | null): string | null {
   if (!due) return null;
   const d = typeof due === 'string' ? new Date(due + 'T00:00:00') : due;
@@ -211,13 +173,6 @@ export const getDurationColor = (hours?: number | null) => {
   if (hours == null) return "text-gray-500 bg-gray-50";
   if (hours <= 2.5) return "text-green-700 bg-green-50";
   if (hours <= 5) return "text-yellow-700 bg-yellow-50";
-  return "text-red-700 bg-red-50";
-};
-
-export const getComplexityColor = (level?: number | null) => {
-  if (level == null) return "text-gray-500 bg-gray-50";
-  if (level <= 2) return "text-green-700 bg-green-50";
-  if (level <= 4) return "text-yellow-700 bg-yellow-50";
   return "text-red-700 bg-red-50";
 };
 

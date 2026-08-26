@@ -6,7 +6,7 @@
 
 import { ColorOption } from './colorOptions';
 
-export const THEME_ACCENT_STORAGE_KEY = 'tm_theme_accent';
+const THEME_ACCENT_STORAGE_KEY = 'tm_theme_accent';
 
 // Notion Blue, defined in globals.css — offered as the "reset" option.
 export const DEFAULT_ACCENT = '#0075DE';

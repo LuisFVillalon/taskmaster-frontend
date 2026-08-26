@@ -15,7 +15,7 @@ export interface DebriefTaskItem {
   tags: DebriefTag[];
 }
 
-export interface HabitDebriefStatus {
+interface HabitDebriefStatus {
   id: number;
   title: string;
   current_streak: number;
@@ -25,14 +25,14 @@ export interface HabitDebriefStatus {
   tags: DebriefTag[];
 }
 
-export interface DebriefNoteItem {
+interface DebriefNoteItem {
   id: number;
   title: string;
   minutes: number;
   tags: DebriefTag[];
 }
 
-export interface WorkloadCapacity {
+interface WorkloadCapacity {
   is_rest_day: boolean;
   available_minutes: number | null;
   committed_minutes: number;
@@ -40,7 +40,7 @@ export interface WorkloadCapacity {
   is_overcommitted: boolean;
 }
 
-export type FocusNextReason = 'high_priority' | 'upcoming_high_effort';
+type FocusNextReason = 'high_priority' | 'upcoming_high_effort';
 
 export interface FocusNextItem {
   task_id: number;

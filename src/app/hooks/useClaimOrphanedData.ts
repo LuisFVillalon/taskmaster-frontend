@@ -16,7 +16,6 @@ export const useClaimOrphanedData = (user: User | null): void => {
         localStorage.setItem(flagKey, '1');
         const total = claimed.tasks + claimed.notes + claimed.tags + claimed.calendar_settings;
         if (total > 0) {
-          console.info(`[claim-data] Linked ${claimed.tasks} tasks, ${claimed.notes} notes to account.`);
           window.location.reload();
         } else {
           localStorage.setItem(flagKey, '1');

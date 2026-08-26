@@ -2,14 +2,14 @@ interface TaggedItem {
   tags: { name: string; color?: string | null }[];
 }
 
-export interface TagBucketItem {
+interface TagBucketItem {
   name: string;
   value: number;
   /** e.g. "Task" / "Habit" / "Note" — present only when `bucketByTag` is called with a `kindOf`. */
   kind?: string;
 }
 
-export interface TagBucket {
+interface TagBucket {
   label: string;
   value: number;
   color: string;

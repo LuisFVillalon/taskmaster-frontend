@@ -5,7 +5,7 @@
  */
 
 // Day-of-week indices follow JS Date#getDay() (0 = Sunday … 6 = Saturday).
-export const DEFAULT_REST_DAYS = [0, 6]; // Sat/Sun
+const DEFAULT_REST_DAYS = [0, 6]; // Sat/Sun
 export const DEFAULT_DAY_START = '08:00';
 export const DEFAULT_DAY_END = '22:00';
 

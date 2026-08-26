@@ -26,7 +26,7 @@ zxcvbnOptions.setOptions({
 });
 
 export const MIN_LENGTH = 12;
-export const STRONG_SCORE = 2; // minimum zxcvbn score (0-4) to pass
+const STRONG_SCORE = 2; // minimum zxcvbn score (0-4) to pass
 
 /**
  * Top 50 most common / breached passwords, normalised to lowercase + no spaces.

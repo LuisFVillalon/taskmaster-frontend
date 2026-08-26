@@ -36,7 +36,7 @@ export const MONTH_NAMES = [
   'December',
 ] as const;
 
-export interface MonthInfo {
+interface MonthInfo {
   /** Accent hue — one of the documented DESIGN.md accents only. */
   hue: string;
   icon: LucideIcon;
@@ -256,7 +256,7 @@ const easter = (year: number): { month: number; day: number } => {
   return { month: monthOneIndexed - 1, day };
 };
 
-export type HolidayTable = Record<number, Record<number, string>>;
+type HolidayTable = Record<number, Record<number, string>>;
 
 /** Month index (0-11) → day of month → holiday name, computed for the given year. */
 export const getHolidays = (year: number): HolidayTable => {

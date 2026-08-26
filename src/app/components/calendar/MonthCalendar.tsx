@@ -15,7 +15,6 @@ import {
   monthNameColor,
   daylightRailPct,
   formatDaylight,
-  formatHours,
   formatHeroDate,
   getHolidays,
 } from '@/app/lib/monthPersonality';

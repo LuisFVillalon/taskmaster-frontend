@@ -5,9 +5,9 @@
 import type { LucideIcon } from 'lucide-react';
 import { Disc3, Sticker, IceCreamCone, Tractor, Origami } from 'lucide-react';
 
-export const PROFILE_AVATAR_STORAGE_KEY = 'tm_profile_avatar';
+const PROFILE_AVATAR_STORAGE_KEY = 'tm_profile_avatar';
 
-export interface AvatarOption {
+interface AvatarOption {
   key: string;
   label: string;
   icon: LucideIcon;

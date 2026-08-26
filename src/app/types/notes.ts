@@ -18,8 +18,6 @@ export interface Note {
   persistedId?: number;
 }
 
-export type NoteFilterType = 'all' | 'tagged' | 'untagged';
-
 export interface NoteSession {
   id: number;
   note_id: number;
