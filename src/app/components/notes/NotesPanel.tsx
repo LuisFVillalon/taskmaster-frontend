@@ -32,7 +32,7 @@ type ViewMode = 'cards' | 'folders';
 const isViewMode = (c: unknown): c is ViewMode => c === 'cards' || c === 'folders';
 
 const NotesPanelSkeleton: React.FC = () => (
-  <div className="card p-3 sm:p-4 mt-2">
+  <div className="card-glass p-3 sm:p-4 mt-2">
     <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
       {[0, 1, 2, 3].map(i => (
         <div key={i} className="h-24 rounded-xl animate-pulse" style={{ backgroundColor: 'var(--tm-surface-raised)' }} />
@@ -70,7 +70,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({
       {isLoading ? (
         <NotesPanelSkeleton />
       ) : notes.length === 0 ? (
-        <div className="card p-6 sm:p-8 text-center mt-2">
+        <div className="card-glass p-6 sm:p-8 text-center mt-2">
           <div
             className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3"
             style={{ backgroundColor: 'var(--tm-surface-raised)' }}

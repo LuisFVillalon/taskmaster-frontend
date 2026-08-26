@@ -98,8 +98,10 @@ export const formatDueDate = (
   }
 
   const now = new Date();
+  const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+  const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const diffDays = Math.round(
-    (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    (dueDateOnly.getTime() - nowDateOnly.getTime()) / (1000 * 60 * 60 * 24)
   );
 
   if (diffDays < 0) return "Overdue";

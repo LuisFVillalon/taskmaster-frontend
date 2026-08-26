@@ -1,3 +1,9 @@
+export interface DebriefTag {
+  id: number;
+  name: string;
+  color: string | null;
+}
+
 export interface DebriefTaskItem {
   id: number;
   title: string;
@@ -6,6 +12,7 @@ export interface DebriefTaskItem {
   due_date: string | null;
   due_time: string | null;
   estimated_time: number | null;
+  tags: DebriefTag[];
 }
 
 export interface HabitDebriefStatus {
@@ -14,6 +21,15 @@ export interface HabitDebriefStatus {
   current_streak: number;
   max_streak: number;
   logged_today: boolean;
+  estimated_time: number | null;
+  tags: DebriefTag[];
+}
+
+export interface DebriefNoteItem {
+  id: number;
+  title: string;
+  minutes: number;
+  tags: DebriefTag[];
 }
 
 export interface WorkloadCapacity {
@@ -39,6 +55,8 @@ export interface DailyDebriefReport {
   report_date: string;
   overdue_tasks: DebriefTaskItem[];
   due_today_tasks: DebriefTaskItem[];
+  completed_today_tasks: DebriefTaskItem[];
+  notes_worked_today: DebriefNoteItem[];
   habit_status: HabitDebriefStatus[];
   workload: WorkloadCapacity;
   focus_next: FocusNextItem[];

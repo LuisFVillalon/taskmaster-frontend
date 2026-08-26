@@ -159,7 +159,7 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
         {/* Brand + collapse toggle */}
         <div className="flex items-center h-14 px-3 border-b border-border-subtle flex-shrink-0 justify-between">
           {!collapsed && (
-            <span className="font-bold text-text-primary tracking-tight pl-1">Komorebi</span>
+            <span className="font-bold text-text-primary tracking-tight pl-1">Kanso</span>
           )}
           <button
             onClick={onToggleMenu}
@@ -376,17 +376,17 @@ export const TaskControls: React.FC<TaskControlsProps> = ({
             )}
             {(collapsed || actionsExpanded) && (
               <div className={`space-y-0.5 ${!collapsed ? 'mt-1' : ''}`}>
-                {onEditTag && (
-                  <NavAction icon={FolderCog} label="Manage tags" onClick={onEditTag} collapsed={collapsed} />
-                )}
-                {onEditHabit && (
-                  <NavAction icon={Blocks} label="Manage habits" onClick={onEditHabit} collapsed={collapsed} />
-                )}
                 {onViewNotes && (
                   <NavAction icon={NotebookText} label="Manage notes" onClick={onViewNotes} collapsed={collapsed} />
                 )}
                 {onViewCalendar && (
                   <NavAction icon={CalendarDays} label="View Calendar" onClick={onViewCalendar} collapsed={collapsed} />
+                )}
+                {onEditTag && (
+                  <NavAction icon={FolderCog} label="Manage tags" onClick={onEditTag} collapsed={collapsed} />
+                )}
+                {onEditHabit && (
+                  <NavAction icon={Blocks} label="Manage habits" onClick={onEditHabit} collapsed={collapsed} />
                 )}
               </div>
             )}

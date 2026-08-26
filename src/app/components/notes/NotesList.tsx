@@ -275,6 +275,7 @@ const NotesList: React.FC<NotesListProps> = ({
           onUpdate={onUpdateNote}
           onDeleteNote={onDeleteNote}
           onClose={() => setTagFolderOverlay(null)}
+          onSelectNote={onSelectNote}
         />
       )}
     </div>

@@ -307,6 +307,11 @@ html[data-page-style="blank"] body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes fade-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(8px); }
+}
+
 @keyframes fade-backdrop {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -390,6 +395,7 @@ html[data-page-style="blank"] body {
 @layer utilities {
   .animate-slide-up { animation: slide-up var(--tm-dur-slow) var(--tm-ease) both; }
   .animate-fade-in { animation: fade-in var(--tm-dur-base) var(--tm-ease) both; }
+  .animate-fade-out { animation: fade-out var(--tm-dur-base) var(--tm-ease) both; }
   .animate-fade-backdrop { animation: fade-backdrop var(--tm-dur-fast) ease-out both; }
   .animate-swatch-pop { animation: swatch-pop 280ms var(--tm-ease-spring) both; }
   .animate-shimmer {
@@ -455,6 +461,18 @@ html[data-page-style="blank"] body {
   /* Cards */
   .card {
     background-color: var(--tm-surface);
+    border: 1px solid var(--tm-border);
+    border-radius: var(--tm-radius-cards);
+    box-shadow: none;
+  }
+
+  /* Card — glass variant for the home dashboard: near-opaque with a light
+     blur so the notebook-paper texture behind reads through faintly instead
+     of sitting on solid white. */
+  .card-glass {
+    background-color: var(--tm-surface-overlay);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--tm-border);
     border-radius: var(--tm-radius-cards);
     box-shadow: none;

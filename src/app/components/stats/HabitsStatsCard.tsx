@@ -7,7 +7,8 @@ import { Habit, HabitHistoryEntry } from '@/app/types/habit';
 import { toLocalDateStr } from '@/app/utils/dateUtils';
 import { CardShell } from './CardShell';
 import { ProgressRing } from './charts';
-import type { HabitsVariant } from './types';
+import TileTools from './TileTools';
+import type { DragHandleProps } from '@/app/components/common/DraggableGrid';
 
 interface StreakBadgeProps {
   icon: React.ReactNode;
@@ -113,9 +114,9 @@ interface HabitHeatmapProps {
 }
 
 // GitHub-contribution-style 90-day heatmap for a single habit — weeks run
-// left→right as columns, Mon–Sun top→bottom within each column. Replaces
-// the aggregate progress ring in the habits card once a habit is selected
-// via its row's calendar icon.
+// left→right as columns, Mon–Sun top→bottom within each column. Overlay-only
+// (the compact tile shows a 7-day dot strip per row instead — see
+// useHabitWeekDots below).
 const HEATMAP_DAYS = 90;
 
 const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ habit }) => {
@@ -238,24 +239,23 @@ const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ habit }) => {
   );
 };
 
-// Broken out from the main StatsCard switch so its hooks (selected heatmap
-// habit) stay unconditional — StatsCard's `habits` branch just renders this
-// rather than calling hooks inline.
-const HabitsStatsCard: React.FC<Omit<HabitsVariant, 'variant'>> = ({
-  habits, onToggle, onCreate, pendingHabitIds, loading,
-}) => {
+// ── Overlay (today's full row list + 90-day heatmap, unchanged) ──────────────
+
+interface HabitsOverlayProps {
+  habits: Habit[];
+  onToggle: (id: number) => void;
+  pendingHabitIds?: Set<number>;
+}
+
+export const HabitsOverlay: React.FC<HabitsOverlayProps> = ({ habits, onToggle, pendingHabitIds }) => {
   const [heatmapHabitId, setHeatmapHabitId] = useState<number | null>(null);
 
-  if (loading) {
+  if (habits.length === 0) {
     return (
-      <CardShell icon={<Cuboid className="w-3 h-3 sm:w-3.5 sm:h-3.5" style={{ color: 'var(--tm-accent)' }} />} header="Habits">
-        <div className="h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--tm-surface-raised)' }} />
-        <div className="flex flex-col gap-1.5">
-          {[0, 1, 2].map(i => (
-            <div key={i} className="h-8 rounded-md animate-pulse" style={{ backgroundColor: 'var(--tm-surface-raised)' }} />
-          ))}
-        </div>
-      </CardShell>
+      <div className="flex flex-col items-center gap-2 py-3 text-center">
+        <Repeat className="w-5 h-5 text-text-muted" strokeWidth={1.5} />
+        <p className="text-xs sm:text-sm text-text-muted">No habits yet — start a streak.</p>
+      </div>
     );
   }
 
@@ -264,37 +264,223 @@ const HabitsStatsCard: React.FC<Omit<HabitsVariant, 'variant'>> = ({
   const heatmapHabit = habits.find(h => h.id === heatmapHabitId) ?? habits[0] ?? null;
 
   return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-0.5 max-h-64 overflow-y-auto overflow-x-hidden pr-1">
+        {habits.map(h => (
+          <HabitRow
+            key={h.id}
+            habit={h}
+            onToggle={onToggle}
+            onSelectHeatmap={setHeatmapHabitId}
+            heatmapSelected={heatmapHabit?.id === h.id}
+            pending={pendingHabitIds?.has(h.id)}
+          />
+        ))}
+      </div>
+      <div className="flex items-center justify-center">
+        {heatmapHabit && <HabitHeatmap habit={heatmapHabit} />}
+      </div>
+    </div>
+  );
+};
+
+// ── Compact tile ──────────────────────────────────────────────────────────────
+
+const WEEK_DOT_DAYS = 7;
+
+// Per-habit last-7-day logged/not-logged strip, oldest→newest. Scoped to
+// this tile (rather than sharing useYearCalendarData, which already fetches
+// per-habit history for the whole year for the month widget) since it only
+// needs a week — one extra small fetch per habit instead of pulling in that
+// heavier hook's whole-year fetch here too.
+const useHabitWeekDots = (habits: Habit[]) => {
+  const [dots, setDots] = useState<Map<number, boolean[]>>(new Map());
+
+  useEffect(() => {
+    if (habits.length === 0) { setDots(new Map()); return; }
+    let cancelled = false;
+
+    Promise.all(habits.map(h => fetchHabitHistory(h.id, WEEK_DOT_DAYS).then(entries => [h.id, entries] as const)))
+      .then(results => {
+        if (cancelled) return;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = toLocalDateStr(today);
+        const map = new Map<number, boolean[]>();
+        for (const [habitId, entries] of results) {
+          const loggedSet = new Set(entries.filter(e => e.logged).map(e => e.date));
+          const habit = habits.find(h => h.id === habitId);
+          if (habit?.logged_today) loggedSet.add(todayStr);
+          else loggedSet.delete(todayStr);
+
+          const days: boolean[] = [];
+          for (let i = WEEK_DOT_DAYS - 1; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            days.push(loggedSet.has(toLocalDateStr(d)));
+          }
+          map.set(habitId, days);
+        }
+        setDots(map);
+      })
+      .catch(err => console.error('[HabitsStatsCard] Failed to fetch week dots:', err));
+
+    return () => { cancelled = true; };
+    // habits.length is a reasonable proxy for habit set identity — mirrors
+    // useYearCalendarData's own dependency choice for the same reason.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [habits.length]);
+
+  return dots;
+};
+
+interface CompactHabitRowProps {
+  habit: Habit;
+  onToggle: (id: number) => void;
+  weekDots?: boolean[];
+  pending?: boolean;
+}
+
+const CompactHabitRow: React.FC<CompactHabitRowProps> = ({ habit, onToggle, weekDots, pending }) => {
+  const done = habit.logged_today;
+  return (
+    <div
+      className="flex items-start gap-2 px-1.5 py-1.5 rounded-md min-w-0"
+      style={{
+        backgroundColor: done ? 'var(--tm-success-subtle)' : 'transparent',
+      }}
+    >
+      <button
+        onClick={() => onToggle(habit.id)}
+        disabled={pending}
+        className={`mt-0.5 flex-shrink-0 w-[15px] h-[15px] rounded-sm border-2 flex items-center justify-center transition-all active:scale-90 ${
+          done
+            ? 'border-[var(--tm-success)] bg-[var(--tm-success)]'
+            : 'border-border hover:border-accent'
+        }`}
+        style={{
+          opacity: pending ? 0.5 : 1,
+          cursor: pending ? 'wait' : 'pointer',
+        }}
+        aria-label={
+          done ? `Unmark ${habit.title}` : `Mark ${habit.title} done`
+        }
+      >
+        {done && (
+          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+        )}
+      </button>
+
+      <div className="flex-1 min-w-0">
+        <span
+          className={`block text-xs font-medium leading-4 whitespace-normal break-words ${
+            done ? 'line-through text-text-muted' : ''
+          }`}
+          style={done ? undefined : { color: 'var(--tm-text-primary)' }}
+          title={habit.title}
+        >
+          {habit.title}
+        </span>
+
+        <div className="flex items-center gap-2 mt-1">
+          <span className="flex items-center gap-[1.5px]">
+            {(weekDots ?? Array(WEEK_DOT_DAYS).fill(false)).map(
+              (logged, i) => (
+                <span
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-[2px]"
+                  style={{
+                    backgroundColor: logged
+                      ? 'var(--tm-accent)'
+                      : 'var(--tm-surface-raised)',
+                    border: logged
+                      ? 'none'
+                      : '1px solid var(--tm-border-subtle)',
+                  }}
+                />
+              ),
+            )}
+          </span>
+
+          <StreakBadge
+            icon={<Flame className="w-2.5 h-2.5" />}
+            value={habit.current_streak}
+            color="#F97316"
+            title="Current streak"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface HabitsStatsCardProps {
+  habits: Habit[];
+  onToggle: (id: number) => void;
+  onCreate?: () => void;
+  pendingHabitIds?: Set<number>;
+  loading?: boolean;
+  onExpand: () => void;
+  dragHandleProps: DragHandleProps;
+}
+
+const HabitsStatsCard: React.FC<HabitsStatsCardProps> = ({
+  habits, onToggle, onCreate, pendingHabitIds, loading, onExpand, dragHandleProps,
+}) => {
+  const weekDots = useHabitWeekDots(habits);
+  const doneToday = habits.filter(h => h.logged_today).length;
+
+  const badge = habits.length > 0 && (
+    <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: 'var(--tm-success)' }}>
+      {doneToday} / {habits.length} today
+    </span>
+  );
+
+  if (loading) {
+    return (
+      <CardShell compact icon={<Cuboid className="w-3.5 h-3.5" style={{ color: 'var(--tm-accent)' }} />} header="Habits">
+        <div className="flex-1 min-h-0 flex flex-col gap-1.5 justify-center">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="h-6 rounded-md animate-pulse" style={{ backgroundColor: 'var(--tm-surface-raised)' }} />
+          ))}
+        </div>
+      </CardShell>
+    );
+  }
+
+  return (
     <CardShell
-      icon={<Cuboid className="w-3 h-3 sm:w-3.5 sm:h-3.5" style={{ color: 'var(--tm-accent)' }} />}
+      compact
+      icon={<Cuboid className="w-3.5 h-3.5" style={{ color: 'var(--tm-accent)' }} />}
       header="Habits"
+      headerAction={
+        <>
+          {badge}
+          <TileTools onExpand={onExpand} dragHandleProps={dragHandleProps} />
+        </>
+      }
     >
       {habits.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-3 text-center">
-          <Repeat className="w-5 h-5 text-text-muted" strokeWidth={1.5} />
-          <p className="text-xs sm:text-sm text-text-muted">No habits yet — start a streak.</p>
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-1.5 text-center">
+          <Repeat className="w-4 h-4 text-text-muted" strokeWidth={1.5} />
+          <p className="text-[11px] text-text-muted">No habits yet.</p>
           {onCreate && (
-            <button onClick={onCreate} className="btn btn-secondary text-sm px-3 py-1.5">
+            <button onClick={onCreate} className="btn btn-secondary text-xs px-2.5 py-1">
               Create a habit
             </button>
           )}
         </div>
       ) : (
-        <div className="flex flex-col gap-3 flex-1">
-          <div className="flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden pr-1">
-            {habits.map(h => (
-              <HabitRow
-                key={h.id}
-                habit={h}
-                onToggle={onToggle}
-                onSelectHeatmap={setHeatmapHabitId}
-                heatmapSelected={heatmapHabit?.id === h.id}
-                pending={pendingHabitIds?.has(h.id)}
-              />
-            ))}
-          </div>
-          <div className="flex-1 min-h-0 flex items-center justify-center">
-            {heatmapHabit && <HabitHeatmap habit={heatmapHabit} />}
-          </div>
+        <div className="flex-1 min-h-0 grid grid-cols-2 gap-x-4 gap-y-1 content-center overflow-hidden">
+          {habits.map(h => (
+            <CompactHabitRow
+              key={h.id}
+              habit={h}
+              onToggle={onToggle}
+              weekDots={weekDots.get(h.id)}
+              pending={pendingHabitIds?.has(h.id)}
+            />
+          ))}
         </div>
       )}
     </CardShell>

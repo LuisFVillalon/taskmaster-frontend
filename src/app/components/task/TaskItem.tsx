@@ -6,6 +6,7 @@ import {
   getDurationColor,
   formatTime12Hour,
   formatDueDate,
+  formatDueDateShort,
   PRIORITY_COLORS,
 } from '@/app/utils/taskUtils';
 import { toLocalDateStr, toLocalTimeStr } from '@/app/utils/dateUtils';
@@ -82,6 +83,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
   const normalizedDueTime: string | null =
     task.due_time instanceof Date ? toLocalTimeStr(task.due_time) : (task.due_time ?? null);
 
+  const dueDateLabel = formatDueDate(normalizedDueDate, normalizedDueTime ?? undefined);
+  const isRelativeDueLabel = dueDateLabel === 'Overdue' || dueDateLabel === 'Today' || dueDateLabel === 'Tomorrow';
+  const actualDueDateText = normalizedDueDate ? formatDueDateShort(normalizedDueDate) : null;
+
   // Recolor the semantic status classes from taskUtils into the notebook's
   // ink palette instead of raw tailwind red/green/yellow, which clash with
   // the kraft/cream theme.
@@ -95,7 +100,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
   if (compact) {
     return (
       <div
-        className={`card px-3 py-2 animate-fade-in ${task.completed ? 'opacity-75' : ''}`}
+        className={`card-glass px-3 py-2 animate-fade-in ${task.completed ? 'opacity-75' : ''}`}
         style={{ animationDelay: `${index * 0.05}s` }}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -156,7 +161,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
 
   return (
     <div
-      className={`card p-4 sm:p-6 animate-fade-in ${task.completed ? 'opacity-75' : ''}`}
+      className={`card-glass p-4 sm:p-6 animate-fade-in ${task.completed ? 'opacity-75' : ''}`}
       style={{ animationDelay: `${index * 0.05}s` }}
     >
       <div className="flex items-start gap-3 sm:gap-4">
@@ -269,7 +274,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
             <div className="flex items-center gap-1.5">
               <Calendar className={`w-3.5 h-3.5 ${toInkTone(getDueColor(task.due_date))}`} />
               <span className={toInkTone(getDueColor(task.due_date))}>
-                {formatDueDate(normalizedDueDate, normalizedDueTime ?? undefined)}
+                {dueDateLabel}
+                {isRelativeDueLabel && actualDueDateText && (
+                  <span className="text-text-muted"> ({actualDueDateText})</span>
+                )}
                 {normalizedDueTime && (
                   <span className="text-text-muted">
                     {' · '}

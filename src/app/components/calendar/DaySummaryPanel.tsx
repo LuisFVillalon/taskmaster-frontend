@@ -3,6 +3,7 @@
 import React from 'react';
 import { CalendarDays, PartyPopper } from 'lucide-react';
 import type { DayData } from '@/app/hooks/useYearCalendarData';
+import type { Habit } from '@/app/types/habit';
 import { getHolidays } from '@/app/lib/monthPersonality';
 import DaySummary from './DaySummary';
 
@@ -10,6 +11,7 @@ interface DaySummaryPanelProps {
   date: Date | null;
   data: DayData | undefined;
   totalHabits: number;
+  allHabits: Habit[];
   dayData: Map<string, DayData>;
   /** 'widget' = compact dashboard-card layout; 'page' = full /calendar page layout. */
   variant?: 'page' | 'widget';
@@ -18,7 +20,7 @@ interface DaySummaryPanelProps {
 // Right-hand pane of the month carousel — mirrors DayDetailModal's content
 // inline instead of as an overlay, so picking a day in the carousel doesn't
 // cover the calendar it was picked from.
-const DaySummaryPanel: React.FC<DaySummaryPanelProps> = ({ date, data, totalHabits, dayData, variant = 'page' }) => {
+const DaySummaryPanel: React.FC<DaySummaryPanelProps> = ({ date, data, totalHabits, allHabits, dayData, variant = 'page' }) => {
   const holidayName = date ? getHolidays(date.getFullYear())[date.getMonth()]?.[date.getDate()] : undefined;
 
   return (
@@ -39,7 +41,7 @@ const DaySummaryPanel: React.FC<DaySummaryPanelProps> = ({ date, data, totalHabi
               </span>
             )}
           </div>
-          <DaySummary date={date} data={data} totalHabits={totalHabits} dayData={dayData} variant={variant} />
+          <DaySummary date={date} data={data} totalHabits={totalHabits} allHabits={allHabits} dayData={dayData} variant={variant} />
         </>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 py-10">

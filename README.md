@@ -1,6 +1,6 @@
-# Komorebi (TaskMaster Frontend)
+# Kanso (TaskMaster Frontend)
 
-Komorebi is a Next.js application — the frontend for the TaskMaster project — that connects to a backend API and Supabase to provide a full-featured task management experience with notes, habits, a customizable dashboard, a doodle canvas, a Canvas LMS integration, and AI-powered tools.
+Kanso — *clarity on the go* — is a Next.js application — the frontend for the TaskMaster project — that connects to a backend API and Supabase to provide a full-featured task management experience with notes, habits, a customizable dashboard, a doodle canvas, a Canvas LMS integration, and AI-powered tools.
 
 ## Overview
 

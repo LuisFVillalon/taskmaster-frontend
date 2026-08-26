@@ -46,11 +46,11 @@ export const TrendLineChart: React.FC<TrendLineChartProps> = ({ days, svgClassNa
   }
 
   const W = 300;
-  const H = 100;
-  const padL = 24;
+  const H = 130;
+  const padL = 26;
   const padR = 10;
-  const padT = 14;
-  const padB = 16;
+  const padT = 16;
+  const padB = 20;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
   const maxHours = Math.max(...days.map(d => d.hours), 1);
@@ -74,6 +74,7 @@ export const TrendLineChart: React.FC<TrendLineChartProps> = ({ days, svgClassNa
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
       className={svgClassName}
       {...(ariaLabel ? { role: 'img' as const, 'aria-label': ariaLabel } : {})}
     >
@@ -90,7 +91,7 @@ export const TrendLineChart: React.FC<TrendLineChartProps> = ({ days, svgClassNa
         />
       ))}
       {yTicks.map((t, i) => (
-        <text key={`ylabel-${i}`} x={0} y={t.y + 2.5} fontSize={7} fill="var(--tm-text-muted)">
+        <text key={`ylabel-${i}`} x={0} y={t.y + 3} fontSize={9} fill="var(--tm-text-muted)">
           {fmtHours(t.value)}h
         </text>
       ))}
@@ -120,8 +121,8 @@ export const TrendLineChart: React.FC<TrendLineChartProps> = ({ days, svgClassNa
         <text
           key={`label-${i}`}
           x={p.x}
-          y={H - 3}
-          fontSize={8}
+          y={H - 4}
+          fontSize={10}
           textAnchor="middle"
           fontWeight={p.isToday ? 700 : 400}
           fill={p.isToday ? 'var(--tm-accent)' : 'var(--tm-text-muted)'}

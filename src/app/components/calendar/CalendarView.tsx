@@ -80,6 +80,7 @@ const CalendarView: React.FC = () => {
                 date={carouselDate}
                 data={carouselDate ? dayData.get(toLocalDateStr(carouselDate)) : undefined}
                 totalHabits={habits.length}
+                allHabits={habits}
                 dayData={dayData}
               />
             </div>
@@ -105,6 +106,7 @@ const CalendarView: React.FC = () => {
           date={selectedDate}
           data={dayData.get(toLocalDateStr(selectedDate))}
           totalHabits={habits.length}
+          allHabits={habits}
           dayData={dayData}
           onClose={() => setSelectedDate(null)}
         />

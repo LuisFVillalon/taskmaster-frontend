@@ -1,30 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Pencil, AlertCircle, Calendar, Briefcase, Sun } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { AlertCircle, Calendar, Briefcase, Sun, Hourglass } from 'lucide-react';
 import { CalendarSettings } from '@/app/types/calendar';
-import {
-  fetchCalendarSettings,
-  updateCalendarSettings,
-} from '@/app/lib/backend-api';
+import { CardShell } from '@/app/components/stats/CardShell';
+import TileTools from '@/app/components/stats/TileTools';
+import type { DragHandleProps } from '@/app/components/common/DraggableGrid';
 import { parseLocalDate, formatLongDate, isWeekday, isWeekend } from '@/app/utils/dateUtils';
 import { useMidnightTick } from '@/app/hooks/useMidnightTick';
-
-// ── Defaults used as fallback while settings are loading ──────────────────────
-const DEFAULTS: Omit<CalendarSettings, 'id'> = {
-  title: 'Big Picture Calendar',
-  sub_header: 'First Quarter',
-  start_date: '2026-01-01',
-  end_date: '2026-03-31',
-};
-
-// Progress ring geometry — constant regardless of percentage.
-const CIRCLE_SIZE = 128;
-const CIRCLE_STROKE = 10;
-const CIRCLE_RADIUS = (CIRCLE_SIZE - CIRCLE_STROKE) / 2;
-const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 // Inclusive count of calendar days between `from` and `to` (dates only, time
 // ignored) whose day-of-week matches `predicate` — used to split the days
@@ -40,183 +23,39 @@ const countDaysMatching = (from: Date, to: Date, predicate: (dayOfWeek: number) 
   return count;
 };
 
-// ── Countdown stat tile ─────────────────────────────────────────────────────
-
-interface CountdownStatTileProps {
-  icon: React.ReactNode;
-  title: string;
-  value: number;
-  subLabel: 'Completed' | 'Remaining';
-  color: string;
-  bg: string;
+interface Progress {
+  totalDays: number;
+  daysInto: number;
+  daysRemaining: number;
+  weekNumber: number;
+  totalWeeks: number;
+  pct: number;
+  start: Date;
+  end: Date;
+  weeksRemaining: number;
+  businessDaysRemaining: number;
+  weekendDaysRemaining: number;
 }
 
-// Header row (icon + title) / large number / muted uppercase sub-label tag,
-// stacked in that order — used for the four Days In / Weeks / Workdays /
-// Weekends tiles below the hero countdown.
-const CountdownStatTile: React.FC<CountdownStatTileProps> = ({ icon, title, value, subLabel, color, bg }) => (
-  <div
-    className="p-3 rounded-lg border border-border-subtle flex flex-col gap-1"
-    style={{ backgroundColor: bg }}
-  >
-    <span className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold" style={{ color }}>
-      {icon}
-      {title}
-    </span>
-    <span className="text-xl sm:text-2xl font-bold leading-none text-text-primary">{value}</span>
-    <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-text-muted">
-      {subLabel}
-    </span>
-  </div>
-);
+// ── Shared calc — used by both the compact tile and the overlay ─────────────
+// `settings` and `loading` are lifted into TaskManager (useCalendarSettings)
+// and threaded down as props, the same source of truth Settings writes to
+// via saveCalendarSettings — so a save there is reflected here immediately,
+// with no independent fetch (and no manual refresh) needed.
 
-// ── Skeleton ──────────────────────────────────────────────────────────────────
-
-/** Single pulsing placeholder block. All skeleton shapes are built from this. */
-const Bone: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <div
-    className={`animate-pulse rounded-sm ${className}`}
-    style={{ backgroundColor: 'var(--tm-border-subtle)' }}
-  />
-);
-
-/**
- * Pixel-accurate skeleton of BigPictureCalendar.
- * Preserves every section's dimensions so the layout never shifts when real
- * data arrives.
- */
-const BigPictureCalendarSkeleton: React.FC = () => (
-  <div className="card w-full max-w-4xl mx-auto h-full p-6 flex flex-col gap-5">
-
-    {/* Header */}
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0 flex-1">
-        <Bone className="h-3 w-24 mb-2" />
-        <Bone className="h-8 w-3/5" />
-      </div>
-    </div>
-
-    {/* Hero headline + countdown */}
-    <div className="flex flex-col gap-3">
-      <Bone className="h-6 w-2/3" />
-      <Bone className="h-14 w-40" />
-    </div>
-
-    {/* Progress bar */}
-    <div>
-      <Bone className="h-2.5 w-full rounded-full" />
-      <div className="flex justify-between mt-1.5">
-        <Bone className="h-3 w-16" />
-        <Bone className="h-3 w-20" />
-      </div>
-    </div>
-
-    {/* Stat tiles */}
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {[0, 1, 2, 3].map(i => (
-        <div
-          key={i}
-          className="p-3 rounded-lg border border-border-subtle"
-          style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-        >
-          <Bone className="h-3 w-16 mb-2" />
-          <Bone className="h-6 w-10" />
-        </div>
-      ))}
-    </div>
-
-    {/* Date Range Inputs */}
-    <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border-subtle">
-      {[0, 1].map(i => (
-        <div key={i}>
-          <Bone className="h-3 w-16 mb-1.5" />
-          <Bone className="h-10 w-full" />
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
-
-const BigPictureCalendar: React.FC = () => {
+const useBigPictureCalendar = (settings: CalendarSettings, loading: boolean) => {
   const currentDate = useMidnightTick();
-  const [settings, setSettings] = useState<CalendarSettings | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [fadeIn, setFadeIn]     = useState(false);
-  const [editingField, setEditingField] = useState<'title' | 'sub_header' | null>(null);
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const titleInputRef = useRef<HTMLInputElement>(null);
-  const subHeaderInputRef = useRef<HTMLInputElement>(null);
+  const [fadeIn, setFadeIn] = useState(false);
 
-  // ── Fetch settings on mount ────────────────────────────────────────────────
-  // fetchCalendarSettings returns null for new users (HTTP 404 → no DB row yet).
-  // In that case we leave `settings` as null so the component renders DEFAULTS
-  // locally without writing anything to the database. The first time the user
-  // edits a field, scheduleAutoSave fires and the PATCH endpoint creates the row.
   useEffect(() => {
-    fetchCalendarSettings()
-      .then(data => { if (data !== null) setSettings(data); })
-      .catch(() => { /* network / auth error — keep showing DEFAULTS */ })
-      .finally(() => {
-        setLoading(false);
-        // Double rAF: React commits the opacity-0 real content on the first
-        // frame; the second frame triggers the transition to opacity-100.
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => setFadeIn(true)),
-        );
-      });
-  }, []);
+    if (loading) return;
+    requestAnimationFrame(() => requestAnimationFrame(() => setFadeIn(true)));
+  }, [loading]);
 
-  // Focus the input when entering edit mode
-  useEffect(() => {
-    if (editingField === 'title') titleInputRef.current?.select();
-    if (editingField === 'sub_header') subHeaderInputRef.current?.select();
-  }, [editingField]);
-
-  // ── Auto-save with 800 ms debounce ────────────────────────────────────────
-  const scheduleAutoSave = (updated: CalendarSettings) => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    setSaveStatus('saving');
-    saveTimerRef.current = setTimeout(async () => {
-      try {
-        const saved = await updateCalendarSettings({
-          title: updated.title,
-          sub_header: updated.sub_header,
-          start_date: updated.start_date,
-          end_date: updated.end_date,
-        });
-        setSettings(saved);
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
-      } catch {
-        setSaveStatus('error');
-        setTimeout(() => setSaveStatus('idle'), 3000);
-      }
-    }, 800);
-  };
-
-  const updateField = <K extends keyof CalendarSettings>(key: K, value: CalendarSettings[K]) => {
-    const base = settings ?? { id: 0, ...DEFAULTS };
-    const updated = { ...base, [key]: value };
-    setSettings(updated);
-    scheduleAutoSave(updated);
-  };
-
-  // ── Computed progress ─────────────────────────────────────────────────────
-  const progress = useMemo(() => {
-    if (!settings) return null;
+  const progress = useMemo<Progress | null>(() => {
     const start = parseLocalDate(settings.start_date);
     const end = parseLocalDate(settings.end_date);
-    // Normalize to midnight local time — `currentDate` carries a real
-    // time-of-day, and mixing that with the midnight-only start/end dates
-    // in day-count math is what caused daysRemaining to drift a day off
-    // from the workday/weekend breakdown below.
     const today = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
-
     if (today < start || today > end) return null;
 
     const msDay = 1000 * 60 * 60 * 24;
@@ -225,241 +64,189 @@ const BigPictureCalendar: React.FC = () => {
     const weekNumber = Math.min(Math.floor(daysInto / 7) + 1, Math.ceil(totalDays / 7));
     const totalWeeks = Math.ceil(totalDays / 7);
     const pct = Math.round((daysInto / totalDays) * 100);
-    // Derive daysRemaining directly from the workday/weekend breakdown so
-    // the two are guaranteed to sum to the exact same total.
     const businessDaysRemaining = countDaysMatching(today, end, isWeekday);
     const weekendDaysRemaining = countDaysMatching(today, end, isWeekend);
     const daysRemaining = businessDaysRemaining + weekendDaysRemaining;
     const weeksRemaining = Math.ceil(daysRemaining / 7);
 
-    return {
-      totalDays, daysInto, daysRemaining, weekNumber, totalWeeks, pct, start, end,
-      weeksRemaining, businessDaysRemaining, weekendDaysRemaining,
-    };
-  }, [settings, currentDate]);
+    return { totalDays, daysInto, daysRemaining, weekNumber, totalWeeks, pct, start, end, weeksRemaining, businessDaysRemaining, weekendDaysRemaining };
+  }, [settings.start_date, settings.end_date, currentDate]);
 
-  // ── Render ────────────────────────────────────────────────────────────────
-  if (loading) return <BigPictureCalendarSkeleton />;
+  return { loading, fadeIn, cur: settings, progress, currentDate };
+};
 
-  const cur = settings ?? { id: 0, ...DEFAULTS };
+// ── Progress ring (shared geometry, different sizes for compact vs. overlay) ─
 
-  const saveIndicator = (
-    <span className="text-xs font-medium flex-shrink-0" style={{
-      color: saveStatus === 'saved' ? 'var(--tm-success)'
-           : saveStatus === 'error' ? 'var(--tm-danger)'
-           : 'var(--tm-text-muted)',
-    }}>
-      {saveStatus === 'saving' && 'Saving…'}
-      {saveStatus === 'saved' && '✓ Saved'}
-      {saveStatus === 'error' && '⚠ Save failed'}
-    </span>
+interface ProgressRingProps {
+  pct: number;
+  size: number;
+  strokeWidth: number;
+  pctFontSize: number;
+}
+
+const CalendarProgressRing: React.FC<ProgressRingProps> = ({ pct, size, strokeWidth, pctFontSize }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--tm-surface-raised)" strokeWidth={strokeWidth} />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--tm-accent)" strokeWidth={strokeWidth}
+          strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - pct / 100)}
+          className="transition-all duration-500"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-bold leading-none" style={{ color: 'var(--tm-accent)', fontSize: pctFontSize }}>{pct}%</span>
+        <span className="text-[9px] sm:text-[10px] text-text-muted font-medium mt-1">complete</span>
+      </div>
+    </div>
   );
+};
+
+// ── Compact tile ──────────────────────────────────────────────────────────────
+
+const CompactStatTile: React.FC<{ label: string; value: number; color: string; bg: string }> = ({ label, value, color, bg }) => (
+  <div className="rounded-lg border border-border-subtle flex flex-col gap-0.5" style={{ padding: '6px 8px', backgroundColor: bg }}>
+    <span className="text-[10px] font-semibold leading-none" style={{ color }}>{label}</span>
+    <span className="text-[17px] font-bold leading-none text-text-primary">{value}</span>
+  </div>
+);
+
+const NotInSessionCompact: React.FC<{ today: Date }> = ({ today }) => (
+  <div className="flex-1 min-h-0 rounded-lg border border-border-subtle flex items-start gap-2 p-2" style={{ backgroundColor: 'var(--tm-surface-raised)' }}>
+    <AlertCircle className="w-3.5 h-3.5 text-text-muted flex-shrink-0 mt-0.5" />
+    <p className="text-[11px] text-text-muted">Not in session — {formatLongDate(today)} is outside the configured range.</p>
+  </div>
+);
+
+interface BigPictureCalendarProps {
+  settings: CalendarSettings;
+  settingsLoading: boolean;
+  onExpand: () => void;
+  dragHandleProps: DragHandleProps;
+}
+
+/**
+ * Compact dashboard tile: static kicker/title (editing lives in Settings →
+ * Big Picture now), the days-remaining headline + a 104px ring, and the
+ * four stat tiles compressed (sub-labels dropped). Full detail — the 128px
+ * ring, full stat tiles, and date-range line — is in the overlay below.
+ */
+const BigPictureCalendar: React.FC<BigPictureCalendarProps> = ({ settings, settingsLoading, onExpand, dragHandleProps }) => {
+  const { loading, cur, progress, currentDate } = useBigPictureCalendar(settings, settingsLoading);
+
+  if (loading) {
+    return (
+      <CardShell compact icon={<Hourglass className="w-3.5 h-3.5" style={{ color: 'var(--tm-accent)' }} />} header="Big Picture">
+        <div className="flex-1 min-h-0 animate-pulse rounded-lg" style={{ backgroundColor: 'var(--tm-surface-raised)' }} />
+      </CardShell>
+    );
+  }
 
   return (
-    <div
-      className={`card w-full max-w-4xl mx-auto h-full p-6 flex flex-col gap-5 transition-opacity duration-500 ease-out ${
-        fadeIn ? 'opacity-100' : 'opacity-0'
-      }`}
+    <CardShell
+      compact
+      icon={<Hourglass className="w-3.5 h-3.5" style={{ color: 'var(--tm-accent)' }} />}
+      header={cur.title || 'Big Picture'}
+      headerAction={<TileTools onExpand={onExpand} dragHandleProps={dragHandleProps} />}
     >
-
-      {/* flex-1 + justify-center: the card stretches to match whatever
-          taller neighbor shares its grid row (draggable grid), and the
-          header/hero/stat-tiles block is a fixed height — centering it in
-          the available space keeps any leftover height as balanced
-          top/bottom margin instead of stranding it below the date-range
-          footer, which should stay pinned to the card's bottom edge. */}
-      <div className="flex-1 flex flex-col justify-center gap-5">
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            {editingField === 'sub_header' ? (
-              <input
-                ref={subHeaderInputRef}
-                value={cur.sub_header}
-                onChange={e => updateField('sub_header', e.target.value)}
-                onBlur={() => setEditingField(null)}
-                onKeyDown={e => e.key === 'Enter' && setEditingField(null)}
-                className="text-xs font-semibold uppercase tracking-wide bg-transparent border-b outline-none w-full mb-1"
-                style={{ color: 'var(--tm-text-muted)', borderColor: 'var(--tm-border-subtle)' }}
-              />
-            ) : (
-              <button
-                onClick={() => setEditingField('sub_header')}
-                className="group flex items-center gap-1 text-left mb-1"
-                title="Click to edit"
-              >
-                <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  {cur.sub_header}
+      {progress ? (
+        <div className="flex-1 min-h-0 flex flex-col gap-2.5">
+          <div className="flex items-center gap-4 flex-1 min-h-0">
+            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-[44px] font-bold leading-none" style={{ color: 'var(--tm-accent)' }}>{progress.daysRemaining}</span>
+                <span className="text-[13px] font-medium text-text-secondary">days left until {formatLongDate(progress.end)}</span>
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs text-text-secondary w-fit">
+                You&rsquo;re in
+                <span className="chip font-bold" style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)', fontSize: 11, padding: '3px 10px' }}>
+                  Week {progress.weekNumber} of {progress.totalWeeks}
                 </span>
-                <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-50 transition-opacity text-text-muted flex-shrink-0" />
-              </button>
-            )}
-
-            {editingField === 'title' ? (
-              <input
-                ref={titleInputRef}
-                value={cur.title}
-                onChange={e => updateField('title', e.target.value)}
-                onBlur={() => setEditingField(null)}
-                onKeyDown={e => e.key === 'Enter' && setEditingField(null)}
-                className="text-2xl sm:text-3xl font-bold bg-transparent border-b-2 outline-none w-full"
-                style={{ color: 'var(--tm-text-primary)', borderColor: 'var(--tm-accent)' }}
-              />
-            ) : (
-              <button
-                onClick={() => setEditingField('title')}
-                className="group flex items-center gap-2 text-left w-full min-w-0"
-                title="Click to edit"
-              >
-                <h1 className="text-2xl sm:text-3xl font-bold truncate" style={{ color: 'var(--tm-text-primary)' }}>
-                  {cur.title}
-                </h1>
-                <Pencil
-                  className="w-4 h-4 opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0 text-text-muted"
-                />
-              </button>
-            )}
+              </span>
+            </div>
+            <CalendarProgressRing pct={progress.pct} size={104} strokeWidth={9} pctFontSize={22} />
           </div>
-          {saveIndicator}
+          <div className="grid grid-cols-4 gap-1.5 flex-shrink-0">
+            <CompactStatTile label="Days In" value={progress.daysInto} color="var(--tm-accent-2)" bg="var(--tm-accent-2-subtle)" />
+            <CompactStatTile label="Weeks" value={progress.weeksRemaining} color="var(--tm-warning)" bg="var(--tm-warning-subtle)" />
+            <CompactStatTile label="Weekdays" value={progress.businessDaysRemaining} color="var(--tm-success)" bg="var(--tm-success-subtle)" />
+            <CompactStatTile label="Weekends" value={progress.weekendDaysRemaining} color="var(--tm-accent)" bg="var(--tm-accent-subtle)" />
+          </div>
         </div>
+      ) : (
+        <NotInSessionCompact today={currentDate} />
+      )}
+    </CardShell>
+  );
+};
 
-        {progress ? (
-          <>
-            {/* ── Hero: headline + countdown (left) / progress ring (right) ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
-              <div className="flex flex-col gap-3">
-                <p className="text-lg sm:text-xl font-semibold text-text-primary flex items-center flex-wrap gap-2">
-                  You&rsquo;re in
-                  <span
-                    className="chip font-bold"
-                    style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
-                  >
-                    Week {progress.weekNumber} of {progress.totalWeeks}
-                  </span>
-                </p>
-                <div className="flex items-baseline gap-2.5 flex-wrap">
-                  <span
-                    className="text-5xl sm:text-6xl font-bold leading-none"
-                    style={{ color: 'var(--tm-accent)' }}
-                  >
-                    {progress.daysRemaining}
-                  </span>
-                  <span className="text-sm sm:text-base text-text-secondary font-medium">
-                    {progress.daysRemaining === 1 ? 'day left' : 'days left'} until {formatLongDate(progress.end)}
-                  </span>
-                </div>
-              </div>
+// ── Overlay ──────────────────────────────────────────────────────────────────
 
-              <div className="flex flex-col items-center gap-2 justify-self-center">
-                <div className="relative" style={{ width: CIRCLE_SIZE, height: CIRCLE_SIZE }}>
-                  <svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} className="-rotate-90">
-                    <circle
-                      cx={CIRCLE_SIZE / 2}
-                      cy={CIRCLE_SIZE / 2}
-                      r={CIRCLE_RADIUS}
-                      fill="none"
-                      stroke="var(--tm-surface-raised)"
-                      strokeWidth={CIRCLE_STROKE}
-                    />
-                    <circle
-                      cx={CIRCLE_SIZE / 2}
-                      cy={CIRCLE_SIZE / 2}
-                      r={CIRCLE_RADIUS}
-                      fill="none"
-                      stroke="var(--tm-accent)"
-                      strokeWidth={CIRCLE_STROKE}
-                      strokeLinecap="round"
-                      strokeDasharray={CIRCLE_CIRCUMFERENCE}
-                      strokeDashoffset={CIRCLE_CIRCUMFERENCE * (1 - progress.pct / 100)}
-                      className="transition-all duration-500"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span
-                      className="text-2xl sm:text-3xl font-bold leading-none"
-                      style={{ color: 'var(--tm-accent)' }}
-                    >
-                      {progress.pct}%
-                    </span>
-                    <span className="text-[10px] text-text-muted font-medium mt-1">complete</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+const FullStatTile: React.FC<{ icon: React.ReactNode; title: string; value: number; subLabel: string; color: string; bg: string }> = ({ icon, title, value, subLabel, color, bg }) => (
+  <div className="p-3 rounded-lg border border-border-subtle flex flex-col gap-1" style={{ backgroundColor: bg }}>
+    <span className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold" style={{ color }}>{icon}{title}</span>
+    <span className="text-xl sm:text-2xl font-bold leading-none text-text-primary">{value}</span>
+    <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-text-muted">{subLabel}</span>
+  </div>
+);
 
-            {/* ── Stat tiles + live countdown ───────────────────────────────── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <CountdownStatTile
-                icon={<Calendar className="w-3.5 h-3.5" />}
-                title="Days In"
-                value={progress.daysInto}
-                subLabel="Completed"
-                color="var(--tm-accent-2)"
-                bg="var(--tm-accent-2-subtle)"
-              />
-              <CountdownStatTile
-                icon={<Calendar className="w-3.5 h-3.5" />}
-                title="Weeks"
-                value={progress.weeksRemaining}
-                subLabel="Remaining"
-                color="var(--tm-warning)"
-                bg="var(--tm-warning-subtle)"
-              />
-              <CountdownStatTile
-                icon={<Briefcase className="w-3.5 h-3.5" />}
-                title="Weekdays"
-                value={progress.businessDaysRemaining}
-                subLabel="Remaining"
-                color="var(--tm-success)"
-                bg="var(--tm-success-subtle)"
-              />
-              <CountdownStatTile
-                icon={<Sun className="w-3.5 h-3.5" />}
-                title="Weekends"
-                value={progress.weekendDaysRemaining}
-                subLabel="Remaining"
-                color="var(--tm-accent)"
-                bg="var(--tm-accent-subtle)"
-              />
-            </div>
-          </>
-        ) : (
-          <div
-            className="p-5 rounded-lg border border-border-subtle flex items-start gap-3"
-            style={{ backgroundColor: 'var(--tm-surface-raised)' }}
-          >
-            <AlertCircle className="w-5 h-5 text-text-muted flex-shrink-0 mt-0.5" />
-            <div>
-              <h2 className="text-base font-bold text-text-primary mb-0.5">Not Currently In Session</h2>
-              <p className="text-sm text-text-muted">
-                Today ({formatLongDate(currentDate)}) is outside the configured date range. Adjust the dates below.
+/** Full-detail body rendered inside the shared expand overlay. */
+export const BigPictureOverlay: React.FC<{ settings: CalendarSettings; settingsLoading: boolean }> = ({ settings, settingsLoading }) => {
+  const { loading, cur, progress, currentDate } = useBigPictureCalendar(settings, settingsLoading);
+
+  if (loading) {
+    return <div className="h-64 animate-pulse rounded-lg" style={{ backgroundColor: 'var(--tm-surface-raised)' }} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      {progress ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+            <div className="flex flex-col gap-3">
+              <p className="text-lg sm:text-xl font-semibold text-text-primary flex items-center flex-wrap gap-2">
+                You&rsquo;re in
+                <span className="chip font-bold" style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}>
+                  Week {progress.weekNumber} of {progress.totalWeeks}
+                </span>
               </p>
+              <div className="flex items-baseline gap-2.5 flex-wrap">
+                <span className="text-5xl sm:text-6xl font-bold leading-none" style={{ color: 'var(--tm-accent)' }}>{progress.daysRemaining}</span>
+                <span className="text-sm sm:text-base text-text-secondary font-medium">
+                  {progress.daysRemaining === 1 ? 'day left' : 'days left'} until {formatLongDate(progress.end)}
+                </span>
+              </div>
+            </div>
+            <div className="justify-self-center">
+              <CalendarProgressRing pct={progress.pct} size={128} strokeWidth={10} pctFontSize={30} />
             </div>
           </div>
-        )}
-      </div>
 
-      {/* ── Date Range Inputs ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border-subtle">
-        <div>
-          <label className="block text-xs text-text-muted mb-1.5">Start Date</label>
-          <input
-            type="date"
-            value={cur.start_date}
-            onChange={e => updateField('start_date', e.target.value)}
-            className="input-field text-sm w-full"
-          />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <FullStatTile icon={<Calendar className="w-3.5 h-3.5" />} title="Days In" value={progress.daysInto} subLabel="Completed" color="var(--tm-accent-2)" bg="var(--tm-accent-2-subtle)" />
+            <FullStatTile icon={<Calendar className="w-3.5 h-3.5" />} title="Weeks" value={progress.weeksRemaining} subLabel="Remaining" color="var(--tm-warning)" bg="var(--tm-warning-subtle)" />
+            <FullStatTile icon={<Briefcase className="w-3.5 h-3.5" />} title="Weekdays" value={progress.businessDaysRemaining} subLabel="Remaining" color="var(--tm-success)" bg="var(--tm-success-subtle)" />
+            <FullStatTile icon={<Sun className="w-3.5 h-3.5" />} title="Weekends" value={progress.weekendDaysRemaining} subLabel="Remaining" color="var(--tm-accent)" bg="var(--tm-accent-subtle)" />
+          </div>
+        </>
+      ) : (
+        <div className="p-5 rounded-lg border border-border-subtle flex items-start gap-3" style={{ backgroundColor: 'var(--tm-surface-raised)' }}>
+          <AlertCircle className="w-5 h-5 text-text-muted flex-shrink-0 mt-0.5" />
+          <div>
+            <h2 className="text-base font-bold text-text-primary mb-0.5">Not Currently In Session</h2>
+            <p className="text-sm text-text-muted">
+              Today ({formatLongDate(currentDate)}) is outside the configured date range. Adjust the range in Settings.
+            </p>
+          </div>
         </div>
-        <div>
-          <label className="block text-xs text-text-muted mb-1.5">End Date</label>
-          <input
-            type="date"
-            value={cur.end_date}
-            onChange={e => updateField('end_date', e.target.value)}
-            className="input-field text-sm w-full"
-          />
-        </div>
-      </div>
+      )}
+
+      <p className="text-xs text-text-muted">
+        Range: {formatLongDate(progress?.start ?? parseLocalDate(cur.start_date))} – {formatLongDate(progress?.end ?? parseLocalDate(cur.end_date))} · edit in Settings → Big Picture
+      </p>
     </div>
   );
 };

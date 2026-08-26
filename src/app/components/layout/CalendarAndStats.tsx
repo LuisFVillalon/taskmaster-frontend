@@ -1,38 +1,86 @@
 'use client';
 
-import React from 'react';
-import { Calendar, LayoutGrid } from 'lucide-react';
-import BigPictureCalendar from '@/app/components/calendar/BigPictureCalendar';
-import StatsCard from '@/app/components/stats/StatsCard';
-import TimersCard from '@/app/components/stats/TimersCard';
-import DraggableGrid from '@/app/components/common/DraggableGrid';
-import CalendarSummarySlide from '@/app/components/calendar/CalendarSummarySlide';
+import React, { useMemo, useState } from 'react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import BigPictureCalendar, { BigPictureOverlay } from '@/app/components/calendar/BigPictureCalendar';
+import CurrentMonthWidget, { CurrentMonthOverlay } from '@/app/components/calendar/CurrentMonthWidget';
+import TasksStatsCard, { TasksOverlay } from '@/app/components/stats/TasksStatsCard';
+import NotesStatsCard, { NotesOverlay } from '@/app/components/stats/NotesStatsCard';
+import HabitsStatsCard, { HabitsOverlay } from '@/app/components/stats/HabitsStatsCard';
+import TimersCard, { TimersOverlay } from '@/app/components/stats/TimersCard';
+import DraggableGrid, { type DragHandleProps } from '@/app/components/common/DraggableGrid';
+import Modal from '@/app/components/common/Modal';
 import { useGridOrder } from '@/app/hooks/useGridOrder';
-import { usePersistedPref } from '@/app/hooks/usePersistedPref';
+import type { TileSize } from '@/app/components/stats/TileTools';
 import { Habit } from '@/app/types/habit';
 import { StatsData, TagStats } from '@/app/types/task';
 import { Note } from '@/app/types/notes';
 import type { ProfileFields, useProfile } from '@/app/hooks/useProfile';
+import type { CalendarSettings } from '@/app/types/calendar';
 
-const GRID_ITEM_IDS = ['calendar', 'timers', 'habits', 'tasks', 'notes'];
+// 'reserved' id kept as-is (rather than renamed to something calendar-ish)
+// so any already-persisted layoutOrder (localStorage / profile.layoutOrder)
+// keeps pointing at the right slot — it now renders CurrentMonthWidget.
+const GRID_ITEM_IDS = ['calendar', 'timers', 'habits', 'tasks', 'notes', 'reserved'];
 const GRID_ORDER_STORAGE_KEY = 'tm-dashboard-grid-order';
-// Index of the "bottom" (full-width) slot in `order` — see GRID_SPANS below.
-const BOTTOM_INDEX = 4;
 
-// Pill switch with an icon parked at each end — the knob slides to sit on
-// top of whichever slide is active, so both destinations stay visible at
-// once instead of just the current one.
-const TOGGLE_TRACK_CLASS =
-  'absolute top-2 right-2 z-30 w-14 h-7 rounded-full border border-border-subtle shadow-sm transition-colors duration-200 flex-shrink-0';
-const TOGGLE_KNOB_TRAVEL_PX = 28;
+// Fixed per-tile sizes — the countdown and month calendar stay medium
+// (taller, single-width), the four stat tiles stay small. No longer
+// user-resizable; only drag-to-reorder and expand-to-overlay remain.
+const TILE_SIZES: Record<string, TileSize> = {
+  calendar: 'M', reserved: 'M', timers: 'S', tasks: 'S', habits: 'S', notes: 'S',
+};
+const TITLES: Record<string, string> = {
+  calendar: 'Term Tracker', reserved: 'Current Month', timers: 'Timers', tasks: 'Task Stats', habits: 'Habit Tracker', notes: 'Note Stats',
+};
 
-// Column span (of 12) per slot, indexed by position in `order` — not by card
-// id — so whichever card lands in a slot after a drag takes that slot's
-// span. Falls back to a full-bleed span for any index past the table so an
-// added 6th card (or beyond) can never orphan a half-empty row.
-const GRID_SPANS = [7, 5, 7, 5, 12];
-const SPAN_CLASSES: Record<number, string> = { 5: 'lg:col-span-5', 7: 'lg:col-span-7', 12: 'lg:col-span-12' };
-const spanClass = (_id: string, i: number) => SPAN_CLASSES[GRID_SPANS[i] ?? 12] ?? SPAN_CLASSES[12];
+// Explicit column-start classes for each of the grid's 4 tile slots (12-col
+// grid ÷ 3 cols/slot). Literal Tailwind strings (not assembled from numbers
+// at runtime) so Tailwind's content scanner actually generates them.
+const COL_START_CLASSES = ['lg:col-start-1', 'lg:col-start-4', 'lg:col-start-7', 'lg:col-start-10'];
+// Explicit row-start classes for the two rows a slot can hold.
+const ROW_START_CLASSES = ['lg:row-start-1', 'lg:row-start-2'];
+
+/**
+ * Groups the flat `order` array into the grid's 4 slots — a medium tile
+ * (spans both rows) always gets a slot to itself, and small tiles are
+ * always paired two-per-slot, one per row. Pairing is positional (1st+2nd
+ * small in `order`, 3rd+4th, ...), not adjacency-based, so dragging any
+ * small tile past another reshuffles who's paired with whom. Slot
+ * left-to-right order follows each group's first member's position in
+ * `order`. Round-trips with `flattenSlots` below: flattening a slot list in
+ * slot order and feeding it back through this function reconstructs the
+ * exact same slots, which is what lets `handleDrop` rebuild `order` by
+ * editing the slot list rather than re-deriving index math by hand.
+ */
+const computeSlots = (order: string[]): string[][] => {
+  const mediumIds = order.filter(id => TILE_SIZES[id] === 'M');
+  const smallIds = order.filter(id => TILE_SIZES[id] !== 'M');
+  const pairs: string[][] = [];
+  for (let i = 0; i < smallIds.length; i += 2) pairs.push(smallIds.slice(i, i + 2));
+
+  return [
+    ...mediumIds.map(id => ({ ids: [id], firstPos: order.indexOf(id) })),
+    ...pairs.map(pair => ({ ids: pair, firstPos: order.indexOf(pair[0]) })),
+  ]
+    .sort((a, b) => a.firstPos - b.firstPos)
+    .map(group => group.ids);
+};
+
+const flattenSlots = (slots: string[][]): string[] => slots.flat();
+
+/** Assigns every tile an explicit grid-column + grid-row from its slot. */
+const computeItemClasses = (order: string[]): Record<string, string> => {
+  const classes: Record<string, string> = {};
+  computeSlots(order).forEach((ids, slot) => {
+    const colStart = COL_START_CLASSES[slot] ?? COL_START_CLASSES[COL_START_CLASSES.length - 1];
+    ids.forEach((id, row) => {
+      const rowSpan = TILE_SIZES[id] === 'M' ? 'lg:row-span-2' : 'lg:row-span-1';
+      classes[id] = `${colStart} lg:col-span-3 ${ROW_START_CLASSES[row]} ${rowSpan}`;
+    });
+  });
+  return classes;
+};
 
 interface CalendarAndStatsProps {
   habits: Habit[];
@@ -45,6 +93,8 @@ interface CalendarAndStatsProps {
   noteTags: TagStats[];
   profile: ProfileFields;
   onSaveProfile: ReturnType<typeof useProfile>['saveProfile'];
+  calendarSettings: CalendarSettings;
+  calendarSettingsLoading: boolean;
 }
 
 const CalendarAndStats: React.FC<CalendarAndStatsProps> = ({
@@ -58,6 +108,8 @@ const CalendarAndStats: React.FC<CalendarAndStatsProps> = ({
   noteTags,
   profile,
   onSaveProfile,
+  calendarSettings,
+  calendarSettingsLoading,
 }) => {
   const [order, setOrder] = useGridOrder(
     GRID_ORDER_STORAGE_KEY,
@@ -65,98 +117,179 @@ const CalendarAndStats: React.FC<CalendarAndStatsProps> = ({
     profile.layoutOrder,
     next => { onSaveProfile({ ...profile, layoutOrder: next }); },
   );
-  const [slide, setSlide] = usePersistedPref<'grid' | 'calendar'>(
-    'tm-dashboard-view',
-    'grid',
-    (c): c is 'grid' | 'calendar' => c === 'grid' || c === 'calendar',
-    profile.dashboardView as 'grid' | 'calendar' | null,
-    next => { onSaveProfile({ ...profile, dashboardView: next }); },
-  );
-  const toggleSlide = () => setSlide(slide === 'grid' ? 'calendar' : 'grid');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const items: Record<string, React.ReactNode> = {
-    calendar: (
-      <div className="w-full h-full">
-        <BigPictureCalendar />
-      </div>
-    ),
-    habits: (
-      <StatsCard
-        variant="habits"
-        habits={habits}
-        onToggle={onToggleHabit}
-        onCreate={onCreateHabit}
-        pendingHabitIds={pendingHabitIds}
-        loading={habitsLoading}
-      />
-    ),
-    tasks: (
-      <StatsCard
-        variant="tasks"
-        tasks={stats.total.tasks}
-        total={stats.total.tasks.length}
-      />
-    ),
-    notes: (
-      <StatsCard
-        variant="notes"
-        notes={allNotes}
-        noteTags={noteTags}
-      />
-    ),
-    timers: <TimersCard profile={profile} />,
+  // Month/year shown in the 'reserved' (Current Month) overlay — separate
+  // from the actual current date so the header's prev/next buttons can page
+  // through months without affecting the compact dashboard tile.
+  const [monthViewYear, setMonthViewYear] = useState(() => new Date().getFullYear());
+  const [monthViewMonth, setMonthViewMonth] = useState(() => new Date().getMonth());
+
+  // Wraps within monthViewYear rather than rolling into adjacent years —
+  // the carousel is scoped to the current year only.
+  const goPrevMonth = () => setMonthViewMonth(m => (m === 0 ? 11 : m - 1));
+  const goNextMonth = () => setMonthViewMonth(m => (m === 11 ? 0 : m + 1));
+
+  const tasksProps = { tasks: stats.total.tasks, total: stats.total.tasks.length };
+
+  const overlayBody = (id: string) => {
+    switch (id) {
+      case 'calendar': return <BigPictureOverlay settings={calendarSettings} settingsLoading={calendarSettingsLoading} />;
+      case 'reserved': return <CurrentMonthOverlay year={monthViewYear} month={monthViewMonth} />;
+      case 'timers': return <TimersOverlay profile={profile} />;
+      case 'tasks': return <TasksOverlay {...tasksProps} />;
+      case 'habits': return <HabitsOverlay habits={habits} onToggle={onToggleHabit} pendingHabitIds={pendingHabitIds} />;
+      case 'notes': return <NotesOverlay notes={allNotes} noteTags={noteTags} />;
+      default: return null;
+    }
   };
 
-  const bottomId = order[BOTTOM_INDEX];
+  const renderItem = (id: string, _index: number, dragHandleProps: DragHandleProps) => {
+    const tools = {
+      onExpand: () => {
+        setExpandedId(id);
+        if (id === 'reserved') {
+          const now = new Date();
+          setMonthViewYear(now.getFullYear());
+          setMonthViewMonth(now.getMonth());
+        }
+      },
+      dragHandleProps,
+    };
+    switch (id) {
+      case 'calendar': return <BigPictureCalendar {...tools} settings={calendarSettings} settingsLoading={calendarSettingsLoading} />;
+      case 'reserved': return <CurrentMonthWidget {...tools} />;
+      case 'timers': return <TimersCard profile={profile} {...tools} />;
+      case 'tasks': return <TasksStatsCard {...tasksProps} {...tools} />;
+      case 'habits': return (
+        <HabitsStatsCard
+          habits={habits}
+          onToggle={onToggleHabit}
+          onCreate={onCreateHabit}
+          pendingHabitIds={pendingHabitIds}
+          loading={habitsLoading}
+          {...tools}
+        />
+      );
+      case 'notes': return <NotesStatsCard notes={allNotes} noteTags={noteTags} {...tools} />;
+      default: return null;
+    }
+  };
+
+  // lg:-prefixed placement classes only take effect at lg+ — below that
+  // every tile falls back to a single full-width, auto-height track
+  // (grid-cols-1).
+  const itemClasses = useMemo(() => computeItemClasses(order), [order]);
+  const itemClassName = (id: string) => itemClasses[id] ?? '';
+
+  const siblingOf = useMemo(() => {
+    const map: Record<string, string | undefined> = {};
+    for (const ids of computeSlots(order)) {
+      if (ids.length === 2) {
+        map[ids[0]] = ids[1];
+        map[ids[1]] = ids[0];
+      }
+    }
+    return (id: string) => map[id];
+  }, [order]);
+
+  /**
+   * Dropping tile A onto tile B means different things depending on size:
+   *  - same size (both big, or both small): a straight positional swap — A
+   *    and B trade places in `order` and nothing else moves. (Not a
+   *    remove-and-reinsert: that would shift every tile between A's and B's
+   *    old positions by one, i.e. rotate them, instead of just swapping the
+   *    two dropped-on tiles.)
+   *  - different size (a big onto a small, or a small onto a big): a whole-
+   *    slot swap. A big can't half-occupy a slot and a small pair can't
+   *    span two rows alone, so the only sensible result is the two entire
+   *    slots trading places — the big takes over the pair's 2-row slot and
+   *    the pair (both its tiles, not just the one dropped on) takes over
+   *    the big's old slot.
+   */
+  const handleDrop = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+    if (TILE_SIZES[draggedId] === TILE_SIZES[targetId]) {
+      const next = [...order];
+      const fromIdx = next.indexOf(draggedId);
+      const toIdx = next.indexOf(targetId);
+      next[fromIdx] = targetId;
+      next[toIdx] = draggedId;
+      setOrder(next);
+      return;
+    }
+    const slots = computeSlots(order);
+    const fromSlotIdx = slots.findIndex(ids => ids.includes(draggedId));
+    const toSlotIdx = slots.findIndex(ids => ids.includes(targetId));
+    const nextSlots = slots.map((ids, i) => {
+      if (i === fromSlotIdx) return slots[toSlotIdx];
+      if (i === toSlotIdx) return slots[fromSlotIdx];
+      return ids;
+    });
+    setOrder(flattenSlots(nextSlots));
+  };
 
   return (
-    <div className="mb-4 sm:mb-6 relative">
-      <button
-        type="button"
-        onClick={toggleSlide}
-        aria-label={slide === 'grid' ? 'Show calendar view' : 'Show cards view'}
-        title={slide === 'grid' ? 'Show calendar view' : 'Show cards view'}
-        className={TOGGLE_TRACK_CLASS}
-        style={{
-          // Accent is a user-customizable theme color, so it isn't always a
-          // safe "on" track shade on its own — some picks are dark enough to
-          // wash out the white knob/icon. Lighten it toward white instead of
-          // using it at full strength.
-          backgroundColor: slide === 'calendar'
-            ? 'color-mix(in srgb, var(--tm-accent) 55%, white 45%)'
-            : 'var(--tm-border-subtle)',
-        }}
-      >
-        <span
-          className="absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform duration-200 ease-out"
-          style={{ transform: `translateX(${slide === 'calendar' ? TOGGLE_KNOB_TRAVEL_PX : 0}px)` }}
-        />
-        <span className="absolute inset-0.5 flex items-center justify-between pointer-events-none">
-          <span className="w-6 h-6 flex items-center justify-center">
-            <LayoutGrid className={`w-3.5 h-3.5 transition-colors ${slide === 'grid' ? 'text-white' : 'text-text-muted'}`} />
-          </span>
-          <span className="w-6 h-6 flex items-center justify-center">
-            <Calendar className={`w-3.5 h-3.5 transition-colors ${slide === 'calendar' ? 'text-white' : 'text-text-muted'}`} />
-          </span>
-        </span>
-      </button>
+    <div className="mb-4 sm:mb-6">
+      <DraggableGrid
+        order={order}
+        onDrop={handleDrop}
+        items={renderItem}
+        itemClassName={itemClassName}
+        titles={TITLES}
+        groupOf={id => TILE_SIZES[id]}
+        siblingOf={siblingOf}
+        className="grid grid-cols-1 lg:grid-cols-12 lg:auto-rows-[168px] gap-3"
+      />
 
-      {slide === 'grid' ? (
-        <DraggableGrid
-          order={order}
-          onReorder={setOrder}
-          items={items}
-          itemClassName={spanClass}
-          className="grid grid-cols-1 lg:grid-cols-12 lg:[grid-auto-flow:row_dense] gap-3 sm:gap-4"
-        />
-      ) : (
-        <CalendarSummarySlide />
-      )}
-
-      {slide === 'calendar' && (
-        <div className="mt-3 sm:mt-4">
-          {items[bottomId]}
-        </div>
+      {expandedId && (
+        <Modal
+          onClose={() => setExpandedId(null)}
+          layer="raised"
+          panelClassName="modal-panel w-full max-w-3xl max-h-[86vh] overflow-y-auto scrollbar-custom p-6"
+        >
+          <div className="flex items-center mb-4">
+            {expandedId === 'reserved' ? (
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-text-primary">{monthViewYear}</h2>
+                <button
+                  type="button"
+                  onClick={goPrevMonth}
+                  aria-label="Previous month"
+                  className="w-7 h-7 rounded-md border flex items-center justify-center text-text-secondary transition-colors hover:bg-surface-raised"
+                  style={{ borderColor: 'var(--tm-border)' }}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={goNextMonth}
+                  aria-label="Next month"
+                  className="w-7 h-7 rounded-md border flex items-center justify-center text-text-secondary transition-colors hover:bg-surface-raised"
+                  style={{ borderColor: 'var(--tm-border)' }}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <h2 className="text-xl font-bold text-text-primary">
+                {expandedId === 'calendar' && calendarSettings.title
+                  ? `Term Tracker: ${calendarSettings.title}`
+                  : TITLES[expandedId]}
+              </h2>
+            )}
+            <button
+              type="button"
+              onClick={() => setExpandedId(null)}
+              aria-label="Close"
+              className="ml-auto w-[30px] h-[30px] rounded-lg border flex items-center justify-center text-text-secondary transition-colors hover:bg-surface-raised"
+              style={{ borderColor: 'var(--tm-border)' }}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          {overlayBody(expandedId)}
+        </Modal>
       )}
     </div>
   );

@@ -76,7 +76,7 @@ export default function SignupPage() {
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-bold text-text-primary">Create an account</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--tm-text-muted)' }}>
-          Start managing your tasks with Komorebi
+          Start managing your tasks with Kanso
         </p>
       </div>
 

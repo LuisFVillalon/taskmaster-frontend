@@ -17,6 +17,14 @@ interface TagFolderOverlayProps {
   onUpdate: (id: number, changes: Partial<Pick<Note, 'title' | 'content' | 'tags'>>) => void | Promise<boolean>;
   onDeleteNote: (id: number) => void;
   onClose: () => void;
+  /**
+   * When provided, picking a note closes the overlay and hands the note to
+   * the caller instead of opening the overlay's own internal editor — used
+   * on the /notes page so the note opens in the main right-hand editor
+   * panel rather than an editor confined to the overlay's positioned
+   * ancestor (the left sidebar).
+   */
+  onSelectNote?: (note: Note) => void;
 }
 
 const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
@@ -27,6 +35,7 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
   onUpdate,
   onDeleteNote,
   onClose,
+  onSelectNote,
 }) => {
   const router = useRouter();
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -128,7 +137,14 @@ const TagFolderOverlay: React.FC<TagFolderOverlayProps> = ({
                   key={note.id}
                   note={note}
                   isActive={note.id === activeNoteId}
-                  onClick={() => setSelectedNote(note)}
+                  onClick={() => {
+                    if (onSelectNote) {
+                      onSelectNote(note);
+                      onClose();
+                    } else {
+                      setSelectedNote(note);
+                    }
+                  }}
                   onDelete={onDeleteNote}
                 />
               ))}

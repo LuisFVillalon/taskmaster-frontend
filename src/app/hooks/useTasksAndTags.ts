@@ -27,6 +27,11 @@ export const useTasks = (enabled: boolean) => {
   // state so the UI can disable/dim just the item that's in flight.
   const pendingRef = useRef<Set<number>>(new Set());
   const [pendingTaskIds, setPendingTaskIds] = useState<Set<number>>(new Set());
+  // Bumped only once the server has confirmed a completion toggle (not on
+  // the optimistic local update) — consumers like TaskDebriefPanel key
+  // their refetch off this instead of `tasks` so they don't race the
+  // in-flight PUT and refetch before the completion has actually committed.
+  const [completionSyncToken, setCompletionSyncToken] = useState(0);
 
   useEffect(() => {
     if (!enabled) return;
@@ -85,8 +90,11 @@ export const useTasks = (enabled: boolean) => {
         tags: task.tags.map(tag => ({ id: tag.id, name: tag.name, color: tag.color })),
         category: task.category ?? null,
         created_date: task.created_date instanceof Date ? toLocalISOString(task.created_date) : (typeof task.created_date === 'string' ? task.created_date : null),
-        completed_date: newCompletedDate
+        completed_date: newCompletedDate,
+        estimated_time: task.estimated_time,
+        parent_task_id: task.parent_task_id
       });
+      setCompletionSyncToken(v => v + 1);
     } catch (err) {
       console.error('Toggle complete failed:', err);
       alert("Failed to update task completion");
@@ -179,6 +187,7 @@ export const useTasks = (enabled: boolean) => {
     deleteTask,
     updateTask,
     pendingTaskIds,
+    completionSyncToken,
   };
 };
 

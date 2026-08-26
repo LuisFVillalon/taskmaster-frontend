@@ -146,13 +146,14 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
             {MONTH_NAMES[month]}
           </h3>
           <span
-            className="ml-auto flex items-center gap-1 text-[10px] font-medium"
+            className="ml-auto flex items-center gap-1 text-[10px]"
             style={{ color: 'var(--tm-text-secondary)', letterSpacing: '0.12px' }}
-            title="Avg amount of daylight per day"
-            aria-label={`Average daylight per day: ${formatDaylight(daylightHours)}`}
+            title="Average daily daylight"
+            aria-label={`Average daily daylight: ${formatDaylight(daylightHours)}`}
           >
-            <Sun size={10} strokeWidth={2} aria-hidden />
-            {formatDaylight(daylightHours)}
+            <Sun size={10} strokeWidth={3} aria-hidden />            
+            <span>Average Daily Daylight:</span>
+            <span className="font-medium">{formatDaylight(daylightHours)}</span>
           </span>
         </header>
 
@@ -171,9 +172,6 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
                 style={{ backgroundColor: 'var(--tm-accent)', color: 'var(--tm-accent-text)' }}
               >
                 Today · {formatHeroDate(todayStr)}
-              </span>
-              <span className="text-xs" style={{ color: 'var(--tm-text-secondary)' }}>
-                {heroSummary.tasks} tasks due · {formatHours(heroSummary.hours)}h estimated · {heroSummary.habits} habit logs
               </span>
             </>
           )}

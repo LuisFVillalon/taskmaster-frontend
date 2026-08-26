@@ -11,6 +11,7 @@
 // only changes *how modals open/close/stack*, not how they look inside.
 
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Named z-index tiers, replacing the z-50/z-[60]/z-[70]/z-[80] literals that
@@ -72,7 +73,7 @@ const Modal: React.FC<ModalProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose, closeOnEscape]);
 
-  return (
+  const overlay = (
     <div
       className={`modal-overlay ${position} inset-0 flex items-center justify-center p-4 ${overlayClassName}`}
       style={{ zIndex: MODAL_LAYER[layer] }}
@@ -83,6 +84,20 @@ const Modal: React.FC<ModalProps> = ({
       </div>
     </div>
   );
+
+  // 'fixed' modals are meant to sit above the entire page, but a CSS
+  // animation anywhere in their ancestor chain (e.g. the dashboard's
+  // fade-in/out transitions) creates a new stacking context and traps
+  // them behind later, unrelated siblings (tasks/notes panels) or any
+  // positioned ancestor with its own z-index (the header). Portaling to
+  // <body> escapes every such ancestor context so MODAL_LAYER z-indexes
+  // are compared at the document root, where they're actually meaningful.
+  // 'absolute' modals are intentionally scoped to a specific positioned
+  // ancestor (e.g. a panel-local overlay) and must stay in place.
+  if (position === 'fixed' && typeof document !== 'undefined') {
+    return createPortal(overlay, document.body);
+  }
+  return overlay;
 };
 
 export default Modal;

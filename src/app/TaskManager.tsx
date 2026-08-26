@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
 import { createHabit, deleteHabit, updateHabit } from '@/app/lib/backend-api';
@@ -16,7 +16,9 @@ import { useTaskHandlers } from '@/app/hooks/useTaskHandlers';
 import { useTaskFiltering } from '@/app/hooks/useTaskFiltering';
 import { useClaimOrphanedData } from '@/app/hooks/useClaimOrphanedData';
 import { useProfile } from '@/app/hooks/useProfile';
+import { useCalendarSettings } from '@/app/hooks/useCalendarSettings';
 import { usePersistedPref } from '@/app/hooks/usePersistedPref';
+import { useMountTransition } from '@/app/hooks/useMountTransition';
 import { Note } from '@/app/types/notes';
 import { taskToEditForm } from '@/app/utils/taskUtils';
 import DragHandle from '@/app/components/common/DragHandle';
@@ -42,6 +44,7 @@ const TaskManager: React.FC = () => {
 
   useClaimOrphanedData(user);
   const { profile, loading: profileLoading, saveProfile } = useProfile(user);
+  const { calendarSettings, loading: calendarSettingsLoading, saveCalendarSettings } = useCalendarSettings(user);
   const [mode, setMode] = usePersistedPref<AppMode>(
     'tm-app-mode',
     'normal',
@@ -51,6 +54,12 @@ const TaskManager: React.FC = () => {
   );
   const focusMode = mode === 'focus';
   const doodleMode = mode === 'doodle';
+
+  // Delay unmounting these mode-gated sections so they can play a fade
+  // transition on the way out instead of vanishing instantly.
+  const showMainContent = useMountTransition(!doodleMode);
+  const showDebriefPanels = useMountTransition(!doodleMode && !focusMode);
+  const showDoodleToolbar = useMountTransition(doodleMode);
 
   const handleLogout = async () => {
     await signOut();
@@ -64,7 +73,7 @@ const TaskManager: React.FC = () => {
     router.replace('/login');
   };
 
-  const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks, pendingTaskIds } = useTasksContext();
+  const { tasks, isLoading, toggleComplete, addTask, deleteTask, updateTask, setTasks, pendingTaskIds, completionSyncToken } = useTasksContext();
   const { tags, tagsLoading, addTag, delTag, updateTag } = useTagsContext();
 
   const updatePriority = async (taskId: number, priority: number | null) => {
@@ -82,6 +91,18 @@ const TaskManager: React.FC = () => {
     () => new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
     [],
   );
+
+  const [now, setNow] = useState<Date>(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const currentTimeLabel = now.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZoneName: 'short',
+  });
 
   const state = useTaskManagerState();
   const {
@@ -285,10 +306,12 @@ const TaskManager: React.FC = () => {
             plain non-positioned div regardless of DOM order and would
             swallow clicks meant for the mode switcher.
           */}
-        <div className="relative z-10 pointer-events-auto flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 pb-3 sm:pb-4 mb-4 sm:mb-6 mt-4 sm:mt-6 border-b border-border-subtle">
+        <div className="relative z-10 pointer-events-auto flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 pb-2 sm:pb-3 mb-2 sm:mb-3 mt-2 sm:mt-3 border-b border-border-subtle">
           <div>
-            <p className="text-[0.6875rem] sm:text-xs font-semibold uppercase tracking-wide text-text-muted">
-              {todayLabel}
+            <p className="flex items-center gap-2 text-[0.6875rem] sm:text-xs font-semibold uppercase tracking-wide text-text-muted">
+              <span>{todayLabel}</span>
+              <span aria-hidden="true" className="text-text-muted/50">&middot;</span>
+              <span>{currentTimeLabel}</span>
             </p>
             <h1 className="flex items-center gap-2 sm:gap-3 text-xl sm:text-2xl lg:text-3xl font-bold text-text-primary">
               <ProfileAvatar avatar={profile.avatar} name={profile.name} size={32} />
@@ -296,24 +319,26 @@ const TaskManager: React.FC = () => {
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            {doodleMode && (
-              <DoodleToolbar
-                color={doodleColor}
-                onColorChange={setDoodleColor}
-                isErasing={doodleErasing}
-                onToggleErase={() => setDoodleErasing(prev => !prev)}
-                onClear={() => doodleCanvasRef.current?.clear()}
-              />
+            {showDoodleToolbar && (
+              <div className={doodleMode ? 'animate-fade-in' : 'animate-fade-out'}>
+                <DoodleToolbar
+                  color={doodleColor}
+                  onColorChange={setDoodleColor}
+                  isErasing={doodleErasing}
+                  onToggleErase={() => setDoodleErasing(prev => !prev)}
+                  onClear={() => doodleCanvasRef.current?.clear()}
+                />
+              </div>
             )}
             <ModeSwitcher mode={mode} onChange={setMode} />
           </div>
         </div>
 
-        {!doodleMode && (
-          <>
-            {!focusMode && (
-              <>
-                <TaskDebriefPanel profile={profile} onSaveProfile={saveProfile} />
+        {showMainContent && (
+          <div className={doodleMode ? 'animate-fade-out' : 'animate-fade-in'}>
+            {showDebriefPanels && (
+              <div className={!doodleMode && !focusMode ? 'animate-fade-in' : 'animate-fade-out'}>
+                <TaskDebriefPanel profile={profile} onSaveProfile={saveProfile} tasks={tasks} habits={habits} completionSyncToken={completionSyncToken} />
 
                 <CalendarAndStats
                   habits={habits}
@@ -326,8 +351,10 @@ const TaskManager: React.FC = () => {
                   noteTags={noteTags}
                   profile={profile}
                   onSaveProfile={saveProfile}
+                  calendarSettings={calendarSettings}
+                  calendarSettingsLoading={calendarSettingsLoading}
                 />
-              </>
+              </div>
             )}
 
             {/* Tasks & Notes — split layout */}
@@ -371,7 +398,7 @@ const TaskManager: React.FC = () => {
 
               <DragHandle onMouseDown={handleHeightSplitterMouseDown} orientation="row" alwaysVisible />
             </div>
-          </>
+          </div>
         )}
       </div>
       </div>
@@ -451,6 +478,9 @@ const TaskManager: React.FC = () => {
         profile={profile}
         profileLoading={profileLoading}
         onSaveProfile={saveProfile}
+        calendarSettings={calendarSettings}
+        calendarSettingsLoading={calendarSettingsLoading}
+        onSaveCalendarSettings={saveCalendarSettings}
       />
     </>
   );

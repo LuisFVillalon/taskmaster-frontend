@@ -36,7 +36,7 @@ const TasksPanel: React.FC<TasksPanelProps> = ({
   return (
     <div className="split-tasks flex flex-col space-y-2 sm:space-y-3">
       {filteredTasks.length === 0 ? (
-        <div className="card p-6 sm:p-8 text-center mt-2">
+        <div className="card-glass p-6 sm:p-8 text-center mt-2">
           <div
             className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
             style={{ backgroundColor: 'var(--tm-surface-raised)' }}

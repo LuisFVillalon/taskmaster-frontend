@@ -17,6 +17,7 @@ export interface ProfileFields {
   shutoffTime: string;
   restDays: number[];
   layoutOrder: string[] | null;
+  layoutSizes: Record<string, string> | null;
   appMode: string | null;
   dailyBriefCollapsed: boolean | null;
   dashboardView: string | null;
@@ -36,6 +37,7 @@ const readLocalDefaults = (): ProfileFields => ({
   // These are purely the backend-authoritative values, populated once
   // fetchProfile() resolves.
   layoutOrder: null,
+  layoutSizes: null,
   appMode: null,
   dailyBriefCollapsed: null,
   dashboardView: null,
@@ -75,6 +77,7 @@ export function useProfile(user: User | null) {
           dayStartTime: p.day_start_time ?? prev.dayStartTime,
           restDays: p.rest_days ?? prev.restDays,
           layoutOrder: p.layout_order ?? prev.layoutOrder,
+          layoutSizes: p.layout_sizes ?? prev.layoutSizes,
           appMode: p.app_mode ?? prev.appMode,
           dailyBriefCollapsed: p.daily_brief_collapsed ?? prev.dailyBriefCollapsed,
           dashboardView: p.dashboard_view ?? prev.dashboardView,
@@ -107,6 +110,7 @@ export function useProfile(user: User | null) {
         day_start_time: next.dayStartTime,
         rest_days: next.restDays,
         layout_order: next.layoutOrder,
+        layout_sizes: next.layoutSizes,
         app_mode: next.appMode,
         daily_brief_collapsed: next.dailyBriefCollapsed,
         dashboard_view: next.dashboardView,

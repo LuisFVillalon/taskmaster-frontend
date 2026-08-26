@@ -9,7 +9,7 @@
  */
 
 import { Task } from "../types/task";
-import { Note } from "../types/notes";
+import { Note, NoteSession } from "../types/notes";
 import { CalendarSettings } from "../types/calendar";
 import { Habit, HabitHistoryEntry } from "../types/habit";
 import { Profile } from "../types/profile";
@@ -17,6 +17,7 @@ import { Drawing } from "../types/drawing";
 import { DailyDebriefReport } from "../types/debrief";
 import { toLocalDateStr, toLocalTimeStr } from "../utils/dateUtils";
 import { LearningResourcesResponse } from "../types/learningResources";
+import type { StructuredNoteContent } from "../utils/noteContentExtractor";
 import { supabase } from "./supabase";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_TASKMASTER_DB_URL!;
@@ -119,14 +120,7 @@ export async function createTask(task: {
     headers,
     body: JSON.stringify(task),
   });
-  if (!res.ok) {
-    let detail = `${res.status} ${res.statusText}`;
-    try {
-      const body = await res.json();
-      detail = body?.detail ?? JSON.stringify(body);
-    } catch { /* body wasn't JSON */ }
-    throw new Error(`Failed to create task: ${detail}`);
-  }
+  await assertOk(res, "createTask");
   return res.json();
 }
 
@@ -152,6 +146,8 @@ export async function updateWholeTask(id: number, task: {
   category?: string | null;
   created_date?: string | null;
   completed_date?: string | null;
+  estimated_time?: number | null;
+  parent_task_id?: number | null;
 }) {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/update-task/${id}`, {
@@ -159,10 +155,7 @@ export async function updateWholeTask(id: number, task: {
     headers,
     body: JSON.stringify(task),
   });
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(JSON.stringify(errorData, null, 2));
-  }
+  await assertOk(res, "updateWholeTask");
   return res.json();
 }
 
@@ -174,7 +167,7 @@ export async function saveTasksToDBAPI(tasks: Task[]) {
     headers,
     body: JSON.stringify(tasks),
   });
-  if (!res.ok) throw new Error("Failed to save tasks list");
+  await assertOk(res, "saveTasksToDBAPI");
   return res.json();
 }
 
@@ -275,6 +268,103 @@ export async function deleteNote(id: number): Promise<Note> {
     headers,
   });
   await assertOk(res, "deleteNote");
+  return res.json();
+}
+
+/** Opens a new editing session for a note. Close it with `endNoteSession`. */
+export async function startNoteSession(noteId: number): Promise<NoteSession> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/note-session/start`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ note_id: noteId }),
+  });
+  await assertOk(res, "startNoteSession");
+  return res.json();
+}
+
+/** Closes an open editing session, recording its end time. */
+export async function endNoteSession(sessionId: number): Promise<NoteSession> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/note-session/end/${sessionId}`, {
+    method: "PUT",
+    headers,
+  });
+  await assertOk(res, "endNoteSession");
+  return res.json();
+}
+
+/**
+ * Same as `endNoteSession`, but fire-and-forget with `keepalive: true` so the
+ * browser can complete the request even as the tab is being hidden/closed —
+ * an in-flight plain `fetch` can otherwise get cancelled mid-unload.
+ *
+ * Takes an already-known access token instead of fetching a fresh one via
+ * `getAuthHeaders()`: callers use this from visibility/unload-adjacent
+ * handlers, where an extra await before the request even goes out risks
+ * missing the window entirely. No-ops if no token is cached yet.
+ */
+export function endNoteSessionKeepalive(sessionId: number, accessToken: string | null): void {
+  if (!accessToken) return;
+  fetch(`${API_BASE_URL}/note-session/end/${sessionId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${accessToken}`,
+    },
+    keepalive: true,
+  }).catch(() => {});
+}
+
+/** Fetches total time (in seconds) spent editing a note, summed across all closed sessions. */
+export async function fetchNoteTimeSpent(noteId: number): Promise<number> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/note-session/total/${noteId}`, { headers });
+  await assertOk(res, "fetchNoteTimeSpent");
+  const body = await res.json();
+  return body.total_seconds;
+}
+
+/**
+ * Fetches total time spent (in seconds) for every note that has at least one
+ * closed session, keyed by note id. Notes with no closed sessions yet are
+ * simply absent from the map rather than present with 0.
+ */
+export async function fetchAllNoteTimeSpent(): Promise<Record<number, number>> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/note-session/totals`, { headers });
+  await assertOk(res, "fetchAllNoteTimeSpent");
+  const body: { note_id: number; total_seconds: number }[] = await res.json();
+  return Object.fromEntries(body.map(({ note_id, total_seconds }) => [note_id, total_seconds]));
+}
+
+/**
+ * Fetches total time spent (in seconds) for every note with at least one
+ * closed session that ended within [startDate, endDate] (inclusive,
+ * "YYYY-MM-DD"), keyed by note id.
+ */
+export async function fetchNoteTimeSpentForRange(startDate: string, endDate: string): Promise<Record<number, number>> {
+  const headers = await getAuthHeaders();
+  const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+  const res = await fetch(`${API_BASE_URL}/note-session/totals-range?${params}`, { headers });
+  await assertOk(res, "fetchNoteTimeSpentForRange");
+  const body: { note_id: number; total_seconds: number }[] = await res.json();
+  return Object.fromEntries(body.map(({ note_id, total_seconds }) => [note_id, total_seconds]));
+}
+
+/**
+ * Force-closes any of the user's note-editing sessions left open too long
+ * (crashed tab, force-quit — normal closes/backgrounding are already handled
+ * client-side by useNoteSession). Called once on notes load, mirroring how
+ * verifyHabitStreaks() runs before fetchHabits().
+ */
+export async function reapStaleNoteSessions(): Promise<{ reaped_count: number }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/note-session/reap`, {
+    method: "POST",
+    headers,
+  });
+  await assertOk(res, "reapStaleNoteSessions");
   return res.json();
 }
 
@@ -452,6 +542,7 @@ export async function saveProfile(profile: {
   day_start_time?: string | null;
   rest_days?: number[] | null;
   layout_order?: string[] | null;
+  layout_sizes?: Record<string, string> | null;
   app_mode?: string | null;
   daily_brief_collapsed?: boolean | null;
   dashboard_view?: string | null;
@@ -507,7 +598,7 @@ const AI_BASE_URL = process.env.NEXT_PUBLIC_TASKMASTER_AI_URL!;
 
 // ── Learning Resources ────────────────────────────────────────────────────────
 
-export async function fetchLearningResources(noteContent: string): Promise<LearningResourcesResponse> {
+export async function fetchLearningResources(noteContent: StructuredNoteContent): Promise<LearningResourcesResponse> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error("Not authenticated — no active Supabase session.");
   const res = await fetch(`${AI_BASE_URL}/learning-resources`, {
@@ -516,7 +607,15 @@ export async function fetchLearningResources(noteContent: string): Promise<Learn
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ note_content: noteContent }),
+    body: JSON.stringify({
+      title: noteContent.title,
+      headings: noteContent.headings,
+      highlights: noteContent.highlights,
+      lists: noteContent.lists,
+      styled_text: noteContent.styledText,
+      tables: noteContent.tables,
+      plain_text: noteContent.plainText,
+    }),
   });
   await assertOk(res, "fetchLearningResources");
   return res.json();

@@ -112,3 +112,13 @@ export const formatUpdatedDate = (iso: string): string => {
     ...(sameYear ? {} : { year: 'numeric' }),
   });
 };
+
+/** Formats a duration in seconds as a short "1h 20m" / "5m" / "<1m" label. */
+export const formatDurationShort = (totalSeconds: number): string => {
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  if (minutes > 0) return `${minutes}m`;
+  return '<1m';
+};

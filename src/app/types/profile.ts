@@ -21,6 +21,8 @@ export interface Profile {
   rest_days?: number[] | null;
   /** Dashboard card ordering — see hooks/useGridOrder.ts and ProfileFields.layoutOrder in useProfile.ts. */
   layout_order?: string[] | null;
+  /** Legacy dashboard tile sizes ('S'|'M'|'W'|'L' per widget id) — no longer user-editable; tile sizes are now fixed in CalendarAndStats.tsx. Kept for backward-compat profile payloads. See ProfileFields.layoutSizes in useProfile.ts. */
+  layout_sizes?: Record<string, string> | null;
   /** 'normal' | 'focus' | 'doodle' — see components/common/ModeSwitcher.tsx. */
   app_mode?: string | null;
   /** Whether the Daily Brief panel is collapsed. */

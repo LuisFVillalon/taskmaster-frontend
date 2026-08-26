@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Komorebi",
-  description: "Mindful productivity, anywhere.",
+  title: "Kanso",
+  description: "Clarity on the go.",
 };
 
 export default function RootLayout({

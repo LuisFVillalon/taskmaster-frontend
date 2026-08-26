@@ -5,6 +5,7 @@ import {
   createNote as apiCreateNote,
   updateNote as apiUpdateNote,
   deleteNote as apiDeleteNote,
+  reapStaleNoteSessions,
 } from '@/app/lib/backend-api';
 
 /**
@@ -43,10 +44,16 @@ export const useNotes = (enabled: boolean) => {
 
   useEffect(() => {
     if (!enabled) return;
-    fetchNotes()
-      .then(data => setNotes(data))
-      .catch(() => setError('Failed to load notes'))
-      .finally(() => setIsLoading(false));
+    // Best-effort maintenance — swallowed separately so a reap failure never
+    // blocks note loading or surfaces as "Failed to load notes".
+    reapStaleNoteSessions()
+      .catch(() => {})
+      .finally(() => {
+        fetchNotes()
+          .then(data => setNotes(data))
+          .catch(() => setError('Failed to load notes'))
+          .finally(() => setIsLoading(false));
+      });
   }, [enabled]);
 
   const addNote = useCallback((title = 'Untitled Note'): Note => {
@@ -85,10 +92,16 @@ export const useNotes = (enabled: boolean) => {
               draftRealId.current.set(id, created.id);
               draftCreating.current.delete(id);
               // Only patch server-confirmed metadata — title/content/tags may
-              // have moved on locally since `payload` was captured.
+              // have moved on locally since `payload` was captured. Stamping
+              // persistedId here (rather than swapping `id`) lets consumers
+              // that need the real backend id — e.g. useNoteSession — react
+              // to the note becoming persisted without disturbing the stable
+              // temp id everything else keys off.
               setNotes(prev =>
                 prev.map(n =>
-                  n.id === id ? { ...n, created_date: created.created_date, updated_date: created.updated_date } : n,
+                  n.id === id
+                    ? { ...n, persistedId: created.id, created_date: created.created_date, updated_date: created.updated_date }
+                    : n,
                 ),
               );
               return created;

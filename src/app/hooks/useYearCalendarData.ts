@@ -12,6 +12,7 @@ export interface DayData {
   dateStr: string; // YYYY-MM-DD
   habitsCompleted: Habit[];
   tasksDue: Task[];
+  tasksCompleted: Task[];
   estimatedHours: number;
   notesEdited: Note[];
 }
@@ -85,7 +86,7 @@ export function useYearCalendarData() {
     const ensure = (dateStr: string): DayData => {
       let d = map.get(dateStr);
       if (!d) {
-        d = { dateStr, habitsCompleted: [], tasksDue: [], estimatedHours: 0, notesEdited: [] };
+        d = { dateStr, habitsCompleted: [], tasksDue: [], tasksCompleted: [], estimatedHours: 0, notesEdited: [] };
         map.set(dateStr, d);
       }
       return d;
@@ -98,6 +99,13 @@ export function useYearCalendarData() {
       const d = ensure(dateStr);
       d.tasksDue.push(task);
       d.estimatedHours += task.estimated_time ?? 0;
+    }
+
+    for (const task of tasks) {
+      if (!task.completed || !task.completed_date) continue;
+      const dateStr = toLocalDateStr(task.completed_date);
+      if (!dateStr.startsWith(yearPrefix)) continue;
+      ensure(dateStr).tasksCompleted.push(task);
     }
 
     for (const note of notes) {

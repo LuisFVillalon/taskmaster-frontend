@@ -1,20 +1,24 @@
 'use client';
 
 import React from 'react';
-import { Flame, SquareCheck, FileText, Timer, Clock } from 'lucide-react';
+import { Flame, SquareCheck, FileText, Clock, CheckCircle2, Circle } from 'lucide-react';
 import type { DayData } from '@/app/hooks/useYearCalendarData';
 import type { Task } from '@/app/types/task';
 import type { Habit } from '@/app/types/habit';
-import { toLocalDateStr, toLocalTimeStr } from '@/app/utils/dateUtils';
+import type { Note } from '@/app/types/notes';
+import { toLocalDateStr, toLocalTimeStr, formatDurationShort } from '@/app/utils/dateUtils';
 import { formatTime12Hour } from '@/app/utils/taskUtils';
 import { bucketByTag } from '@/app/utils/tagBucketing';
+import { useNoteTimeTotalsForRange, useNoteTimeTotalsByDay } from '@/app/hooks/useNoteTimeTotals';
 import TagChipList from '@/app/components/common/TagChipList';
-import { CategoryDonutChart, CategoryBarsChart, WeekTrendLineChart, type ChartCategory, type DayPoint } from './DayCharts';
+import { CategoryDonutChart, WeekTrendLineChart, type ChartCategory, type DayPoint } from './DayCharts';
 
 interface DaySummaryProps {
   date: Date;
   data: DayData | undefined;
   totalHabits: number;
+  /** All habits (regardless of whether they were completed this day) — used for the "Allocated hours by tag" chart. */
+  allHabits: Habit[];
   dayData: Map<string, DayData>;
   /** 'widget' = compact dashboard-card layout (lists | charts side by side, trend graph below); 'page' = full /calendar page layout. */
   variant?: 'page' | 'widget';
@@ -27,10 +31,28 @@ const normalizedTime = (t: Task): string | null =>
 
 const hoursByTag = (tasks: Task[], habits: Habit[]): ChartCategory[] => {
   const items = [
-    ...tasks.map(t => ({ tags: t.tags, value: t.estimated_time ?? 0 })),
-    ...habits.map(h => ({ tags: h.tags, value: h.estimated_time ?? 0 })),
+    ...tasks.map(t => ({ tags: t.tags, value: t.estimated_time ?? 0, name: t.title, kind: 'Task' })),
+    ...habits.map(h => ({ tags: h.tags, value: h.estimated_time ?? 0, name: h.title, kind: 'Habit' })),
   ];
-  return bucketByTag(items, i => i.value);
+  return bucketByTag(items, i => i.value, i => i.name, i => i.kind);
+};
+
+// Actual hours worked, as opposed to `hoursByTag`'s allocated/estimated
+// hours: completed tasks and habits contribute their estimated_time (the
+// closest proxy available for time actually spent), and notes contribute
+// their tracked session time for the day (noteTimeTotals, in seconds).
+const actualHoursByTag = (
+  tasksCompleted: Task[],
+  habitsCompleted: Habit[],
+  notesEdited: Note[],
+  noteTimeTotals: Record<number, number>,
+): ChartCategory[] => {
+  const items = [
+    ...tasksCompleted.map(t => ({ tags: t.tags, value: t.estimated_time ?? 0, name: t.title, kind: 'Task' })),
+    ...habitsCompleted.map(h => ({ tags: h.tags, value: h.estimated_time ?? 0, name: h.title, kind: 'Habit' })),
+    ...notesEdited.map(n => ({ tags: n.tags, value: (noteTimeTotals[n.id] ?? 0) / 3600, name: n.title || 'Untitled Note', kind: 'Note' })),
+  ];
+  return bucketByTag(items, i => i.value, i => i.name, i => i.kind);
 };
 
 const DESCRIPTION_TRUNCATE_LENGTH = 80;
@@ -48,8 +70,15 @@ function TaskDueItem({ task, compact = false }: { task: Task; compact?: boolean 
   return (
     <div className="p-2 rounded-md border border-border-subtle space-y-1">
       <div className="flex items-start justify-between gap-2">
-        <span className={`text-sm font-medium truncate ${task.completed ? 'line-through text-text-muted' : 'text-text-primary'}`}>
-          {task.title}
+        <span className="flex items-center gap-1.5 min-w-0">
+          {task.completed ? (
+            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-[var(--tm-success)]" />
+          ) : (
+            <Circle className="w-3.5 h-3.5 flex-shrink-0 text-text-muted" />
+          )}
+          <span className={`text-sm font-medium truncate ${task.completed ? 'line-through text-text-muted' : 'text-text-primary'}`}>
+            {task.title}
+          </span>
         </span>
         {task.estimated_time != null && (
           <span className="text-xs font-semibold text-text-muted flex-shrink-0">{fmtHours(task.estimated_time)}h</span>
@@ -95,11 +124,21 @@ function TaskDueItem({ task, compact = false }: { task: Task; compact?: boolean 
   );
 }
 
-// Caps a section's list content to a fixed height with its own scrollbar so
-// a day with a lot of habits/tasks/notes/bars can't stretch the widget card
-// taller than the calendar card sitting next to it.
-const ScrollBox: React.FC<{ maxHeight: number; children: React.ReactNode }> = ({ maxHeight, children }) => (
-  <div className="overflow-y-auto scrollbar-custom pr-1" style={{ maxHeight }}>{children}</div>
+// Pins a section's list content to a fixed (not max) height with its own
+// scrollbar, so a day with a lot of habits/tasks/notes can't stretch the
+// widget card taller than the calendar card next to it. Using a fixed height
+// rather than a max-height matters here: the four list sections are laid out
+// two-per-row in a CSS grid, and grid row auto-sizing uses each cell's full
+// (uncapped) content height when computing the row's height — so a `maxHeight`
+// cap on one cell doesn't stop a long list in the *other* cell of the same row
+// from blowing the row out, leaving the capped cell's scrollbar short of the
+// row's actual bottom. Giving every list section the same fixed height sidesteps
+// that entirely: every cell in a row contributes the same height, so the row
+// height and every cell's height are always identical.
+const LIST_BOX_HEIGHT = 168;
+
+const ScrollBox: React.FC<{ height: number; children: React.ReactNode }> = ({ height, children }) => (
+  <div className="overflow-y-auto scrollbar-custom pr-1" style={{ height }}>{children}</div>
 );
 
 const SummaryTile: React.FC<{ icon: React.ReactNode; label: string; value: string; color: string; bg: string }> = ({
@@ -111,137 +150,200 @@ const SummaryTile: React.FC<{ icon: React.ReactNode; label: string; value: strin
   </div>
 );
 
+interface ListSectionProps {
+  title: string;
+  isEmpty: boolean;
+  emptyText: string;
+  children: React.ReactNode;
+}
+
+// Shared shape for the four habit/task/note list sections: a heading, an
+// italic empty-state message, or the (optionally scroll-boxed via `wrap`)
+// list itself — kept in one place so the four sections can't drift apart.
+const ListSection: React.FC<ListSectionProps> = ({ title, isEmpty, emptyText, children }) => (
+  <section>
+    <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-1.5">{title}</h3>
+    {isEmpty ? <p className="text-xs text-text-muted italic">{emptyText}</p> : children}
+  </section>
+);
+
 // Full day-detail body (summary tiles, habit/task/note lists, charts) shared
 // by the DayDetailModal (year-grid click) and DaySummaryPanel (carousel
 // click) so both surfaces stay in sync when this content changes.
-const DaySummary: React.FC<DaySummaryProps> = ({ date, data, totalHabits, dayData, variant = 'page' }) => {
+const DaySummary: React.FC<DaySummaryProps> = ({ date, data, totalHabits, allHabits, dayData, variant = 'page' }) => {
   const habitsCompleted = data?.habitsCompleted ?? [];
   const tasksDue = data?.tasksDue ?? [];
+  const tasksCompleted = data?.tasksCompleted ?? [];
   const notesEdited = data?.notesEdited ?? [];
-  const estimatedHours = data?.estimatedHours ?? 0;
 
   const dateStr = toLocalDateStr(date);
+  const noteTimeTotals = useNoteTimeTotalsForRange(dateStr, dateStr);
   const dowMonFirst = (date.getDay() + 6) % 7;
   const monday = new Date(date);
   monday.setDate(date.getDate() - dowMonFirst);
-  const weekDays: DayPoint[] = Array.from({ length: 7 }, (_, i) => {
+  // Planned hours, not "hours actually logged" — every habit counts toward
+  // every day (habits recur daily and carry no per-day schedule of their
+  // own), same as the "Planned hours by tag" donut above. Only tasks vary
+  // by day, via each day's own due tasks.
+  const allHabitsHours = allHabits.reduce((sum, h) => sum + (h.estimated_time ?? 0), 0);
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    const ds = toLocalDateStr(d);
-    return { date: d, hours: dayData.get(ds)?.estimatedHours ?? 0, isSelected: ds === dateStr };
+    return d;
+  });
+  const weekDateStrs = weekDates.map(toLocalDateStr);
+  const weekDays: DayPoint[] = weekDates.map((d, i) => {
+    const ds = weekDateStrs[i];
+    const dueTasksHours = (dayData.get(ds)?.tasksDue ?? []).reduce((sum, t) => sum + (t.estimated_time ?? 0), 0);
+    return { date: d, hours: dueTasksHours + allHabitsHours, isSelected: ds === dateStr };
   });
   const weekEnd = weekDays[6].date;
   const rangeLabel = `Week of ${monday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
 
-  const donutCategories = hoursByTag(tasksDue, habitsCompleted);
-  const barCategories: ChartCategory[] = tasksDue
-    .filter(t => (t.estimated_time ?? 0) > 0)
-    .map(t => ({ label: t.title, value: t.estimated_time ?? 0, color: t.tags[0]?.color ?? 'var(--tm-accent)' }))
-    .sort((a, b) => b.value - a.value);
+  const noteTimeTotalsByDay = useNoteTimeTotalsByDay(weekDateStrs);
+  const actualWeekDays: DayPoint[] = weekDates.map((d, i) => {
+    const ds = weekDateStrs[i];
+    const dd = dayData.get(ds);
+    const habitsHours = (dd?.habitsCompleted ?? []).reduce((sum, h) => sum + (h.estimated_time ?? 0), 0);
+    const tasksHours = (dd?.tasksCompleted ?? []).reduce((sum, t) => sum + (t.estimated_time ?? 0), 0);
+    const dayNoteTotals = noteTimeTotalsByDay[ds] ?? {};
+    const notesHours = (dd?.notesEdited ?? []).reduce((sum, n) => sum + (dayNoteTotals[n.id] ?? 0) / 3600, 0);
+    return { date: d, hours: habitsHours + tasksHours + notesHours, isSelected: ds === dateStr };
+  });
+
+  const donutCategories = hoursByTag(tasksDue, allHabits);
+  const actualDonutCategories = actualHoursByTag(tasksCompleted, habitsCompleted, notesEdited, noteTimeTotals);
 
   const compact = variant === 'widget';
-  const wrap = (node: React.ReactNode, maxHeight: number): React.ReactNode =>
-    compact ? <ScrollBox maxHeight={maxHeight}>{node}</ScrollBox> : node;
+  const wrap = (node: React.ReactNode, height: number): React.ReactNode =>
+    compact ? <ScrollBox height={height}>{node}</ScrollBox> : node;
 
-  const lists = (
-    <div className="space-y-4">
-      <section>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-1.5">Habits completed</h3>
-        {habitsCompleted.length === 0 ? (
-          <p className="text-xs text-text-muted italic">No habits completed</p>
-        ) : wrap(
-          <div className="space-y-1.5">
-            {habitsCompleted.map(h => (
-              <div key={h.id} className="flex items-center justify-between gap-2 p-2 rounded-md border border-border-subtle">
-                <span className="text-sm font-medium text-text-primary truncate">{h.title}</span>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {h.estimated_time != null && (
-                    <span className="text-xs font-semibold text-text-muted">{fmtHours(h.estimated_time)}h</span>
-                  )}
-                  <TagChipList tags={h.tags} size="xs" />
-                </div>
-              </div>
-            ))}
-          </div>,
-          96
-        )}
-      </section>
-
-      <section>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-1.5">Tasks due</h3>
-        {tasksDue.length === 0 ? (
-          <p className="text-xs text-text-muted italic">No tasks due</p>
-        ) : wrap(
-          <div className="space-y-1.5">
-            {tasksDue.map(t => (
-              <TaskDueItem key={t.id} task={t} compact={compact} />
-            ))}
-          </div>,
-          168
-        )}
-      </section>
-
-      <section>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-1.5">Notes edited</h3>
-        {notesEdited.length === 0 ? (
-          <p className="text-xs text-text-muted italic">No notes edited</p>
-        ) : wrap(
-          <div className="space-y-1.5">
-            {notesEdited.map(n => (
-              <div key={n.id} className="flex items-center justify-between gap-2 p-2 rounded-md border border-border-subtle">
-                <span className="text-sm font-medium text-text-primary truncate">{n.title || 'Untitled Note'}</span>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <TagChipList tags={n.tags} size="xs" />
-                  <span className="text-[11px] text-text-muted">
-                    {new Date(n.updated_date).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>,
-          96
-        )}
-      </section>
+  const habitsList = (
+    <div className="space-y-1.5">
+      {habitsCompleted.map(h => (
+        <div key={h.id} className="flex items-center justify-between gap-2 p-2 rounded-md border border-border-subtle">
+          <span className="text-sm font-medium text-text-primary truncate">{h.title}</span>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {h.estimated_time != null && (
+              <span className="text-xs font-semibold text-text-muted">{fmtHours(h.estimated_time)}h</span>
+            )}
+            <TagChipList tags={h.tags} size="xs" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 
-  const charts = (
-    <div className="space-y-5">
-      <section>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-2">Hours by tag</h3>
-        {wrap(
-          <CategoryDonutChart categories={donutCategories} size={compact ? 96 : 120} emptyMessage="No estimated hours today" />,
-          148
-        )}
-      </section>
+  const habitsSection = (
+    <ListSection title="Habits completed" isEmpty={habitsCompleted.length === 0} emptyText="No habits completed">
+      {wrap(habitsList, LIST_BOX_HEIGHT)}
+    </ListSection>
+  );
 
-      <section>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-2">Hours per task</h3>
-        {wrap(
-          <CategoryBarsChart categories={barCategories} emptyMessage="No estimated hours today" />,
-          112
-        )}
-      </section>
+  const tasksDueSection = (
+    <ListSection title="Tasks due" isEmpty={tasksDue.length === 0} emptyText="No tasks due">
+      {wrap(
+        <div className="space-y-1.5">
+          {tasksDue.map(t => (
+            <TaskDueItem key={t.id} task={t} compact={compact} />
+          ))}
+        </div>,
+        LIST_BOX_HEIGHT
+      )}
+    </ListSection>
+  );
 
-      <section>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-2">Week trend</h3>
-        <WeekTrendLineChart days={weekDays} rangeLabel={rangeLabel} />
-      </section>
+  const notesList = (
+    <div className="space-y-1.5">
+      {notesEdited.map(n => (
+        <div key={n.id} className="flex items-center justify-between gap-2 p-2 rounded-md border border-border-subtle">
+          <span className="text-sm font-medium text-text-primary truncate">{n.title || 'Untitled Note'}</span>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <TagChipList tags={n.tags} size="xs" />
+            <span className="text-[11px] text-text-muted">
+              {formatDurationShort(noteTimeTotals[n.id] ?? 0)}
+            </span>
+          </div>
+        </div>
+      ))}
     </div>
+  );
+
+  const notesSection = (
+    <ListSection title="Notes edited" isEmpty={notesEdited.length === 0} emptyText="No notes edited">
+      {wrap(notesList, LIST_BOX_HEIGHT)}
+    </ListSection>
+  );
+
+  const tasksCompletedSection = (
+    <ListSection title="Tasks completed" isEmpty={tasksCompleted.length === 0} emptyText="No tasks completed">
+      {wrap(
+        <div className="space-y-1.5">
+          {tasksCompleted.map(t => (
+            <TaskDueItem key={t.id} task={t} compact={compact} />
+          ))}
+        </div>,
+        LIST_BOX_HEIGHT
+      )}
+    </ListSection>
+  );
+
+  const planSection = (
+    <section>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-2">Plan</h3>
+      {wrap(
+        <CategoryDonutChart categories={donutCategories} size={compact ? 128 : 168} emptyMessage="No estimated hours today" />,
+        196
+      )}
+    </section>
+  );
+
+  const actualSection = (
+    <section>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-2">Actual</h3>
+      {wrap(
+        <CategoryDonutChart categories={actualDonutCategories} size={compact ? 128 : 168} emptyMessage="No hours worked today" />,
+        196
+      )}
+    </section>
+  );
+
+  const plannedWeekSection = (
+    <section className="flex flex-col min-h-0">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-2 flex-shrink-0">Planned Week</h3>
+      <div className="flex-1 min-h-0">
+        <WeekTrendLineChart days={weekDays} rangeLabel={rangeLabel} svgClassName="w-full flex-1 min-h-0" />
+      </div>
+    </section>
+  );
+
+  const actualWeekSection = (
+    <section className="flex flex-col min-h-0">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-2 flex-shrink-0">Actual Week</h3>
+      <div className="flex-1 min-h-0">
+        <WeekTrendLineChart days={actualWeekDays} rangeLabel={rangeLabel} svgClassName="w-full flex-1 min-h-0" />
+      </div>
+    </section>
   );
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         <SummaryTile icon={<Flame className="w-3.5 h-3.5" />} label="Habits" value={`${habitsCompleted.length}/${totalHabits}`} color="#F97316" bg="var(--tm-warning-subtle)" />
-        <SummaryTile icon={<SquareCheck className="w-3.5 h-3.5" />} label="Tasks due" value={`${tasksDue.length}`} color="var(--tm-accent)" bg="var(--tm-accent-subtle)" />
-        <SummaryTile icon={<Timer className="w-3.5 h-3.5" />} label="Est. hours" value={`${fmtHours(estimatedHours)}h`} color="var(--tm-success)" bg="var(--tm-success-subtle)" />
-        <SummaryTile icon={<FileText className="w-3.5 h-3.5" />} label="Notes edited" value={`${notesEdited.length}`} color="var(--tm-accent-2)" bg="var(--tm-accent-2-subtle)" />
+        <SummaryTile icon={<SquareCheck className="w-3.5 h-3.5" />} label="Tasks due" value={`${tasksDue.length}`} color="var(--tm-danger)" bg="var(--tm-danger-subtle)" />
+        <SummaryTile icon={<CheckCircle2 className="w-3.5 h-3.5" />} label="Tasks completed" value={`${tasksCompleted.length}`} color="var(--tm-success)" bg="var(--tm-success-subtle)" />
+        <SummaryTile icon={<FileText className="w-3.5 h-3.5" />} label="Notes edited" value={`${notesEdited.length}`} color="#0075DE" bg="#E6F3FE" />
       </div>
 
       <div className={`grid grid-cols-1 ${compact ? 'sm:grid-cols-2' : 'xl:grid-cols-2'} gap-5`}>
-        {lists}
-        {charts}
+        {habitsSection}
+        {tasksDueSection}
+        {notesSection}
+        {tasksCompletedSection}
+        {planSection}
+        {actualSection}
+        {plannedWeekSection}
+        {actualWeekSection}
       </div>
     </div>
   );

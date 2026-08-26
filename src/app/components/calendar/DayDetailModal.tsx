@@ -3,6 +3,7 @@
 import React from 'react';
 import { X, PartyPopper } from 'lucide-react';
 import type { DayData } from '@/app/hooks/useYearCalendarData';
+import type { Habit } from '@/app/types/habit';
 import { getHolidays } from '@/app/lib/monthPersonality';
 import DaySummary from './DaySummary';
 import Modal from '@/app/components/common/Modal';
@@ -11,11 +12,12 @@ interface DayDetailModalProps {
   date: Date;
   data: DayData | undefined;
   totalHabits: number;
+  allHabits: Habit[];
   dayData: Map<string, DayData>;
   onClose: () => void;
 }
 
-const DayDetailModal: React.FC<DayDetailModalProps> = ({ date, data, totalHabits, dayData, onClose }) => {
+const DayDetailModal: React.FC<DayDetailModalProps> = ({ date, data, totalHabits, allHabits, dayData, onClose }) => {
   const holidayName = getHolidays(date.getFullYear())[date.getMonth()]?.[date.getDate()];
 
   return (
@@ -44,7 +46,7 @@ const DayDetailModal: React.FC<DayDetailModalProps> = ({ date, data, totalHabits
       </div>
 
       <div className="p-5">
-        <DaySummary date={date} data={data} totalHabits={totalHabits} dayData={dayData} />
+        <DaySummary date={date} data={data} totalHabits={totalHabits} allHabits={allHabits} dayData={dayData} />
       </div>
     </Modal>
   );

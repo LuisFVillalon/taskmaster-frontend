@@ -27,8 +27,10 @@ import { applyThemeColor } from '@/app/lib/theme';
 import { PAGE_STYLES, applyPageStyle } from '@/app/lib/pageStyle';
 import { AVATAR_OPTIONS } from '@/app/lib/avatar';
 import ThemeAccentPicker from '@/app/components/settings/ThemeAccentPicker';
+import BigPictureSettingsSection, { type TermTrackerDraft } from '@/app/components/settings/BigPictureSettingsSection';
 import Modal from '@/app/components/common/Modal';
 import type { ProfileFields } from '@/app/hooks/useProfile';
+import type { CalendarSettings } from '@/app/types/calendar';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -36,6 +38,9 @@ interface Props {
   profile: ProfileFields;
   profileLoading: boolean;
   onSaveProfile: (next: ProfileFields) => Promise<{ ok: boolean; error?: string }>;
+  calendarSettings: CalendarSettings;
+  calendarSettingsLoading: boolean;
+  onSaveCalendarSettings: (changes: Partial<Omit<CalendarSettings, 'id'>>) => Promise<CalendarSettings>;
 }
 
 type Section = 'profile' | 'password' | 'email' | 'delete';
@@ -61,6 +66,9 @@ export default function SettingsModal({
   profile,
   profileLoading,
   onSaveProfile,
+  calendarSettings,
+  calendarSettingsLoading,
+  onSaveCalendarSettings,
 }: Props) {
   const { user } = useAuth();
 
@@ -92,6 +100,17 @@ export default function SettingsModal({
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
+  // ── Term Tracker (Big Picture Calendar) ─────────────────────────────────
+  // Lives in its own backend table (calendar_settings), not on `profile`, so
+  // it's a separate prop (see hooks/useCalendarSettings.ts) — but the draft is
+  // only persisted (onSaveCalendarSettings) from handleSaveProfile below,
+  // alongside the rest of this tab's Save Profile click. Resynced from
+  // `calendarSettings` below whenever the modal (re)opens, same as `profile`.
+  const [termTracker, setTermTracker] = useState<TermTrackerDraft>(calendarSettings);
+  const updateTermTrackerField = <K extends keyof TermTrackerDraft>(key: K, value: TermTrackerDraft[K]) => {
+    setTermTracker(prev => ({ ...prev, [key]: value }));
+  };
+
   // This component stays mounted while closed (renders null below rather
   // than being conditionally rendered by its parent), so there's no natural
   // remount to reset the draft on each open the way there would be if it
@@ -107,7 +126,8 @@ export default function SettingsModal({
     setRestDays(profile.restDays);
     setThemeColor(profile.themeAccent);
     setPageStyle(profile.pageStyle);
-  }, [isOpen, profile]);
+    setTermTracker(calendarSettings);
+  }, [isOpen, profile, calendarSettings]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Closing the modal without saving reverts any previewed-but-unsaved
@@ -161,6 +181,7 @@ export default function SettingsModal({
     e.preventDefault();
     setProfileError(null);
     setProfileSaving(true);
+
     const result = await onSaveProfile({
       name: profileName,
       avatar: profileAvatar,
@@ -170,17 +191,26 @@ export default function SettingsModal({
       shutoffTime: callItADay,
       restDays,
       layoutOrder: profile.layoutOrder,
+      layoutSizes: profile.layoutSizes,
       appMode: profile.appMode,
       dailyBriefCollapsed: profile.dailyBriefCollapsed,
       dashboardView: profile.dashboardView,
       notesViewMode: profile.notesViewMode,
     });
+
+    let termTrackerError: string | null = null;
+    try {
+      setTermTracker(await onSaveCalendarSettings(termTracker));
+    } catch (err) {
+      termTrackerError = err instanceof Error ? err.message : 'Failed to save term tracker settings.';
+    }
+
     setProfileSaving(false);
-    if (result.ok) {
+    if (result.ok && !termTrackerError) {
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 2000);
     } else {
-      setProfileError(result.error ?? 'Failed to save profile.');
+      setProfileError(result.error ?? termTrackerError ?? 'Failed to save profile.');
     }
   };
 
@@ -362,7 +392,7 @@ export default function SettingsModal({
             <form onSubmit={handleSaveProfile} className="space-y-5">
               <div className="flex items-center gap-2 mb-1" style={{ color: 'var(--tm-text-secondary)' }}>
                 <User className="w-4 h-4" />
-                <p className="text-sm">Customize how Komorebi knows you.</p>
+                <p className="text-sm">Customize how Kanso knows you.</p>
                 {profileLoading && <Loader2 className="w-3.5 h-3.5 animate-spin ml-auto" />}
               </div>
 
@@ -424,9 +454,10 @@ export default function SettingsModal({
               </div>
 
               <div>
+                <label className="block text-xs font-medium text-text-muted mb-1">Daily work window</label>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-text-muted mb-1">Day starts at</label>
+                    <label className="block text-xs font-medium text-text-muted mb-1">Starts</label>
                     <input
                       type="time"
                       value={dayStartTime}
@@ -436,7 +467,7 @@ export default function SettingsModal({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-text-muted mb-1">Call it a day at</label>
+                    <label className="block text-xs font-medium text-text-muted mb-1">Ends</label>
                     <input
                       type="time"
                       value={callItADay}
@@ -447,7 +478,7 @@ export default function SettingsModal({
                   </div>
                 </div>
                 <p className="text-xs mt-1" style={{ color: 'var(--tm-text-muted)' }}>
-                  The hours you&apos;re generally working — when your day begins and when you shut off for the day.
+                  Used to calculate your working window and timer.
                 </p>
               </div>
 
@@ -478,9 +509,15 @@ export default function SettingsModal({
                   })}
                 </div>
                 <p className="text-xs mt-1" style={{ color: 'var(--tm-text-muted)' }}>
-                  The days of the week you count as rest days.
+                  On rest days, the daily work window timer won&apos;t run.
                 </p>
               </div>
+
+              <BigPictureSettingsSection
+                value={termTracker}
+                onChange={updateTermTrackerField}
+                loading={calendarSettingsLoading}
+              />
 
               {/* ── Appearance ───────────────────────────────────────────── */}
               <div className="pt-5 mt-5 border-t space-y-5" style={{ borderColor: 'var(--tm-border)' }}>
@@ -568,7 +605,7 @@ export default function SettingsModal({
                     </p>
                     <p className="text-sm" style={{ color: 'var(--tm-text-secondary)' }}>
                       Your account uses {providerLabel} for authentication. You don&apos;t have a
-                      separate Komorebi password — {providerLabel} handles your security.
+                      separate Kanso password — {providerLabel} handles your security.
                     </p>
                   </div>
                 </div>
@@ -654,7 +691,7 @@ export default function SettingsModal({
                 >
                   <ShieldCheck className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--tm-accent)' }} />
                   <p style={{ color: 'var(--tm-text-secondary)' }}>
-                    This changes your <strong>contact/notification email</strong> in Komorebi.
+                    This changes your <strong>contact/notification email</strong> in Kanso.
                     Your <strong>{providerLabel} login is not affected</strong> — you&apos;ll still sign
                     in with {providerLabel}, and all your data stays linked to your account.
                   </p>

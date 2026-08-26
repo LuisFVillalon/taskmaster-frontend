@@ -13,6 +13,7 @@ import SettingsModal from '@/app/components/settings/SettingsModal';
 import { Tag, BaseTaskForm, NewTag, NewHabit, Task } from '@/app/types/task';
 import type { Habit } from '@/app/types/habit';
 import type { ProfileFields } from '@/app/hooks/useProfile';
+import type { CalendarSettings } from '@/app/types/calendar';
 
 interface TaskManagerModalsProps {
   // New task
@@ -78,6 +79,9 @@ interface TaskManagerModalsProps {
   profile: ProfileFields;
   profileLoading: boolean;
   onSaveProfile: (next: ProfileFields) => Promise<{ ok: boolean; error?: string }>;
+  calendarSettings: CalendarSettings;
+  calendarSettingsLoading: boolean;
+  onSaveCalendarSettings: (changes: Partial<Omit<CalendarSettings, 'id'>>) => Promise<CalendarSettings>;
 }
 
 const TaskManagerModals: React.FC<TaskManagerModalsProps> = ({
@@ -91,6 +95,7 @@ const TaskManagerModals: React.FC<TaskManagerModalsProps> = ({
   onDeleteHabit, onUpdateHabit, onViewHabitHistory,
   historyHabit, historyShowBackButton, onCloseHabitHistory, onToggleHabitDate,
   showSettings, onCloseSettings, onAccountDeleted, profile, profileLoading, onSaveProfile,
+  calendarSettings, calendarSettingsLoading, onSaveCalendarSettings,
 }) => {
   return (
     <>
@@ -171,6 +176,9 @@ const TaskManagerModals: React.FC<TaskManagerModalsProps> = ({
         profile={profile}
         profileLoading={profileLoading}
         onSaveProfile={onSaveProfile}
+        calendarSettings={calendarSettings}
+        calendarSettingsLoading={calendarSettingsLoading}
+        onSaveCalendarSettings={onSaveCalendarSettings}
       />
     </>
   );

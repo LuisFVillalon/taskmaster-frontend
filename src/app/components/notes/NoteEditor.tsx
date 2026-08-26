@@ -9,7 +9,7 @@ import TiptapUnderline from '@tiptap/extension-underline';
 import TiptapTextAlign from '@tiptap/extension-text-align';
 import { TableKit } from '@tiptap/extension-table';
 import {
-  ChevronDown, ChevronUp, Download, Link2, FileText, Loader2,
+  ChevronDown, ChevronUp, Type, Download, Link2, FileText, Loader2,
   PanelLeftClose, PanelLeftOpen, Save, LibraryBig, X,
 } from 'lucide-react';
 import { EditorToolbar } from './EditorToolbar';
@@ -17,8 +17,17 @@ import { Note } from '@/app/types/notes';
 import { Tag } from '@/app/types/task';
 import { fetchLearningResources } from '@/app/lib/backend-api';
 import { LearningResourcesResponse } from '@/app/types/learningResources';
+import { extractStructuredNoteContent } from '@/app/utils/noteContentExtractor';
 import { useNotePdfExport } from '@/app/hooks/useNotePdfExport';
+import { useNoteSession } from '@/app/hooks/useNoteSession';
 import TagMultiSelect from '@/app/components/common/TagMultiSelect';
+
+// Splits on whitespace and drops empty tokens, so blank/whitespace-only
+// content (Tiptap's getText() for an "empty" doc) counts as zero words.
+const countWords = (text: string) => {
+  const trimmed = text.trim();
+  return trimmed === '' ? 0 : trimmed.split(/\s+/).length;
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,10 +55,12 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const [resourcesStatus, setResourcesStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [resourcesData, setResourcesData]     = useState<LearningResourcesResponse | null>(null);
   const [resourcesOpen, setResourcesOpen]     = useState(false);
+  const [wordCount, setWordCount]             = useState(0);
 
   const contentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // ── Editor setup ───────────────────────────────────────────────────────────
   const editor = useEditor({
@@ -129,6 +140,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       },
     },
     onUpdate: ({ editor }) => {
+      setWordCount(countWords(editor.getText()));
       if (!note) return;
       const html = editor.getHTML();
       if (contentTimer.current) clearTimeout(contentTimer.current);
@@ -139,6 +151,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   });
 
   const { pdfLoading, pdfError, downloadPDF } = useNotePdfExport({ editor, title });
+  // Return value unused here — the hook's side effect (opening/closing
+  // note_sessions rows on the backend) still needs to run.
+  useNoteSession(note);
 
   // Sync to active note — cancel in-flight debounces, update title + editor content.
   useEffect(() => {
@@ -151,10 +166,20 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     setResourcesData(null);
     if (editor) {
       editor.commands.setContent(note?.content ?? '', { emitUpdate: false });
+      setWordCount(countWords(editor.getText()));
+    }
+    if (note) {
+      containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   // `editor` excluded intentionally — setContent is imperative, not reactive.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id]);
+
+  // `immediatelyRender: false` means `editor` is null on first render; once
+  // it becomes available, seed the word count for the initially-loaded note.
+  useEffect(() => {
+    if (editor) setWordCount(countWords(editor.getText()));
+  }, [editor]);
 
   useEffect(() => {
     return () => {
@@ -231,7 +256,8 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
     setResourcesStatus('loading');
     try {
-      const data = await fetchLearningResources(editor.getText());
+      const condensed = extractStructuredNoteContent(title, editor.getJSON(), editor.getText());
+      const data = await fetchLearningResources(condensed);
       setResourcesData(data);
       setResourcesStatus('done');
     } catch {
@@ -288,6 +314,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
   return (
     <div
+      ref={containerRef}
       className="flex-1 flex flex-col overflow-hidden relative"
       style={{ backgroundColor: 'var(--tm-surface)' }}
     >
@@ -339,6 +366,17 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               <span className="hidden sm:inline">{pdfLoading ? 'Exporting…' : 'PDF'}</span>
             </button>
           </>
+        )}
+
+        {wordCount > 0 && (
+          <span
+            className="hidden sm:flex items-center gap-1 px-2 text-xs font-medium"
+            style={{ color: 'var(--tm-text-muted)' }}
+            title="Word count"
+          >
+            <Type className="w-3.5 h-3.5" />
+            {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
+          </span>
         )}
 
         <button
@@ -474,7 +512,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                   <span className="text-sm font-semibold" style={{ color: 'var(--tm-text-primary)' }}>Learning Resources</span>
                 </div>
                 {resourcesData?.topic && (
-                  <div className="flex justify-start items-center gap-1 pr-2 py-0.5 rounded-full w-fit" style={{ backgroundColor: 'var(--tm-accent-subtle)' }}>
+                  <div className="flex justify-start items-center gap-1 px-2 py-0.5 rounded-full w-fit" style={{ backgroundColor: 'var(--tm-accent-subtle)' }}>
                     <p className='text-xs'>Context caught: </p>
                     <span className="text-sm font-medium" style={{ color: 'var(--tm-accent)' }}>{resourcesData.topic}</span>
                   </div>
@@ -515,7 +553,13 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                 </div>
               )}
 
-              {resourcesStatus === 'done' && resourcesData && (
+              {resourcesStatus === 'done' && resourcesData && resourcesData.message && (
+                <div className="px-4 py-8 flex flex-col items-center gap-1 text-center">
+                  <p className="text-sm" style={{ color: 'var(--tm-text-secondary)' }}>{resourcesData.message}</p>
+                </div>
+              )}
+
+              {resourcesStatus === 'done' && resourcesData && !resourcesData.message && (
                 <div className="px-3 py-3 flex flex-col gap-2.5">
                   {resourcesData.resources.map((r, i) => (
                     <a
@@ -535,7 +579,11 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                         <Link2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--tm-text-muted)' }} />
                       </div>
                       <p className="text-sm font-medium text-text-primary">{r.title}</p>
-                      <p className="text-xs leading-relaxed" style={{ color: 'var(--tm-text-muted)' }}>{r.why}</p>
+                      <ul className="text-xs leading-relaxed list-disc pl-4 flex flex-col gap-0.5" style={{ color: 'var(--tm-text-muted)' }}>
+                        {r.why.split(';').map(s => s.trim()).filter(Boolean).map((point, j) => (
+                          <li key={j}>{point}</li>
+                        ))}
+                      </ul>
                     </a>
                   ))}
                 </div>
