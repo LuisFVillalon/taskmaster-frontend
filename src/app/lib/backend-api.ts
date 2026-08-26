@@ -89,6 +89,28 @@ export async function claimOrphanedData(): Promise<{
   }
 }
 
+// ── Demo / trial account ─────────────────────────────────────────────────────
+
+/**
+ * Idempotently provisions the fixed demo auth account. Public — no session
+ * required yet, since this runs before the demo sign-in itself.
+ */
+export async function ensureDemoAccount(): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/demo/ensure-account`, { method: 'POST' });
+  await assertOk(res, 'ensureDemoAccount');
+}
+
+/**
+ * Wipes and repopulates the demo account's tasks/habits/notes with fresh,
+ * date-relative sample data. Requires an active demo-account session —
+ * the backend rejects this for any other user.
+ */
+export async function seedDemoData(): Promise<void> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/demo/seed`, { method: 'POST', headers });
+  await assertOk(res, 'seedDemoData');
+}
+
 // ── Tasks ─────────────────────────────────────────────────────────────────────
 
 /** Fetches all tasks belonging to the authenticated user. */

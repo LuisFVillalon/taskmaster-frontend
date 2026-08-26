@@ -5,16 +5,18 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
-import { claimOrphanedData } from '@/app/lib/backend-api';
+import { claimOrphanedData, ensureDemoAccount, seedDemoData } from '@/app/lib/backend-api';
+import { DEMO_EMAIL, DEMO_PASSWORD } from '@/app/lib/demo';
 import { validatePassword, MIN_LENGTH } from '@/app/lib/passwordValidation';
 import PasswordStrengthMeter from '@/app/components/auth/PasswordStrengthMeter';
 import AuthPageCard from '@/app/components/auth/AuthPageCard';
 import AuthDivider from '@/app/components/auth/AuthDivider';
 import AuthInput from '@/app/components/auth/AuthInput';
 import GoogleAuthButton from '@/app/components/auth/GoogleAuthButton';
+import DemoTrialButton from '@/app/components/auth/DemoTrialButton';
 
 export default function SignupPage() {
-  const { signUpWithEmail, signInWithGoogle, getAccessToken } = useAuth();
+  const { signUpWithEmail, signInWithEmail, signInWithGoogle, getAccessToken } = useAuth();
   const router = useRouter();
 
   const [email, setEmail]       = useState('');
@@ -23,6 +25,7 @@ export default function SignupPage() {
   const [error, setError]       = useState<string | null>(null);
   const [loading, setLoading]   = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
   const pwCheck = useMemo(
@@ -53,6 +56,21 @@ export default function SignupPage() {
     if (error) { setGoogleLoading(false); setError(error.message); }
   };
 
+  const handleDemoTrial = async () => {
+    setError(null);
+    setDemoLoading(true);
+    try {
+      await ensureDemoAccount();
+      const { error } = await signInWithEmail(DEMO_EMAIL, DEMO_PASSWORD);
+      if (error) throw new Error(error.message);
+      await seedDemoData();
+      router.replace('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start the demo. Please try again.');
+      setDemoLoading(false);
+    }
+  };
+
   if (confirmed) {
     return (
       <AuthPageCard>
@@ -79,6 +97,8 @@ export default function SignupPage() {
           Start managing your tasks with Kanso
         </p>
       </div>
+
+      <DemoTrialButton loading={demoLoading} onClick={handleDemoTrial} />
 
       <GoogleAuthButton label="Sign up with Google" loading={googleLoading} onClick={handleGoogleSignup} />
       <AuthDivider />

@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
-import { claimOrphanedData } from '@/app/lib/backend-api';
+import { claimOrphanedData, ensureDemoAccount, seedDemoData } from '@/app/lib/backend-api';
+import { DEMO_EMAIL, DEMO_PASSWORD } from '@/app/lib/demo';
 import AuthPageCard from '@/app/components/auth/AuthPageCard';
 import AuthDivider from '@/app/components/auth/AuthDivider';
 import AuthInput from '@/app/components/auth/AuthInput';
 import GoogleAuthButton from '@/app/components/auth/GoogleAuthButton';
+import DemoTrialButton from '@/app/components/auth/DemoTrialButton';
 
 export default function LoginPage() {
   const { signInWithEmail, signInWithGoogle } = useAuth();
@@ -20,6 +22,7 @@ export default function LoginPage() {
   const [error, setError]       = useState<string | null>(null);
   const [loading, setLoading]   = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +42,21 @@ export default function LoginPage() {
     if (error) { setGoogleLoading(false); setError(error.message); }
   };
 
+  const handleDemoTrial = async () => {
+    setError(null);
+    setDemoLoading(true);
+    try {
+      await ensureDemoAccount();
+      const { error } = await signInWithEmail(DEMO_EMAIL, DEMO_PASSWORD);
+      if (error) throw new Error(error.message);
+      await seedDemoData();
+      router.replace('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start the demo. Please try again.');
+      setDemoLoading(false);
+    }
+  };
+
   return (
     <AuthPageCard>
       <div className="mb-8 text-center">
@@ -47,6 +65,8 @@ export default function LoginPage() {
           Sign in to your Kanso account
         </p>
       </div>
+
+      <DemoTrialButton loading={demoLoading} onClick={handleDemoTrial} />
 
       <GoogleAuthButton label="Sign in with Google" loading={googleLoading} onClick={handleGoogleLogin} />
       <AuthDivider />
