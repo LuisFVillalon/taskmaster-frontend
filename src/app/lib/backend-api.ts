@@ -364,10 +364,20 @@ export async function fetchAllNoteTimeSpent(): Promise<Record<number, number>> {
  * Fetches total time spent (in seconds) for every note with at least one
  * closed session that ended within [startDate, endDate] (inclusive,
  * "YYYY-MM-DD"), keyed by note id.
+ *
+ * startDate/endDate are the caller's *local* calendar days. We also send our
+ * UTC offset so the server converts them to the matching UTC instant range
+ * rather than comparing against ended_at's UTC calendar date — otherwise a
+ * session that ends in the evening local time (already the next day in UTC)
+ * gets counted toward the wrong day, which visibly skews "today"/"this week".
  */
 export async function fetchNoteTimeSpentForRange(startDate: string, endDate: string): Promise<Record<number, number>> {
   const headers = await getAuthHeaders();
-  const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+  const params = new URLSearchParams({
+    start_date: startDate,
+    end_date: endDate,
+    utc_offset_minutes: String(new Date().getTimezoneOffset()),
+  });
   const res = await fetch(`${API_BASE_URL}/note-session/totals-range?${params}`, { headers });
   await assertOk(res, "fetchNoteTimeSpentForRange");
   const body: { note_id: number; total_seconds: number }[] = await res.json();
@@ -445,10 +455,19 @@ export async function updateCalendarSettings(
 
 // ── Habits ────────────────────────────────────────────────────────────────────
 
-/** Fetches all habits for the authenticated user, including today's completion state. */
+/**
+ * Fetches all habits for the authenticated user, including today's completion state.
+ *
+ * Sends our own local date rather than letting the server infer "today" from
+ * its own clock — the backend may run in a different timezone (e.g. UTC), so
+ * its date can already be tomorrow relative to us, which would make a habit
+ * we logged for our local day read back as not-done-today (streak stays
+ * right, but the checkbox / line-through / heatmap cell drop off).
+ */
 export async function fetchHabits(): Promise<Habit[]> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/get-habits`, { headers });
+  const params = new URLSearchParams({ local_date: toLocalDateStr(new Date()) });
+  const res = await fetch(`${API_BASE_URL}/get-habits?${params.toString()}`, { headers });
   await assertOk(res, "fetchHabits");
   return res.json();
 }
@@ -479,7 +498,8 @@ export async function updateHabit(
   },
 ): Promise<Habit> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/update-habit/${id}`, {
+  const params = new URLSearchParams({ local_date: toLocalDateStr(new Date()) });
+  const res = await fetch(`${API_BASE_URL}/update-habit/${id}?${params.toString()}`, {
     method: 'PUT',
     headers,
     body: JSON.stringify(habit),
@@ -502,7 +522,8 @@ export async function deleteHabit(id: number): Promise<Habit> {
 /** Fetches logged/not-logged status for the past `days` days (default 30) for a habit. */
 export async function fetchHabitHistory(habitId: number, days: number = 30): Promise<HabitHistoryEntry[]> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/habit-history/${habitId}?days=${days}`, { headers });
+  const params = new URLSearchParams({ days: String(days), local_date: toLocalDateStr(new Date()) });
+  const res = await fetch(`${API_BASE_URL}/habit-history/${habitId}?${params.toString()}`, { headers });
   await assertOk(res, "fetchHabitHistory");
   return res.json();
 }
@@ -517,7 +538,9 @@ export async function toggleHabitDate(habitId: number, date: string): Promise<Ha
   const res = await fetch(`${API_BASE_URL}/toggle-habit-date/${habitId}`, {
     method: 'PATCH',
     headers,
-    body: JSON.stringify({ date }),
+    // local_date lets the server run its streak grace-period ("logged today
+    // or yesterday?") calc against our calendar day, not its own.
+    body: JSON.stringify({ date, local_date: toLocalDateStr(new Date()) }),
   });
   await assertOk(res, "toggleHabitDate");
   return res.json();
@@ -530,7 +553,8 @@ export async function toggleHabitDate(habitId: number, date: string): Promise<Ha
  */
 export async function verifyHabitStreaks(): Promise<{ reset_count: number }> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/verify-streaks`, {
+  const params = new URLSearchParams({ local_date: toLocalDateStr(new Date()) });
+  const res = await fetch(`${API_BASE_URL}/verify-streaks?${params.toString()}`, {
     method: 'POST',
     headers,
   });

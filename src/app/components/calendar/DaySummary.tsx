@@ -93,7 +93,7 @@ function TaskDueItem({ task, compact = false }: { task: Task; compact?: boolean 
               onClick={() => setExpanded(e => !e)}
               className="text-[11px] font-semibold text-[var(--tm-accent)] hover:underline"
             >
-              {expanded ? 'Show less' : 'Read more'}
+              {expanded ? 'See less' : 'See more'}
             </button>
           )}
         </div>
@@ -106,7 +106,7 @@ function TaskDueItem({ task, compact = false }: { task: Task; compact?: boolean 
               onClick={() => setExpanded(e => !e)}
               className="ml-1 text-[11px] font-semibold text-[var(--tm-accent)] hover:underline"
             >
-              {expanded ? 'Show less' : 'Read more'}
+              {expanded ? 'See less' : 'See more'}
             </button>
           )}
         </p>

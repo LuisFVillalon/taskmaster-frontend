@@ -236,6 +236,21 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     await downloadPDF();
   };
 
+  const runResourcesFetch = async () => {
+    if (!note || !editor) return;
+
+    setResourcesStatus('loading');
+    setResourcesData(null);
+    try {
+      const condensed = extractStructuredNoteContent(title, editor.getJSON(), editor.getText());
+      const data = await fetchLearningResources(condensed);
+      setResourcesData(data);
+      setResourcesStatus('done');
+    } catch {
+      setResourcesStatus('error');
+    }
+  };
+
   const handleGetResources = async () => {
     if (!note || !editor) return;
 
@@ -253,16 +268,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     setResourcesOpen(true);
 
     if (resourcesStatus === 'done' && resourcesData) return;
+    if (resourcesStatus === 'loading') return;
 
-    setResourcesStatus('loading');
-    try {
-      const condensed = extractStructuredNoteContent(title, editor.getJSON(), editor.getText());
-      const data = await fetchLearningResources(condensed);
-      setResourcesData(data);
-      setResourcesStatus('done');
-    } catch {
-      setResourcesStatus('error');
-    }
+    await runResourcesFetch();
   };
 
   // ── Empty state ────────────────────────────────────────────────────────────
@@ -544,7 +552,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                   <p className="text-sm" style={{ color: 'var(--tm-danger)' }}>Failed to fetch resources — please try again.</p>
                   <button
                     type="button"
-                    onClick={handleGetResources}
+                    onClick={runResourcesFetch}
                     className="text-sm font-medium px-3 py-1.5 rounded-md transition-colors"
                     style={{ color: 'var(--tm-accent)', backgroundColor: 'var(--tm-accent-subtle)' }}
                   >

@@ -250,9 +250,9 @@ const useNotesStats = (notes: Note[], noteTags: TagStats[]) => {
   const totalTimeSpent = timeCategories.reduce((sum, c) => sum + c.count, 0);
 
   // This week, Monday–Sunday, in local time — same bucketing TasksStatsCard
-  // uses for its weekly ring. Sessions are compared by their ended_at's UTC
-  // calendar date server-side (see get_time_by_note_for_range), the same
-  // approximation the "today" debrief already makes at day boundaries.
+  // uses for its weekly ring. fetchNoteTimeSpentForRange sends our UTC offset
+  // so the server buckets sessions by our local day, not ended_at's UTC
+  // calendar date — evening sessions stay in the day they happened.
   const now = new Date();
   const dayOfWeek = now.getDay(); // 0 = Sun .. 6 = Sat
   const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -274,10 +274,30 @@ const useNotesStats = (notes: Note[], noteTags: TagStats[]) => {
   const monthTimeCategories = buildTimeCategories(notes, monthTimeTotals);
   const monthTotalTimeSpent = monthTimeCategories.reduce((sum, c) => sum + c.count, 0);
 
-  const mostTimeSpentTodayNotes = [...notes]
+  const notesWorkedOnToday = [...notes]
     .filter(n => (todayTimeTotals[n.id] ?? 0) > 0)
-    .sort((a, b) => (todayTimeTotals[b.id] ?? 0) - (todayTimeTotals[a.id] ?? 0))
-    .slice(0, 3);
+    .sort((a, b) => (todayTimeTotals[b.id] ?? 0) - (todayTimeTotals[a.id] ?? 0));
+  const mostTimeSpentTodayNotes = notesWorkedOnToday.slice(0, 3);
+
+  // The compact tile's donut — one wedge per note worked on today, sized by
+  // the time spent on that note today, so each wedge's percentage is that
+  // individual note's share of today's note activity (not a per-tag split).
+  // Wedge color follows the note's first tag, same as everywhere else in the
+  // card. buildTimeCategories already does exactly this given a totals map.
+  const todayNoteCategories = buildTimeCategories(notes, todayTimeTotals);
+  // Distinct tag names on the notes worked on today, most-used first — the
+  // compact tile lists just these names (no counts) beside the donut.
+  const todayTagCount = new Map<string, { color: string; count: number }>();
+  for (const n of notesWorkedOnToday) {
+    for (const tag of n.tags) {
+      const existing = todayTagCount.get(tag.name);
+      if (existing) existing.count += 1;
+      else todayTagCount.set(tag.name, { color: tag.color ?? 'var(--tm-accent)', count: 1 });
+    }
+  }
+  const todayTagNames = Array.from(todayTagCount.entries())
+    .sort((a, b) => b[1].count - a[1].count)
+    .map(([name, { color }]) => ({ name, color }));
 
   // Reuses the same Monday–Sunday / calendar-month boundaries as the
   // time-breakdown slides above, so "this week"/"this month" mean the same
@@ -303,6 +323,8 @@ const useNotesStats = (notes: Note[], noteTags: TagStats[]) => {
     timeCategories, totalTimeSpent, weekTimeCategories, weekTotalTimeSpent,
     todayTimeTotals, todayTotalTimeSpent, monthTimeCategories, monthTotalTimeSpent,
     mostTimeSpentTodayNotes, activityStats,
+    notesWorkedOnTodayCount: notesWorkedOnToday.length,
+    todayNoteCategories, todayTagNames,
   };
 };
 
@@ -448,7 +470,7 @@ interface NotesStatsCardProps {
 
 const NotesStatsCard: React.FC<NotesStatsCardProps> = ({ notes, noteTags, onExpand, dragHandleProps }) => {
   const stats = useNotesStats(notes, noteTags);
-  const topCategories = useMemo(() => stats.categories.slice(0, 4), [stats.categories]);
+  const todayTagNames = useMemo(() => stats.todayTagNames.slice(0, 6), [stats.todayTagNames]);
 
   return (
     <CardShell
@@ -470,21 +492,36 @@ const NotesStatsCard: React.FC<NotesStatsCardProps> = ({ notes, noteTags, onExpa
                 {formatDurationShort(stats.todayTotalTimeSpent)}
               </span>
               <span className="text-[10px] font-medium text-text-muted whitespace-nowrap">
-                spents on notes today
+                spent on notes today
               </span>
             </div>
-            <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-3 gap-y-0.5">
-              {topCategories.map(c => (
-                <div key={c.label} className="flex items-center gap-1.5 min-w-0">
-                  <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
-                  <span className="text-[11px] text-text-secondary truncate min-w-0">{c.label}</span>
-                  <span className="text-[11px] font-bold flex-shrink-0 ml-auto" style={{ color: 'var(--tm-text-primary)' }}>{c.count}</span>
-                </div>
-              ))}
+            <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-3 gap-y-0.5 self-start">
+              {todayTagNames.length > 0 ? (
+                todayTagNames.map(({ name, color }) => (
+                  <div key={name} className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className="w-[7px] h-[7px] rounded-full flex-shrink-0"
+                      style={{ backgroundColor: color }}
+                    />
+                    <span className="text-[11px] text-text-secondary truncate min-w-0">{name}</span>
+                  </div>
+                ))
+              ) : (
+                <span className="text-[11px] text-text-muted col-span-2">
+                  {stats.notesWorkedOnTodayCount > 0 ? 'No tags on today’s notes' : 'No notes worked on today'}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex-shrink-0">
-            <CategoryDonut categories={stats.categories} size={76} strokeWidth={9} />
+            {stats.todayNoteCategories.length > 0 && (
+              <CategoryDonut
+                categories={stats.todayNoteCategories}
+                size={76}
+                strokeWidth={9}
+                formatValue={formatDurationShort}
+              />
+            )}
           </div>
         </div>
       )}

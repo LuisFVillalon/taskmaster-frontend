@@ -123,13 +123,12 @@ const PERIOD_UNITS: { key: keyof PeriodParts; label: string; width?: number }[] 
   { key: 'seconds', label: 'Sec' },
 ];
 
-// Adds a Ms column — used by the expanded Daily Window card, where the
-// finer resolution is worth the extra digits.
-const HOUR_MIN_SEC_MS_UNITS: { key: keyof PeriodParts; label: string; width?: number }[] = [
-  { key: 'hours',        label: 'Hours' },
-  { key: 'minutes',      label: 'Min' },
-  { key: 'seconds',      label: 'Sec' },
-  { key: 'milliseconds', label: 'Ms', width: 3 },
+// Hours/Min/Sec only — used by the expanded Daily Window card, which counts
+// down over hours so sub-second resolution just adds noise.
+const HOUR_MIN_SEC_UNITS: { key: keyof PeriodParts; label: string; width?: number }[] = [
+  { key: 'hours',   label: 'Hours' },
+  { key: 'minutes', label: 'Min' },
+  { key: 'seconds', label: 'Sec' },
 ];
 
 const WEEKDAY_PERIOD_LENGTH: PeriodParts = { days: 5, hours: 0, minutes: 0, seconds: 0, milliseconds: 0 };
@@ -313,10 +312,8 @@ interface DailyWindowTimerProps {
 const DailyWindowTimer: React.FC<DailyWindowTimerProps> = ({ dayStart, dayEnd, restDays }) => {
   const [now, setNow] = useState<Date>(new Date());
 
-  // Ticks fast enough (20/sec) for the Ms column to actually animate rather
-  // than jump — the other timer cards don't show ms, so they stay at 1000ms.
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 50);
+    const interval = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -331,7 +328,7 @@ const DailyWindowTimer: React.FC<DailyWindowTimerProps> = ({ dayStart, dayEnd, r
       parts={parts}
       color="var(--tm-warning)"
       bg="var(--tm-warning-subtle)"
-      units={HOUR_MIN_SEC_MS_UNITS}
+      units={HOUR_MIN_SEC_UNITS}
     />
   );
 };

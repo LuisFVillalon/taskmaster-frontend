@@ -125,7 +125,7 @@ const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
           onChange={e => set({ description: e.target.value })}
           placeholder="Add task details…"
           rows={3}
-          className="input-field resize-none"
+          className="input-field resize-y min-h-[72px] max-h-[400px]"
         />
       </div>
 
